@@ -12,9 +12,9 @@ import type { Slide } from './types'
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 
-export function DotIndexCarousel({ slides, height = '100dvh' }: { slides: Slide[]; height?: string }) {
+export function DotIndexCarousel({ slides, height = '100dvh', start = 0 }: { slides: Slide[]; height?: string; start?: number }) {
   const N = slides.length
-  const [i, setI] = useState(0)
+  const [i, setI] = useState(start)
   const [prevI, setPrevI] = useState<number | null>(null)
   const go = useCallback(
     (to: number) => {

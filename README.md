@@ -28,7 +28,8 @@ INCH” (women) and DOT. (men) are separate sites in one app — own logo, theme
 |---|---|
 | `/` | Home: statement reveal, featured carousel, models |
 | `/models`, `/models/[category]` | Board + category tabs |
-| `/talent/[slug]` | Model profile (a DOT. model on the INCH” URL redirects to DOT.) |
+| `/talent/[slug]` | Model profile — Portfolio book; `/covers`, `/polaroids`, `/bio` tabs; book/thumbnails view; cm/in toggle (a DOT. model on the INCH” URL redirects to DOT.) |
+| `/talent/[slug]/comp-card` | A4 comp card PDF (cover, 4 images, measurements in cm + in, agency contact) |
 | `/s/[shareId]` | Shared talent selection (client view, noindex) |
 | `/apply` | Smart Apply funnel — women on INCH”, men on DOT. |
 | `/contact`, `/privacy`, `/accessibility` | Static pages (contact from that site's Site settings) |

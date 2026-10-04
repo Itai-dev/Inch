@@ -1,6 +1,13 @@
 export type Division = 'women' | 'men'
 
-export type SanityImage = { _key?: string; asset?: { _ref: string }; alt?: string }
+export type SanityImage = {
+  _key?: string
+  asset?: { _ref: string }
+  alt?: string
+  publication?: string
+  photographer?: string
+  stylist?: string
+}
 
 export type Measurements = {
   height?: number
@@ -22,6 +29,7 @@ export type TalentCard = {
 
 export type Talent = TalentCard & {
   portfolio?: SanityImage[]
+  coversAds?: SanityImage[]
   polaroids?: SanityImage[]
   measurements?: Measurements
   bio?: string

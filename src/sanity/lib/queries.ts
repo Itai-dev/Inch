@@ -23,7 +23,7 @@ export const CATEGORY_QUERY = defineQuery(`*[_type == "category" && division == 
 }`)
 
 export const TALENT_QUERY = defineQuery(`*[_type == "talent" && slug.current == $slug][0]{
-  ${cardFields}, portfolio, polaroids, measurements, bio, instagram,
+  ${cardFields}, portfolio, coversAds, polaroids, measurements, bio, instagram,
   "categories": categories[]->{ title, "slug": slug.current }
 }`)
 

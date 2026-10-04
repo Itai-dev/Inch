@@ -47,10 +47,10 @@ function ticks(total: number): ReactNode[] {
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 
-export function TapeCarousel({ slides, height = '100dvh' }: { slides: Slide[]; height?: string }) {
+export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides: Slide[]; height?: string; start?: number }) {
   const N = slides.length
   const reduced = useReducedMotion()
-  const [pos, setPos] = useState(0)
+  const [pos, setPos] = useState(start)
   const [dragging, setDragging] = useState(false)
   const stageRef = useRef<HTMLDivElement>(null)
   const [imgW, setImgW] = useState(560)

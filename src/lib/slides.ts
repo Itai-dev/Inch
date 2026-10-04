@@ -14,14 +14,20 @@ export const talentSlides = (talents: TalentCard[]): Slide[] =>
       href: talentPath(t),
     }))
 
+/** "VOGUE ITALIA / photographer NAME / stylist NAME" — empty parts are skipped. */
+export const creditLine = (img: SanityImage) =>
+  [img.publication, img.photographer && `photographer ${img.photographer}`, img.stylist && `stylist ${img.stylist}`]
+    .filter(Boolean)
+    .join(' / ')
+
 export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =>
   images
     .filter((i) => i.asset)
     .map((img, k) => ({
       id: img._key || String(k),
       src: urlFor(img).width(1400).url(),
-      alt: img.alt || `${name} — ${k + 1}`,
-      caption: img.alt || name,
+      alt: img.alt || name,
+      caption: creditLine(img) || undefined,
     }))
 
 export const placeholderSlides = (n = 10): Slide[] =>
