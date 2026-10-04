@@ -1,37 +1,45 @@
 import Link from 'next/link'
-import { TalentGrid } from '@/components/TalentCard'
+import { Logo } from '@/components/brand/Logo'
+import { QuoteMark, SquareDot } from '@/components/brand/Marks'
+import { TapeCarousel } from '@/components/motion/TapeCarousel'
+import { TextOpen } from '@/components/motion/TextOpen'
+import { DEFAULT_STATEMENT } from '@/lib/copy'
+import { talentSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { HOME_QUERY } from '@/sanity/lib/queries'
 import type { TalentCard } from '@/sanity/lib/types'
 
-type Home = { heroTitle?: string; heroSubtitle?: string; featured?: TalentCard[] } | null
+type Home = { statement?: string; featured?: TalentCard[] } | null
 
 export default async function HomePage() {
   const home = await sanityFetch<Home>(HOME_QUERY, {}, null, ['homePage'])
+  const featured = talentSlides(home?.featured ?? [])
 
   return (
     <>
-      {/* Experiential hero — motion + interaction defined in Figma page "07 Motion & Interactions" */}
-      <section className="flex min-h-[85dvh] flex-col justify-end gap-6 px-5 pb-16 md:px-10">
-        <h1 className="text-[18vw] font-bold leading-[0.85] tracking-tighter md:text-[14vw]">
-          {home?.heroTitle || 'INCH”'}
-        </h1>
-        <p className="max-w-xl text-lg text-muted">{home?.heroSubtitle || 'Model management.'}</p>
+      <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
+
+      <section className="grid grid-cols-1 md:grid-cols-2">
+        <Link href="/women" className="group flex aspect-[4/3] flex-col justify-between bg-paper p-8 text-ink md:p-12">
+          <QuoteMark height={40} />
+          <div className="flex items-end justify-between">
+            <Logo className="text-[18vw] md:text-[9vw]" />
+            <span className="label">Women →</span>
+          </div>
+        </Link>
+        <Link href="/men" className="group flex aspect-[4/3] flex-col justify-between bg-ink p-8 text-paper md:p-12">
+          <SquareDot size={28} />
+          <div className="flex items-end justify-between">
+            <Logo division="men" className="text-[18vw] md:text-[9vw]" />
+            <span className="label">Men →</span>
+          </div>
+        </Link>
       </section>
 
-      <section className="grid grid-cols-1 border-y border-line md:grid-cols-2">
-        <Link href="/women" className="flex aspect-[4/3] items-end p-8 text-4xl font-bold md:border-r md:border-line">
-          INCH” Women
-        </Link>
-        <Link href="/men" className="flex aspect-[4/3] items-end p-8 text-4xl font-bold">
-          DOT. Men
-        </Link>
-      </section>
-
-      {!!home?.featured?.length && (
-        <section className="px-5 py-16 md:px-10">
-          <h2 className="mb-8 text-sm uppercase tracking-wide text-muted">Featured</h2>
-          <TalentGrid talents={home.featured} />
+      {featured.length > 0 && (
+        <section className="pt-16">
+          <h2 className="label px-5 text-muted md:px-10">Featured</h2>
+          <TapeCarousel slides={featured} height="92dvh" />
         </section>
       )}
     </>

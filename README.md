@@ -38,6 +38,20 @@ src/
 sanity.config.ts           Studio config
 ```
 
+## Brand + motion
+
+- Tokens in `src/app/globals.css` (ink/paper + grey/stone, Archivo variable). DOT. pages invert via `<html data-theme="dot">` (`DivisionTheme`).
+- The logo may still change — it's drawn only in `src/components/brand/Logo.tsx` (`--wordmark-stretch` controls the condensed width).
+- Marks: `src/components/brand/Marks.tsx` (” strokes from the brand file, ■). Pattern: `Pattern.tsx`.
+
+| | INCH” (women) | DOT. (men) |
+|---|---|---|
+| Statement | `TextOpen` — ” splits, char fade reveal (home) | `DotStatement` — ■ cursor jumps word by word, lands as the full stop (/men) |
+| Carousel | `TapeCarousel` — measuring-tape ruler strip | `DotIndexCarousel` — single image, ■ aperture wipe, square index |
+| Reveal | `BlinkOpen` — ” blinks 3×, opens image (profile) | `DotOpen` — ■ pulses, square aperture opens (profile) |
+
+All respect `prefers-reduced-motion`. Review them with placeholder images at **/motion-lab** (noindex).
+
 ## CMS content model
 
 talent · category · homePage (singleton) · siteSettings (singleton) · selection · application.
@@ -47,8 +61,8 @@ The Studio desk is split into **INCH” — Women** and **DOT. — Men**, plus A
 
 - [ ] Apply criteria (age/height ranges per division) — agree with INCH”
 - [ ] Application email notification (Resend or similar) — `src/app/api/apply/route.ts`
-- [ ] Brand tokens + typefaces (`globals.css`, `next/font/local`) after design approval
-- [ ] Home motion / interactions (Figma page "07 Motion & Interactions")
+- [ ] Final logo SVGs (INCH” + DOT.) → `Logo.tsx`
+- [ ] Final DOT. statement copy
 - [ ] Contact details from Site settings; privacy + accessibility copy (IS 5568)
 - [ ] Analytics + cookie consent, depending on tools chosen
 - [ ] Bot protection on `/api/apply` and `/api/selection` (Turnstile / rate limit)

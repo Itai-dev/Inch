@@ -3,7 +3,7 @@ import { defineQuery } from 'next-sanity'
 const cardFields = `_id, name, "slug": slug.current, division, cover`
 
 export const HOME_QUERY = defineQuery(`*[_type == "homePage"][0]{
-  heroTitle, heroSubtitle,
+  statement, dotStatement,
   "featured": featured[]->{ ${cardFields} }
 }`)
 

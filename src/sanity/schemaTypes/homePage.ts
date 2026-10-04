@@ -5,8 +5,20 @@ export const homePage = defineType({
   title: 'Home page',
   type: 'document',
   fields: [
-    defineField({ name: 'heroTitle', type: 'string' }),
-    defineField({ name: 'heroSubtitle', type: 'text', rows: 2 }),
+    defineField({
+      name: 'statement',
+      title: 'INCH” statement (home scroll reveal)',
+      type: 'text',
+      rows: 3,
+      initialValue:
+        'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image. The perfect fit for your brand.',
+    }),
+    defineField({
+      name: 'dotStatement',
+      title: 'DOT. statement (men page reveal — the final ■ is the full stop)',
+      type: 'text',
+      rows: 2,
+    }),
     defineField({
       name: 'featured',
       title: 'Featured talents',

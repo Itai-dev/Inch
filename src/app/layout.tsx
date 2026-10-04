@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 import { siteUrl } from '@/sanity/env'
+import '@fontsource-variable/archivo/wdth.css'
 import './globals.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: 'INCH” — Model Management', template: '%s — INCH”' },
-  description: 'INCH” model management. Women and DOT. men.',
+  description:
+    'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image.',
   openGraph: { type: 'website', siteName: 'INCH”' },
 }
 
-// Brand typefaces get added with next/font/local once the type system is approved.
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">

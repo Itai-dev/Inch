@@ -1,14 +1,31 @@
 @import "tailwindcss";
 
-/* Placeholder tokens — replaced once the visual language is approved in Figma
-   (page "06 Components & Tokens"). */
+/* ── INCH” brand tokens (source: Figma "INCH” Brand") ───────────────────────
+   Monochrome + warm stone greys. Archivo only (variable, wdth 62–125).
+   DOT. pages invert via [data-theme="dot"] on <html>.                      */
 :root {
-  --bg: #ffffff;
-  --fg: #0e0e0e;
-  --muted: #8a8a8a;
+  --ink: #0a0a0a;
+  --paper: #ffffff;
+  --grey-600: #6f6f6f;
+  --stone-700: #5e5c57;
+  --stone-300: #a8a6a0;
+
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --muted: var(--grey-600);
   --line: #e6e6e6;
-  --accent-inch: #0e0e0e;
-  --accent-dot: #0e0e0e;
+  --surface: #f4f4f3;
+
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --wordmark-stretch: 75%; /* condensed wordmark — update when logo is final */
+}
+
+[data-theme="dot"] {
+  --bg: var(--ink);
+  --fg: var(--paper);
+  --muted: var(--stone-300);
+  --line: #2a2a2a;
+  --surface: #161616;
 }
 
 @theme inline {
@@ -16,15 +33,63 @@
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-line: var(--line);
-  --font-sans: 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-stone: var(--stone-700);
+  --color-stone-light: var(--stone-300);
+  --font-sans: "Archivo Variable", "Archivo", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  background: var(--bg);
+  transition: background-color 0.4s var(--ease-out);
 }
 
 body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
+  transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+
+/* Small uppercase labels with wide tracking (brand slides) */
+.label {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.wordmark {
+  font-weight: 700;
+  font-stretch: var(--wordmark-stretch);
+  letter-spacing: -0.01em;
+  line-height: 0.9;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── DOT. motion keyframes (■-based, snappier than INCH”) ──────────────────── */
+@keyframes dot-cursor {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes dot-pulse {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.8); }
+  35% { transform: scale(1); }
+  55% { transform: scale(1.8); }
+  70%, 100% { transform: scale(1); }
+}
+@keyframes dot-aperture {
+  from { clip-path: inset(calc(50% - var(--dot, 8px)) calc(50% - var(--dot, 8px))); }
+  to { clip-path: inset(0 0); }
+}
+@keyframes dot-fade-out {
+  to { opacity: 0; transform: scale(0.4); }
 }
