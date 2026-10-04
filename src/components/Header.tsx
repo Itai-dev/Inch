@@ -15,6 +15,11 @@ export function Header({ site }: { site: Site }) {
         <Link href={sitePath(site, '/apply')} className="hidden md:inline">Become a model</Link>
         <Link href={sitePath(site, '/contact')} className="hidden md:inline">Contact</Link>
         <SelectionCount />
+        {site === 'inch' && (
+          <Link href={sitePath('dot')} aria-label="DOT. — Men" className="bg-ink px-2 py-1 text-paper">
+            <Logo division="men" className="text-base" />
+          </Link>
+        )}
       </nav>
     </header>
   )
