@@ -55,5 +55,7 @@ The Studio desk is split into **INCH” — Women** and **DOT. — Men**, plus A
 
 ## Design
 
-- FigJam — sitemap, flows, data model: https://www.figma.com/board/piyV1DY1LZ8NmFw5MGyCCP
-- Figma — website design file: https://www.figma.com/design/uVfIacDlOrV4vnZqga6h56
+- FigJam — sitemap, flows, data model: https://www.figma.com/board/UwD388Mbv6qoidrbemxBRv
+- Figma — website design file: https://www.figma.com/design/PFi6i4hKyq2I9y6fmIdDyI
+- Brand — https://www.figma.com/design/hriN1CraUpyEZQuIrGa0w9
+- Motion prototypes (Figma Make): text open, tape-measure carousel, blink-open image
