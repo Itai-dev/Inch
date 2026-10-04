@@ -1,5 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
+import { divisionOfSingleton } from './division'
 
+/** One per site: documents `homePage-inch` and `homePage-dot`. */
 export const homePage = defineType({
   name: 'homePage',
   title: 'Home page',
@@ -7,23 +9,22 @@ export const homePage = defineType({
   fields: [
     defineField({
       name: 'statement',
-      title: 'INCH” statement (home scroll reveal)',
+      title: 'Statement (home scroll reveal)',
+      description: 'On DOT. the final ■ becomes the full stop.',
       type: 'text',
       rows: 3,
-      initialValue:
-        'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image. The perfect fit for your brand.',
-    }),
-    defineField({
-      name: 'dotStatement',
-      title: 'DOT. statement (men page reveal — the final ■ is the full stop)',
-      type: 'text',
-      rows: 2,
     }),
     defineField({
       name: 'featured',
-      title: 'Featured talents',
+      title: 'Featured models',
       type: 'array',
-      of: [defineArrayMember({ type: 'reference', to: [{ type: 'talent' }] })],
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'talent' }],
+          options: { filter: ({ document }) => ({ filter: 'division == $division', params: { division: divisionOfSingleton(document._id) } }) },
+        }),
+      ],
     }),
   ],
 })

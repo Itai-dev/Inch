@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { notFound } from 'next/navigation'
-import { DivisionTheme } from '@/components/brand/DivisionTheme'
-import { DivisionMark } from '@/components/brand/Marks'
+import { notFound, redirect } from 'next/navigation'
 import { BlinkOpen } from '@/components/motion/BlinkOpen'
 import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotOpen } from '@/components/motion/DotOpen'
@@ -10,7 +8,7 @@ import { TapeCarousel } from '@/components/motion/TapeCarousel'
 import { Measurements } from '@/components/Measurements'
 import { imageSlides } from '@/lib/slides'
 import { AddToSelectionButton } from '@/components/selection/AddToSelectionButton'
-import { DIVISION_META } from '@/lib/divisions'
+import { siteForDivision, talentPath, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
 import { TALENT_QUERY } from '@/sanity/lib/queries'
@@ -18,13 +16,13 @@ import type { SanityImage, Talent } from '@/sanity/lib/types'
 
 const load = (slug: string) => sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])
 
-export async function generateMetadata({ params }: PageProps<'/talent/[slug]'>): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<'/[site]/talent/[slug]'>): Promise<Metadata> {
   const { slug } = await params
   const t = await load(slug)
   if (!t) return {}
   return {
     title: t.name,
-    description: `${t.name} — ${DIVISION_META[t.division].brand}`,
+    alternates: { canonical: talentPath(t) },
     openGraph: t.cover?.asset ? { images: [urlFor(t.cover).width(1200).height(630).url()] } : undefined,
   }
 }
@@ -45,19 +43,19 @@ function Gallery({ id, title, images, cols }: { id: string; title: string; image
   )
 }
 
-export default async function TalentPage({ params }: PageProps<'/talent/[slug]'>) {
-  const { slug } = await params
+export default async function TalentPage({ params }: PageProps<'/[site]/talent/[slug]'>) {
+  const { site, slug } = await params
   const t = await load(slug)
   if (!t) notFound()
+  // A DOT. model only lives on DOT. (and vice versa).
+  if (siteForDivision(t.division) !== (site as Site)) redirect(talentPath(t))
   const isDot = t.division === 'men'
   const cover = t.cover?.asset ? urlFor(t.cover).width(1400).url() : null
 
   return (
     <div className="flex flex-col gap-16 px-5 py-10 md:px-10">
-      <DivisionTheme division={t.division} />
       <header className="grid gap-10 md:grid-cols-[1fr_1.4fr]">
         <div className="flex flex-col gap-6">
-          <p className="label flex items-center gap-2 text-muted"><DivisionMark division={t.division} size={10} /> {DIVISION_META[t.division].brand}</p>
           <h1 className="wordmark text-6xl uppercase md:text-8xl">{t.name}</h1>
           <Measurements m={t.measurements} division={t.division} />
           {t.instagram && (

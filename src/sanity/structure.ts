@@ -1,44 +1,35 @@
 import type { StructureResolver } from 'sanity/structure'
+import { singletonId, SITES, type Site } from '../lib/sites'
 
-const singleton = (S: Parameters<StructureResolver>[0], type: string, title: string) =>
-  S.listItem().title(title).id(type).child(S.document().schemaType(type).documentId(type))
+/** Each Studio workspace only shows its own site's documents. */
+export const structureFor =
+  (site: Site): StructureResolver =>
+  (S) => {
+    const { brand, division } = SITES[site]
+    const list = (type: string, title: string) =>
+      S.listItem()
+        .title(title)
+        .schemaType(type)
+        .child(
+          S.documentTypeList(type)
+            .title(title)
+            .filter('_type == $type && division == $division')
+            .params({ type, division })
+            .initialValueTemplates([S.initialValueTemplateItem(`${type}-${site}`)]),
+        )
+    const singleton = (type: 'homePage' | 'siteSettings', title: string) =>
+      S.listItem().title(title).id(type).child(S.document().schemaType(type).documentId(singletonId(type, site)).title(title))
 
-export const structure: StructureResolver = (S) =>
-  S.list()
-    .title('INCH”')
-    .items([
-      S.listItem()
-        .title('INCH” — Women')
-        .child(
-          S.list()
-            .title('Women')
-            .items([
-              S.listItem().title('Talents').child(
-                S.documentTypeList('talent').title('Women').filter('_type == "talent" && division == "women"'),
-              ),
-              S.listItem().title('Categories').child(
-                S.documentTypeList('category').title('Categories').filter('_type == "category" && division == "women"'),
-              ),
-            ]),
-        ),
-      S.listItem()
-        .title('DOT. — Men')
-        .child(
-          S.list()
-            .title('Men')
-            .items([
-              S.listItem().title('Talents').child(
-                S.documentTypeList('talent').title('Men').filter('_type == "talent" && division == "men"'),
-              ),
-              S.listItem().title('Categories').child(
-                S.documentTypeList('category').title('Categories').filter('_type == "category" && division == "men"'),
-              ),
-            ]),
-        ),
-      S.divider(),
-      S.documentTypeListItem('application').title('Applications'),
-      S.documentTypeListItem('selection').title('Shared selections'),
-      S.divider(),
-      singleton(S, 'homePage', 'Home page'),
-      singleton(S, 'siteSettings', 'Site settings'),
-    ])
+    return S.list()
+      .title(brand)
+      .items([
+        list('talent', 'Models'),
+        list('category', 'Categories'),
+        S.divider(),
+        list('application', 'Applications'),
+        list('selection', 'Shared selections'),
+        S.divider(),
+        singleton('homePage', 'Home page'),
+        singleton('siteSettings', 'Site settings'),
+      ])
+  }

@@ -30,3 +30,5 @@ export type Talent = TalentCard & {
 }
 
 export type Category = { _id: string; title: string; slug: string; division: Division }
+
+export type SiteSettings = { email?: string; phone?: string; address?: string; instagram?: string }

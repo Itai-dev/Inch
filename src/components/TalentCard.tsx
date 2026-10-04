@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { talentPath } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { TalentCard as TalentCardType } from '@/sanity/lib/types'
 import { AddToSelectionButton } from './selection/AddToSelectionButton'
@@ -7,7 +8,7 @@ import { AddToSelectionButton } from './selection/AddToSelectionButton'
 export function TalentCard({ talent, priority }: { talent: TalentCardType; priority?: boolean }) {
   return (
     <article className="group relative">
-      <Link href={`/talent/${talent.slug}`} className="block">
+      <Link href={talentPath(talent)} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-line">
           {talent.cover?.asset && (
             <Image

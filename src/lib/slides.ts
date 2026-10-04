@@ -1,4 +1,5 @@
 import type { Slide } from '@/components/motion/types'
+import { talentPath } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, TalentCard } from '@/sanity/lib/types'
 
@@ -10,7 +11,7 @@ export const talentSlides = (talents: TalentCard[]): Slide[] =>
       src: urlFor(t.cover).width(1200).height(1600).url(),
       alt: t.name,
       caption: t.name,
-      href: `/talent/${t.slug}`,
+      href: talentPath(t),
     }))
 
 export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =>

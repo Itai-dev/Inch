@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import type { Site } from '@/lib/sites'
 import type { TalentCard } from '@/sanity/lib/types'
 
 type SelectionCtx = {
@@ -14,26 +15,26 @@ type SelectionCtx = {
 }
 
 const Ctx = createContext<SelectionCtx | null>(null)
-const KEY = 'inch-selection-v1'
 
-/** Selection lives in the viewer's browser until they share it. */
-export function SelectionProvider({ children }: { children: React.ReactNode }) {
+/** Selection lives in the viewer's browser until they share it — one per site. */
+export function SelectionProvider({ site, children }: { site: Site; children: React.ReactNode }) {
+  const key = `${site}-selection-v1`
   const [items, setItems] = useState<TalentCard[]>([])
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(KEY)
+      const raw = localStorage.getItem(key)
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setItems(JSON.parse(raw))
     } catch {}
-  }, [])
+  }, [key])
 
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(items))
+      localStorage.setItem(key, JSON.stringify(items))
     } catch {}
-  }, [items])
+  }, [key, items])
 
   const has = useCallback((id: string) => items.some((i) => i._id === id), [items])
   const remove = useCallback((id: string) => setItems((p) => p.filter((i) => i._id !== id)), [])

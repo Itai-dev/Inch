@@ -45,7 +45,14 @@ export const talent = defineType({
       name: 'categories',
       type: 'array',
       group: 'main',
-      of: [defineArrayMember({ type: 'reference', to: [{ type: 'category' }] })],
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'category' }],
+          // Only this model's own site's categories.
+          options: { filter: ({ document }) => ({ filter: 'division == $division', params: { division: document.division } }) },
+        }),
+      ],
     }),
     defineField({ name: 'cover', title: 'Cover image', type: 'image', group: 'main', options: { hotspot: true } }),
     defineField({ name: 'order', title: 'Sort order', type: 'number', group: 'main' }),

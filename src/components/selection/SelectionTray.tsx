@@ -2,10 +2,11 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
+import { SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
-export function SelectionTray() {
+export function SelectionTray({ site }: { site: Site }) {
   const { items, remove, clear, open, setOpen } = useSelection()
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
@@ -18,7 +19,7 @@ export function SelectionTray() {
       const res = await fetch('/api/selection', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title, note, talentIds: items.map((i) => i._id) }),
+        body: JSON.stringify({ title, note, division: SITES[site].division, talentIds: items.map((i) => i._id) }),
       })
       if (!res.ok) throw new Error()
       const { url } = await res.json()

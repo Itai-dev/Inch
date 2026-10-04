@@ -3,10 +3,9 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { GUARDIAN_AGE, meetsCriteria } from '@/lib/apply-criteria'
-import type { Division } from '@/sanity/lib/types'
+import { sitePath, SITES, type Site } from '@/lib/sites'
 
 type Data = {
-  division?: Division
   name: string
   age: string
   city: string
@@ -24,7 +23,7 @@ type Data = {
   consent: boolean
 }
 
-type Step = 'division' | 'basics' | 'guardian' | 'measurements' | 'digitals' | 'socials' | 'declined' | 'done'
+type Step = 'basics' | 'guardian' | 'measurements' | 'digitals' | 'socials' | 'declined' | 'done'
 
 const initial: Data = {
   name: '', age: '', city: '', email: '', phone: '', guardianName: '', guardianPhone: '',
@@ -42,8 +41,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-export function ApplyFunnel() {
-  const [step, setStep] = useState<Step>('division')
+/** One funnel per site: INCH” applications are women, DOT. applications are men. */
+export function ApplyFunnel({ site }: { site: Site }) {
+  const { brand, division } = SITES[site]
+  const [step, setStep] = useState<Step>('basics')
   const [d, setD] = useState<Data>(initial)
   const [photos, setPhotos] = useState<File[]>([])
   const [sending, setSending] = useState(false)
@@ -52,7 +53,7 @@ export function ApplyFunnel() {
 
   const isMinor = Number(d.age) > 0 && Number(d.age) < GUARDIAN_AGE
   const flow: Step[] = useMemo(
-    () => ['division', 'basics', ...(isMinor ? (['guardian'] as Step[]) : []), 'measurements', 'digitals', 'socials'],
+    () => ['basics', ...(isMinor ? (['guardian'] as Step[]) : []), 'measurements', 'digitals', 'socials'],
     [isMinor],
   )
   const index = flow.indexOf(step)
@@ -60,8 +61,7 @@ export function ApplyFunnel() {
   const back = () => setStep(flow[Math.max(0, index - 1)])
 
   function afterMeasurements() {
-    if (!d.division) return
-    if (!meetsCriteria(d.division, Number(d.age), Number(d.height))) setStep('declined')
+    if (!meetsCriteria(division, Number(d.age), Number(d.height))) setStep('declined')
     else next()
   }
 
@@ -70,6 +70,7 @@ export function ApplyFunnel() {
     setError(null)
     const fd = new FormData()
     Object.entries(d).forEach(([k, v]) => fd.append(k, String(v ?? '')))
+    fd.append('division', division)
     photos.forEach((f) => fd.append('digitals', f))
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
     setSending(false)
@@ -90,7 +91,7 @@ export function ApplyFunnel() {
       <div className="flex flex-col gap-4">
         <h2 className="text-4xl font-bold">Thank you for your interest.</h2>
         <p className="text-muted">Right now we’re looking for different requirements. Follow us on Instagram for open castings.</p>
-        <Link href="/" className="text-sm uppercase underline">Back to home</Link>
+        <Link href={sitePath(site)} className="text-sm uppercase underline">Back to home</Link>
       </div>
     )
 
@@ -102,16 +103,6 @@ export function ApplyFunnel() {
         ))}
       </ol>
 
-      {step === 'division' && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {(['women', 'men'] as Division[]).map((v) => (
-            <button key={v} onClick={() => { set('division', v); setStep('basics') }} className="border border-fg p-10 text-left text-3xl font-bold">
-              {v === 'women' ? 'INCH” Women' : 'DOT. Men'}
-            </button>
-          ))}
-        </div>
-      )}
-
       {step === 'basics' && (
         <form className="grid gap-5" onSubmit={(e) => { e.preventDefault(); next() }}>
           <Field label="Full name"><input required className={input} value={d.name} onChange={(e) => set('name', e.target.value)} /></Field>
@@ -119,7 +110,7 @@ export function ApplyFunnel() {
           <Field label="City"><input required className={input} value={d.city} onChange={(e) => set('city', e.target.value)} /></Field>
           <Field label="Email"><input required type="email" className={input} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
           <Field label="Phone"><input required type="tel" className={input} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-          <Nav onBack={back} />
+          <Nav />
         </form>
       )}
 
@@ -135,7 +126,7 @@ export function ApplyFunnel() {
       {step === 'measurements' && (
         <form className="grid grid-cols-2 gap-5" onSubmit={(e) => { e.preventDefault(); afterMeasurements() }}>
           <Field label="Height (cm)"><input required type="number" className={input} value={d.height} onChange={(e) => set('height', e.target.value)} /></Field>
-          <Field label={d.division === 'men' ? 'Chest (cm)' : 'Bust (cm)'}><input type="number" className={input} value={d.bust} onChange={(e) => set('bust', e.target.value)} /></Field>
+          <Field label={division === 'men' ? 'Chest (cm)' : 'Bust (cm)'}><input type="number" className={input} value={d.bust} onChange={(e) => set('bust', e.target.value)} /></Field>
           <Field label="Waist (cm)"><input type="number" className={input} value={d.waist} onChange={(e) => set('waist', e.target.value)} /></Field>
           <Field label="Hips (cm)"><input type="number" className={input} value={d.hips} onChange={(e) => set('hips', e.target.value)} /></Field>
           <Field label="Shoes (EU)"><input type="number" className={input} value={d.shoes} onChange={(e) => set('shoes', e.target.value)} /></Field>
@@ -161,7 +152,7 @@ export function ApplyFunnel() {
           <Field label="Experience (optional)"><textarea rows={3} className={input} value={d.experience} onChange={(e) => set('experience', e.target.value)} /></Field>
           <label className="flex items-start gap-3 text-sm">
             <input required type="checkbox" checked={d.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-1" />
-            <span>I agree that INCH” may store and review my details and photos for scouting, as described in the <Link href="/privacy" className="underline">privacy policy</Link>.</span>
+            <span>I agree that {brand} may store and review my details and photos for scouting, as described in the <Link href={sitePath(site, '/privacy')} className="underline">privacy policy</Link>.</span>
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Nav onBack={back} label={sending ? 'Sending…' : 'Submit application'} disabled={sending} />
@@ -171,10 +162,10 @@ export function ApplyFunnel() {
   )
 }
 
-function Nav({ onBack, label = 'Continue', disabled }: { onBack: () => void; label?: string; disabled?: boolean }) {
+function Nav({ onBack, label = 'Continue', disabled }: { onBack?: () => void; label?: string; disabled?: boolean }) {
   return (
     <div className="flex items-center justify-between pt-4">
-      <button type="button" onClick={onBack} className="text-sm uppercase text-muted">Back</button>
+      {onBack ? <button type="button" onClick={onBack} className="text-sm uppercase text-muted">Back</button> : <span />}
       <button type="submit" disabled={disabled} className="bg-fg px-8 py-3 text-sm uppercase tracking-wide text-bg disabled:opacity-40">{label}</button>
     </div>
   )
