@@ -74,6 +74,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const rulerRef = useRef<HTMLDivElement>(null)
   const prevIdx = useRef(0)
   const logoRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLElement>(null)
   const blinkRef = useRef<HTMLSpanElement>(null)
   const winRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<HTMLDivElement>(null)
@@ -167,6 +168,8 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     const on = () => {
       setStage(window.scrollY > window.innerHeight - 72 ? 'past' : 'over')
       placeLogo(logoRef.current)
+      // The inverse (difference) effect on the header and logo only kicks in once you scroll.
+      if (rootRef.current) rootRef.current.dataset.scrolled = window.scrollY > 2 ? '1' : '0'
       // The ruler fades out over the first quarter screen of scrolling.
       const r = rulerRef.current
       if (r) {
@@ -245,6 +248,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
   return (
     <section
+      ref={rootRef}
       data-hero={skip ? 'over' : stage}
       className="relative h-dvh overflow-hidden bg-bg"
       aria-roledescription="carousel"
@@ -332,7 +336,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
         <div
           ref={logoRef}
           aria-hidden
-          className="pointer-events-none fixed top-0 z-30 origin-top-left text-paper"
+          className="hero-logo pointer-events-none fixed top-0 z-30 origin-top-left text-paper"
           style={{ lineHeight: 0.9 }}
         >
           <Logo as="div" className="whitespace-nowrap" />
@@ -341,7 +345,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
-        <div className="absolute inset-x-0 bottom-0 pb-4 text-paper md:pb-6" style={{ animation: 'hero-fade 0.8s var(--ease-out) 0.9s both' }}>
+        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: 'hero-fade 0.8s var(--ease-out) 0.9s both' }}>
           <div ref={rulerRef}>
             <Ruler
               count={N}

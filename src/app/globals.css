@@ -112,6 +112,13 @@ body:has([data-hero="intro"]) [data-site-header],
 body:has([data-hero="open"]) [data-site-header] {
   visibility: hidden;
 }
+/* Over the video at the very top: plain white. Once you scroll: inverse against what's behind. */
+body:has([data-hero]:not([data-scrolled="1"])) [data-site-header] {
+  mix-blend-mode: normal;
+}
+[data-hero][data-scrolled="1"] .hero-logo {
+  mix-blend-mode: difference;
+}
 /* The giant hero logo stands in for the header logo until the video scrolls away. */
 body:has([data-hero="over"]) [data-site-header] > a {
   visibility: hidden;
