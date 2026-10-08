@@ -36,7 +36,9 @@ const PUSH_MS = 1300
 const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 // Hand-off after the reveal (t = 0 when the video has finished growing):
 const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
-const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.85s and the ruler fades in from +1.5s (globals.css / below)
+const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.4s (globals.css)
+const RULER_IN_MS = 1000 // ruler fades in from +1s…
+const RULER_STEP_MS = 1400 // …and moves on one item as it arrives, to show what it does
 const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 // The real header (keep in sync with Header.tsx): logo font size, top and side padding.
@@ -215,6 +217,15 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   // First arrival: the logo fades in while growing from header size — the scroll shrink, reversed.
   const logoIntroDone = useRef(false)
   const showLogo = stage === 'over' || logoIn
+  // As the ruler arrives, it moves on one item (pushing the next video in) to show it's the control.
+  const rulerDemoDone = useRef(false)
+  useEffect(() => {
+    if (stage !== 'over' || rulerDemoDone.current || N < 2 || reduced) return
+    rulerDemoDone.current = true
+    const id = setTimeout(() => setIdx((i) => i + 1), RULER_STEP_MS)
+    return () => clearTimeout(id)
+  }, [stage, N, reduced])
+
   // After the first arrival has played (menu typed in), scrolling back up doesn't replay it.
   useEffect(() => {
     if (stage !== 'over') return
@@ -380,7 +391,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
-        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: 'hero-fade 0.8s var(--ease-out) 1.5s both' }}>
+        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: `hero-fade 0.8s var(--ease-out) ${RULER_IN_MS}ms both` }}>
           <div ref={rulerRef}>
             <Ruler
               count={N}

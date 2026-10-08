@@ -130,16 +130,16 @@ body:has([data-hero]:not([data-scrolled="1"])) [data-site-header] {
 body:has([data-hero="over"]) [data-site-header] > a {
   visibility: hidden;
 }
-/* Menu types in near the end of the giant logo's grow-in (+0.85s), left to right:
+/* Menu types in while the giant logo is still growing (+0.4s), left to right:
    the DOT. box is last in the markup but first on screen. */
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > * {
   animation: hero-type 0.6s steps(6) both;
 }
-body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(5) { animation-delay: 0.85s; }
-body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(1) { animation-delay: 0.93s; }
-body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(2) { animation-delay: 1.01s; }
-body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(3) { animation-delay: 1.09s; }
-body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(4) { animation-delay: 1.17s; }
+body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(5) { animation-delay: 0.4s; }
+body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(1) { animation-delay: 0.48s; }
+body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(2) { animation-delay: 0.56s; }
+body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(3) { animation-delay: 0.64s; }
+body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(4) { animation-delay: 0.72s; }
 
 /* Menu items: tighten to -10% tracking on hover, press and the current page, around the
    word's centre (the trailing tracking after the last letter is cancelled with a margin). */
