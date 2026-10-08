@@ -4,8 +4,9 @@ import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage } from '@/sanity/lib/types'
 
 /** Home: paragraph with images below it, each credited. */
-export function IntroSection({ text, images = [] }: { text?: string; images?: SanityImage[] }) {
-  const imgs = images.filter((i) => i.asset)
+// Sanity returns null (not undefined) for empty fields.
+export function IntroSection({ text, images }: { text?: string | null; images?: SanityImage[] | null }) {
+  const imgs = (images ?? []).filter((i) => i?.asset)
   if (!text && !imgs.length) return null
   return (
     <section className="flex flex-col gap-12 px-5 py-20 md:px-10">

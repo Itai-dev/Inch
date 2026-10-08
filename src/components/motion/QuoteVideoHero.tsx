@@ -217,7 +217,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
       )}
 
       {/* The ruler is the carousel control. */}
-      {showUi && N > 1 && (
+      {showUi && N > 0 && (
         <div className="absolute inset-x-0 bottom-0 pb-4 text-paper md:pb-6" style={{ animation: 'hero-wipe 0.8s var(--ease-out) 0.9s both' }}>
           <Ruler
             count={N}
