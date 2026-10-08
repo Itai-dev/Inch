@@ -1,27 +1,39 @@
 'use client'
 
 /**
- * INCH” — hero: the ” is a window onto the video. On scroll it scales up,
- * zooming into the left stroke until the video fills the screen.
+ * INCH” — home hero (Figma "INCH” Brand" › hero storyboard).
+ * 1. The ” blinks while the video loads.
+ * 2. It splits: a 3:4 video window opens between the strokes and grows,
+ *    pushing them off-screen, until the video fills the screen.
+ * 3. The header types in over the video (white).
+ * 4. Scrolling moves the video up and away (normal scroll).
+ * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
 import { useEffect, useState } from 'react'
-import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
+import { QuoteMark, QuoteStroke } from '@/components/brand/Marks'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { useScrollProgress } from '@/hooks/useScrollProgress'
 
-// ” in its artboard coords (see Marks.tsx).
-const BOX = { x: 651, y: 235, w: 617, h: 611 }
-// Solid square at the top of the left stroke — the zoom lands inside it.
-const FOCUS = { x: 663.5, y: 235, w: 243.9, h: 277.3 }
-const START_VMIN = 0.32 // mark height at rest, as a share of the short viewport side
-const OPEN_END = 0.85 // scroll share used for opening; the rest holds full screen
+type Stage = 'intro' | 'open' | 'over' | 'past'
 
-const easeInCubic = (t: number) => t * t * t
+const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080)
+const WIN_VH = 0.316 // first video window height (341px @ 1080)
+const STROKE = 0.206 // stroke height ÷ window height
+const STROKE_GAP = 0.06 // gap between window and stroke ÷ window height
+const MIN_BLINK_MS = 1300 // at least two blinks, even when the video is cached
+const MAX_WAIT_MS = 4000 // open anyway if the video is slow
+const OPEN_MS = 2000
+const SPLIT = 0.22
+
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
 export function QuoteVideoHero({ video, poster }: { video?: string; poster?: string }) {
   const reduced = useReducedMotion()
-  const { ref, progress } = useScrollProgress<HTMLDivElement>()
+  const [stage, setStage] = useState<Stage>('intro')
+  const [t, setT] = useState(0)
   const [vp, setVp] = useState({ w: 1440, h: 900 })
+  const [ready, setReady] = useState(!video)
+  const [waited, setWaited] = useState(false)
 
   useEffect(() => {
     const on = () => setVp({ w: window.innerWidth, h: window.innerHeight })
@@ -30,46 +42,101 @@ export function QuoteVideoHero({ video, poster }: { video?: string; poster?: str
     return () => window.removeEventListener('resize', on)
   }, [])
 
-  const t = reduced ? 1 : easeInCubic(Math.min(1, progress / OPEN_END))
-  const open = t >= 1
+  // Blink for a minimum time, then open once the video can play (or we give up waiting).
+  useEffect(() => {
+    const a = setTimeout(() => setWaited(true), MIN_BLINK_MS)
+    const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
+    return () => {
+      clearTimeout(a)
+      clearTimeout(b)
+    }
+  }, [])
 
-  // Scale the mark so its height starts at START_VMIN and ends with FOCUS covering the viewport.
-  const s0 = (Math.min(vp.w, vp.h) * START_VMIN) / BOX.h
-  const s1 = Math.max(vp.w / FOCUS.w, vp.h / FOCUS.h) * 1.05
-  const s = s0 * Math.pow(s1 / s0, t) // exponential: zoom feels linear
-  // The focus point starts where it sits in the centred mark and glides to screen centre.
-  const fx = FOCUS.x + FOCUS.w / 2
-  const fy = FOCUS.y + FOCUS.h / 2
-  const px = vp.w / 2 + (fx - (BOX.x + BOX.w / 2)) * s0 * (1 - t)
-  const py = vp.h / 2 + (fy - (BOX.y + BOX.h / 2)) * s0 * (1 - t)
-  const transform = `translate(${px} ${py}) scale(${s}) translate(${-fx} ${-fy})`
+  const skip = reduced
+  const opening = !skip && ready && waited // flips true once, starts the open
+
+  useEffect(() => {
+    if (!opening) return
+    let raf = 0
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / OPEN_MS)
+      setT(p)
+      setStage(p < 1 ? 'open' : 'over')
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [opening])
+
+  // Once open, the header sits over the video until the video has scrolled away.
+  const settled = skip || stage === 'over' || stage === 'past'
+  useEffect(() => {
+    if (!settled) return
+    const on = () => setStage(window.scrollY > window.innerHeight - 72 ? 'past' : 'over')
+    on()
+    window.addEventListener('scroll', on, { passive: true })
+    return () => window.removeEventListener('scroll', on)
+  }, [settled])
+
+  const p = skip ? 1 : t
+  // Window: the ” splits and a 3:4 window opens between the strokes (first SPLIT of
+  // the time), then it grows — height fills first, then width — ending full-bleed.
+  const h0 = vp.h * WIN_VH
+  const w0 = h0 * 0.75
+  const a = Math.min(1, p / SPLIT)
+  const b = Math.max(0, (p - SPLIT) / (1 - SPLIT))
+  const winH = h0 + (vp.h - h0) * easeOut(b)
+  const winW = b > 0 ? w0 + (vp.w - w0) * easeInOut(b) : w0 * easeOut(a)
+  const strokeH = Math.max(vp.h * MARK_VH, winH * STROKE)
+  const gap = winH * STROKE_GAP
+  const showVideo = stage !== 'intro' || skip
 
   return (
-    <div ref={ref} className="relative" style={{ height: reduced ? '100dvh' : '260vh' }}>
-      <div className="sticky top-0 h-dvh overflow-hidden">
+    <section data-hero={skip ? 'over' : stage} className="relative h-dvh overflow-hidden bg-bg" aria-label="INCH”">
+      {/* 1. Blinking ” while loading. */}
+      {!showVideo && (
+        <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
+          <span style={{ animation: 'hero-blink 0.65s steps(1) infinite' }}>
+            <QuoteMark height={Math.round(vp.h * MARK_VH)} />
+          </span>
+        </div>
+      )}
+
+      {/* 2–4. Video window grows between the two strokes, then fills the screen. */}
+      <div
+        className="absolute left-1/2 top-1/2 overflow-hidden bg-ink"
+        style={{ width: winW, height: winH, transform: 'translate(-50%, -50%)', visibility: showVideo ? 'visible' : 'hidden' }}
+      >
         {video ? (
-          <video src={video} poster={poster} autoPlay muted loop playsInline className="absolute inset-0 size-full object-cover" />
-        ) : poster ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />
+          <video
+            src={video}
+            poster={poster}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            onCanPlay={() => setReady(true)}
+            className="absolute inset-0 size-full object-cover"
+          />
         ) : (
-          <div className="absolute inset-0 bg-ink" />
-        )}
-        {!open && (
-          <svg aria-hidden className="absolute inset-0 size-full" viewBox={`0 0 ${vp.w} ${vp.h}`} preserveAspectRatio="none">
-            <defs>
-              <mask id="quote-window" maskUnits="userSpaceOnUse" x={0} y={0} width={vp.w} height={vp.h}>
-                <rect width={vp.w} height={vp.h} fill="white" />
-                <g transform={transform} fill="black">
-                  <path d={LEFT_PATH} />
-                  <path d={RIGHT_PATH} />
-                </g>
-              </mask>
-            </defs>
-            <rect width={vp.w} height={vp.h} mask="url(#quote-window)" style={{ fill: 'var(--bg)' }} />
-          </svg>
+          poster && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />
+          )
         )}
       </div>
-    </div>
+      {stage === 'open' && (
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2" style={{ height: strokeH }}>
+          <div className="absolute top-0" style={{ right: winW / 2 + gap, transform: 'translateY(-50%)' }}>
+            <QuoteStroke side="left" height={strokeH} />
+          </div>
+          <div className="absolute top-0" style={{ left: winW / 2 + gap, transform: 'translateY(-50%)' }}>
+            <QuoteStroke side="right" height={strokeH} />
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

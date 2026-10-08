@@ -6,7 +6,7 @@ import { SelectionCount } from './selection/SelectionCount'
 export function Header({ site }: { site: Site }) {
   const s = SITES[site]
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between bg-bg/90 px-5 py-4 backdrop-blur md:px-10">
+    <header data-site-header className="sticky top-0 z-40 flex items-center justify-between bg-bg/90 px-5 py-4 backdrop-blur md:px-10">
       <Link href={sitePath(site)} aria-label={`${s.brand} home`}>
         <Logo division={s.division} className="text-[28px]" />
       </Link>
