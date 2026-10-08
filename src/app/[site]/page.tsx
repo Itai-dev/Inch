@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { IntroSection } from '@/components/IntroSection'
 import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotStatement } from '@/components/motion/DotStatement'
-import { QuoteVideoHero } from '@/components/motion/QuoteVideoHero'
+import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
 import { TalentGrid } from '@/components/TalentCard'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
@@ -14,7 +14,7 @@ import { HOME_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
 import type { SanityImage, TalentCard } from '@/sanity/lib/types'
 
 type Home = {
-  heroVideos?: { src?: string; poster?: SanityImage }[]
+  heroVideos?: ({ _type: 'heroVideo'; src?: string; poster?: SanityImage } | ({ _type: 'heroImage' } & SanityImage))[] | null
   heroVideo?: string
   heroPoster?: SanityImage
   statement?: string
@@ -48,8 +48,12 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
 
   // INCH”: ” opens to full-screen video → statement on scroll → paragraph + images → models.
   const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
-  const videos = (home?.heroVideos ?? []).flatMap((v) => (v?.src ? [{ src: v.src, poster: posterUrl(v.poster) }] : []))
-  if (!videos.length && home?.heroVideo) videos.push({ src: home.heroVideo, poster: posterUrl(home.heroPoster) })
+  const videos = (home?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
+    m?._type === 'heroImage'
+      ? m.asset ? [{ kind: 'image', src: urlFor(m).width(2400).url() }] : []
+      : m?.src ? [{ kind: 'video', src: m.src, poster: posterUrl(m.poster) }] : [],
+  )
+  if (!videos.length && home?.heroVideo) videos.push({ kind: 'video', src: home.heroVideo, poster: posterUrl(home.heroPoster) })
   return (
     <>
       <QuoteVideoHero videos={videos} />

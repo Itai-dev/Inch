@@ -18,7 +18,7 @@ import { QuoteMark, QuoteStroke } from '@/components/brand/Marks'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { Ruler } from './Ruler'
 
-export type HeroVideo = { src: string; poster?: string }
+export type HeroMedia = { kind: 'video' | 'image'; src: string; poster?: string }
 type Stage = 'intro' | 'open' | 'over' | 'past'
 
 const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080)
@@ -29,7 +29,8 @@ const MIN_BLINK_MS = 1300 // at least two blinks, even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2000
 const SPLIT = 0.22
-const LOGO_W = 0.174 // giant logo font size as a share of viewport width (770px wide @ 1920)
+const IMAGE_MS = 6000 // how long an image stays before the next item
+const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 const HEADER_LOGO = 28 // px — the real header logo
 const HEADER_TOP = 16 // px — header padding
 
@@ -38,7 +39,7 @@ const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
 
-export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
+export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const N = videos.length
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
@@ -92,7 +93,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
   const placeLogo = () => {
     const el = logoRef.current
     if (!el) return
-    const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.34)
+    const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
     const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
     el.style.fontSize = `${big}px`
     el.style.left = `${window.innerWidth >= 768 ? 40 : 20}px`
@@ -131,6 +132,14 @@ export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
 
   const step = (d: number) => N > 1 && setIdx((i) => i + d)
 
+  // Images hand over to the next item after IMAGE_MS (videos do it when they end).
+  const isImage = videos[current]?.kind === 'image'
+  useEffect(() => {
+    if (!showVideo || !isImage || N < 2) return
+    const id = setTimeout(() => setIdx((i) => i + 1), IMAGE_MS)
+    return () => clearTimeout(id)
+  }, [idx, showVideo, isImage, N])
+
   const p = skip ? 1 : t
   // Window: the ” splits and a 3:4 window opens between the strokes (first SPLIT of
   // the time), then it grows — height fills first, then width — ending full-bleed.
@@ -144,7 +153,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
   const gap = winH * STROKE_GAP
   const showUi = stage === 'over' || stage === 'past'
 
-  // Ruler scales with the viewport (80px per number @ 1920).
+  // Ruler scales with the viewport (56px per number @ 1920 — 0.7 × the Figma ruler).
   const rs = Math.min(1, Math.max(0.6, vp.w / 1920))
 
   return (
@@ -173,25 +182,41 @@ export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
         className="absolute left-1/2 top-1/2 overflow-hidden bg-ink"
         style={{ width: winW, height: winH, transform: 'translate(-50%, -50%)', visibility: showVideo ? 'visible' : 'hidden' }}
       >
-        {videos.map((v, i) => (
-          <video
-            key={v.src}
-            ref={(el) => {
-              vids.current[i] = el
-            }}
-            src={v.src}
-            poster={v.poster}
-            muted
-            loop={N === 1}
-            playsInline
-            preload={i === 0 || i === mod(current + 1, N) ? 'auto' : 'metadata'}
-            onCanPlay={i === 0 ? () => setReady(true) : undefined}
-            onEnded={i === current ? () => step(1) : undefined}
-            aria-hidden={i !== current}
-            className="absolute inset-0 size-full object-cover transition-opacity duration-700"
-            style={{ opacity: i === current ? 1 : 0 }}
-          />
-        ))}
+        {videos.map((v, i) => {
+          const style = { opacity: i === current ? 1 : 0 }
+          const cls = 'absolute inset-0 size-full object-cover transition-opacity duration-700'
+          return v.kind === 'image' ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={v.src}
+              src={v.src}
+              alt=""
+              loading={i === 0 ? 'eager' : 'lazy'}
+              onLoad={i === 0 ? () => setReady(true) : undefined}
+              aria-hidden={i !== current}
+              className={cls}
+              style={style}
+            />
+          ) : (
+            <video
+              key={v.src}
+              ref={(el) => {
+                vids.current[i] = el
+              }}
+              src={v.src}
+              poster={v.poster}
+              muted
+              loop={N === 1}
+              playsInline
+              preload={i === 0 || i === mod(current + 1, N) ? 'auto' : 'metadata'}
+              onCanPlay={i === 0 ? () => setReady(true) : undefined}
+              onEnded={i === current ? () => step(1) : undefined}
+              aria-hidden={i !== current}
+              className={cls}
+              style={style}
+            />
+          )
+        })}
       </div>
       {stage === 'open' && (
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2" style={{ height: strokeH }}>
@@ -225,18 +250,18 @@ export function QuoteVideoHero({ videos }: { videos: HeroVideo[] }) {
             active={[current]}
             onSelect={setIdx}
             reduced={reduced}
-            segW={Math.round(80 * rs)}
-            fontPx={Math.max(12, Math.round(27 * rs))}
-            tickH={Math.round(34 * rs)}
+            segW={Math.round(56 * rs)}
+            fontPx={Math.max(11, Math.round(19 * rs))}
+            tickH={Math.round(24 * rs)}
             minors={9}
           />
         </div>
       )}
       {N > 1 && (
         <div className="sr-only">
-          <p aria-live="polite">{`Video ${current + 1} of ${N}`}</p>
-          <button type="button" onClick={() => step(-1)}>Previous video</button>
-          <button type="button" onClick={() => step(1)}>Next video</button>
+          <p aria-live="polite">{`${current + 1} of ${N}`}</p>
+          <button type="button" onClick={() => step(-1)}>Previous</button>
+          <button type="button" onClick={() => step(1)}>Next</button>
         </div>
       )}
     </section>

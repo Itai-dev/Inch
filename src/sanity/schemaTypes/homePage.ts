@@ -10,9 +10,9 @@ export const homePage = defineType({
   fields: [
     defineField({
       name: 'heroVideos',
-      title: 'Hero videos (INCH”)',
+      title: 'Hero videos & images (INCH”)',
       description:
-        'Full-screen videos behind the INCH” logo. The ruler at the bottom switches between them; each plays through, then the next starts. MP4/WebM, muted.',
+        'Full-screen behind the INCH” logo. The ruler at the bottom switches between them. A video plays through, an image stays 6 seconds, then the next one comes up. Videos: MP4/WebM, muted.',
       type: 'array',
       of: [
         defineArrayMember({
@@ -24,9 +24,10 @@ export const homePage = defineType({
           ],
           preview: {
             select: { title: 'video.asset.originalFilename', media: 'poster' },
-            prepare: ({ title, media }) => ({ title: title || 'Video', media }),
+            prepare: ({ title, media }) => ({ title: title || 'Video', subtitle: 'Video', media }),
           },
         }),
+        defineArrayMember({ type: 'image', name: 'heroImage', title: 'Image', options: { hotspot: true } }),
       ],
     }),
     // Older single-video fields: only shown while they still hold something.

@@ -50,8 +50,9 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
   const from = Math.floor(pos) - R
   const ks = Array.from({ length: R * 2 + 1 }, (_, j) => from + j)
 
-  const labelH = Math.round(fontPx * 1.3)
-  const height = labelH + Math.round(fontPx * 0.45) + tickH
+  // Numbers sit just above the ticks.
+  const labelH = Math.round(fontPx * 1.05)
+  const height = labelH + Math.round(fontPx * 0.15) + tickH
   const majorW = tickH >= 24 ? 2 : 1
   const sub = segW / (minors + 1)
   const tickBg = {
