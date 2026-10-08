@@ -138,13 +138,26 @@ body:has([data-hero="over"]) [data-site-header] nav > :nth-child(3) { animation-
 body:has([data-hero="over"]) [data-site-header] nav > :nth-child(4) { animation-delay: 0.24s; }
 body:has([data-hero="over"]) [data-site-header] nav > :nth-child(5) { animation-delay: 0.32s; }
 
-/* Menu items: tighten to -10% tracking on hover, press and the current page. */
-.nav-item {
+/* Menu items: tighten to -10% tracking on hover, press and the current page, around the
+   word's centre (the trailing tracking after the last letter is cancelled with a margin). */
+.nav-label {
   letter-spacing: -0.02em;
-  transition: letter-spacing 0.35s var(--ease-out);
+  margin-right: 0.02em;
+  transition: letter-spacing 0.35s var(--ease-out), margin-right 0.35s var(--ease-out);
 }
-.nav-item:hover,
-.nav-item:active,
-.nav-item[aria-current="page"] {
+.nav-item:hover .nav-label,
+.nav-item:active .nav-label,
+.nav-item[aria-current="page"] .nav-label {
   letter-spacing: -0.1em;
+  margin-right: 0.1em;
+}
+/* The other site's box (DOT. / INCH”): grows slightly on hover and press. */
+.site-switch {
+  transition: transform 0.35s var(--ease-out);
+}
+.site-switch:hover {
+  transform: scale(1.08);
+}
+.site-switch:active {
+  transform: scale(1.12);
 }

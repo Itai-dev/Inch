@@ -32,11 +32,11 @@ export function Header({ site }: { site: Site }) {
         <SelectionCount />
         {/* The other site, as a box. White + difference blend: a black box on light pages, white on dark. */}
         {site === 'inch' ? (
-          <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="order-first">
+          <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="site-switch order-first">
             <DotBox />
           </SiteSwitchLink>
         ) : (
-          <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="order-first flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-ink">
+          <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="site-switch order-first flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-ink">
             <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
           </SiteSwitchLink>
         )}

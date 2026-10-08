@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { NavLabel } from './NavLabel'
 
 /** Menu link: marks the current page (aria-current), which the .nav-item tracking keys off. */
 export function NavLink({ href, className = '', children }: { href: string; className?: string; children: ReactNode }) {
@@ -11,7 +12,7 @@ export function NavLink({ href, className = '', children }: { href: string; clas
   const current = path === href || path.startsWith(`${href}/`)
   return (
     <Link href={href} aria-current={current ? 'page' : undefined} className={`nav-item ${className}`}>
-      {children}
+      <NavLabel>{children}</NavLabel>
     </Link>
   )
 }
