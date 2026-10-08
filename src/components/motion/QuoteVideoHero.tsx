@@ -55,6 +55,11 @@ const readSkipLoader = () => {
   }
 }
 
+// Set once the intro has played in this page load. Module memory survives in-site
+// navigation but not a reload, so coming back to the home page (from DOT., a model, …)
+// shows the hero already open, while a fresh visit or reload still gets the intro.
+let introPlayed = false
+
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const smooth = (t: number) => t * t * (3 - 2 * t)
@@ -78,6 +83,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const N = videos.length
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
+  const [seen] = useState(() => introPlayed) // false on the server and on a fresh load
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
@@ -104,6 +110,12 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
   // Smooth blink (on the compositor, so loading work can't make it stutter).
   useEffect(() => {
+    if (seen) {
+      try {
+        sessionStorage.removeItem(SKIP_HERO_LOADER) // not needed: the intro is skipped entirely
+      } catch {}
+      return
+    }
     if (reduced || fast) return
     blinkAnim.current =
       blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }], {
@@ -117,9 +129,9 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       clearTimeout(a)
       clearTimeout(b)
     }
-  }, [reduced, fast])
+  }, [reduced, fast, seen])
 
-  const skip = reduced
+  const skip = reduced || seen // no loader / reveal / intro choreography
   const opening = !skip && (fast || (ready && waited)) // flips true once, starts the open
 
   // Reveal, drawn frame by frame straight onto the DOM (no React render per frame).
@@ -170,6 +182,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
         if (p < 1) raf = requestAnimationFrame(tick)
         else {
           done = true
+          introPlayed = true
           setStage('over')
           try {
             sessionStorage.removeItem(SKIP_HERO_LOADER) // the skip is used up once fully open
@@ -218,11 +231,11 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   // As the ruler arrives, it moves on one item (pushing the next video in) to show it's the control.
   const rulerDemoDone = useRef(false)
   useEffect(() => {
-    if (stage !== 'over' || rulerDemoDone.current || N < 2 || reduced) return
+    if (stage !== 'over' || rulerDemoDone.current || N < 2 || skip) return
     rulerDemoDone.current = true
     const id = setTimeout(() => setIdx((i) => i + 1), RULER_STEP_MS)
     return () => clearTimeout(id)
-  }, [stage, N, reduced])
+  }, [stage, N, skip])
 
   // After the first arrival has played (menu typed in), scrolling back up doesn't replay it.
   useEffect(() => {
@@ -238,7 +251,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     const big = placeLogo(el)
     if (!el || !big || logoIntroDone.current) return
     logoIntroDone.current = true
-    if (reduced) return
+    if (skip) return
     el.animate(
       [
         { opacity: 0, transform: logoTransform(big, 1) },
@@ -246,7 +259,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       ],
       { duration: LOGO_IN_MS, easing: LOGO_EASE },
     )
-  }, [showLogo, reduced])
+  }, [showLogo, skip])
 
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
@@ -294,6 +307,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     <section
       ref={rootRef}
       data-hero={skip ? 'over' : stage}
+      data-intro-done={seen ? '1' : undefined}
       className="relative h-dvh overflow-hidden bg-bg"
       aria-roledescription="carousel"
       aria-label="INCH”"
@@ -392,7 +406,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
-        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: `hero-fade 0.8s var(--ease-out) ${RULER_IN_MS}ms both` }}>
+        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-fade 0.8s var(--ease-out) ${RULER_IN_MS}ms both` }}>
           <div ref={rulerRef}>
             <Ruler
               count={N}
