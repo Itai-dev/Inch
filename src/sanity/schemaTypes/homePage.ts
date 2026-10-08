@@ -12,7 +12,7 @@ export const homePage = defineType({
       name: 'heroVideos',
       title: 'Hero videos & images (INCH”)',
       description:
-        'Full-screen behind the INCH” logo. The ruler at the bottom switches between them. A video plays through, an image stays 6 seconds, then the next one comes up. Videos: MP4/WebM, muted.',
+        'Full-screen behind the INCH” logo. Every 4 seconds the next one pushes in; the ruler at the bottom switches between them. Videos: MP4/WebM, muted.',
       type: 'array',
       of: [
         defineArrayMember({

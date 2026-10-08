@@ -6,9 +6,9 @@
  * 2. It splits: a 3:4 video window opens between the strokes and grows,
  *    pushing them off-screen, until the video fills the screen.
  * 3. A giant INCH” types in top-left and the header types in over the video;
- *    a ruler wipes in along the bottom. The ruler is the carousel control for
- *    the hero videos (click a number / drag the tape / arrow keys). A video
- *    that ends hands over to the next.
+ *    a ruler fades in along the bottom (and fades out as you scroll). The ruler is the carousel control for
+ *    the hero items (click a number / drag the tape / arrow keys). Every 4 s
+ *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
@@ -29,7 +29,8 @@ const MIN_BLINK_MS = 1300 // at least two blinks, even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2000
 const SPLIT = 0.22
-const IMAGE_MS = 6000 // how long an image stays before the next item
+const SLIDE_MS = 4000 // each item stays this long, then the next pushes it out
+const PUSH_MS = 900
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 const HEADER_LOGO = 28 // px — the real header logo
 const HEADER_TOP = 16 // px — header padding
@@ -49,7 +50,9 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const [waited, setWaited] = useState(false)
   const [idx, setIdx] = useState(0) // unbounded, so the ruler always slides forward
   const current = N ? mod(idx, N) : 0
-  const vids = useRef<(HTMLVideoElement | null)[]>([])
+  const els = useRef<(HTMLVideoElement | HTMLImageElement | null)[]>([])
+  const rulerRef = useRef<HTMLDivElement>(null)
+  const prevIdx = useRef(0)
   const logoRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -104,6 +107,13 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     const on = () => {
       setStage(window.scrollY > window.innerHeight - 48 ? 'past' : 'over')
       placeLogo()
+      // The ruler fades out over the first quarter screen of scrolling.
+      const r = rulerRef.current
+      if (r) {
+        const o = Math.max(0, 1 - window.scrollY / (window.innerHeight * 0.25))
+        r.style.opacity = String(o)
+        r.style.pointerEvents = o < 0.1 ? 'none' : ''
+      }
     }
     on()
     window.addEventListener('scroll', on, { passive: true })
@@ -121,8 +131,8 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   // (and the first one waits until the intro has opened it).
   const showVideo = stage !== 'intro' || skip
   useEffect(() => {
-    vids.current.forEach((v, i) => {
-      if (!v) return
+    els.current.forEach((v, i) => {
+      if (!(v instanceof HTMLVideoElement)) return
       if (i === current && showVideo) {
         v.currentTime = 0
         v.play().catch(() => {})
@@ -132,13 +142,26 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
   const step = (d: number) => N > 1 && setIdx((i) => i + d)
 
-  // Images hand over to the next item after IMAGE_MS (videos do it when they end).
-  const isImage = videos[current]?.kind === 'image'
+  // Every SLIDE_MS the next item pushes the current one out (a manual pick restarts the clock).
   useEffect(() => {
-    if (!showVideo || !isImage || N < 2) return
-    const id = setTimeout(() => setIdx((i) => i + 1), IMAGE_MS)
+    if (!showVideo || N < 2) return
+    const id = setTimeout(() => setIdx((i) => i + 1), SLIDE_MS)
     return () => clearTimeout(id)
-  }, [idx, showVideo, isImage, N])
+  }, [idx, showVideo, N])
+
+  // Push: the incoming item slides in from the side we're moving towards, shoving the old one out.
+  useEffect(() => {
+    const from = prevIdx.current
+    prevIdx.current = idx
+    if (from === idx || reduced || !N) return
+    const out = els.current[mod(from, N)]
+    const inn = els.current[mod(idx, N)]
+    if (!out || !inn || out === inn) return
+    const dir = idx > from ? 1 : -1
+    const opts = { duration: PUSH_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' }
+    inn.animate([{ transform: `translateX(${dir * 100}%)`, opacity: 1 }, { transform: 'translateX(0)', opacity: 1 }], opts)
+    out.animate([{ transform: 'translateX(0)', opacity: 1 }, { transform: `translateX(${-dir * 100}%)`, opacity: 1 }], opts)
+  }, [idx, N, reduced])
 
   const p = skip ? 1 : t
   // Window: the ” splits and a 3:4 window opens between the strokes (first SPLIT of
@@ -184,11 +207,15 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       >
         {videos.map((v, i) => {
           const style = { opacity: i === current ? 1 : 0 }
-          const cls = 'absolute inset-0 size-full object-cover transition-opacity duration-700'
+          const cls = 'absolute inset-0 size-full object-cover'
+          const ref = (el: HTMLVideoElement | HTMLImageElement | null) => {
+            els.current[i] = el
+          }
           return v.kind === 'image' ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={v.src}
+              ref={ref}
               src={v.src}
               alt=""
               loading={i === 0 ? 'eager' : 'lazy'}
@@ -200,17 +227,14 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
           ) : (
             <video
               key={v.src}
-              ref={(el) => {
-                vids.current[i] = el
-              }}
+              ref={ref}
               src={v.src}
               poster={v.poster}
               muted
-              loop={N === 1}
+              loop
               playsInline
               preload={i === 0 || i === mod(current + 1, N) ? 'auto' : 'metadata'}
               onCanPlay={i === 0 ? () => setReady(true) : undefined}
-              onEnded={i === current ? () => step(1) : undefined}
               aria-hidden={i !== current}
               className={cls}
               style={style}
@@ -243,18 +267,20 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
-        <div className="absolute inset-x-0 bottom-0 pb-4 text-paper md:pb-6" style={{ animation: 'hero-wipe 0.8s var(--ease-out) 0.9s both' }}>
-          <Ruler
-            count={N}
-            pos={idx}
-            active={[current]}
-            onSelect={setIdx}
-            reduced={reduced}
-            segW={Math.round(56 * rs)}
-            fontPx={Math.max(11, Math.round(19 * rs))}
-            tickH={Math.round(24 * rs)}
-            minors={9}
-          />
+        <div className="absolute inset-x-0 bottom-0 pb-4 text-paper md:pb-6" style={{ animation: 'hero-fade 0.8s var(--ease-out) 0.9s both' }}>
+          <div ref={rulerRef}>
+            <Ruler
+              count={N}
+              pos={idx}
+              active={[current]}
+              onSelect={setIdx}
+              reduced={reduced}
+              segW={Math.round(56 * rs)}
+              fontPx={Math.max(11, Math.round(19 * rs))}
+              tickH={Math.round(24 * rs)}
+              minors={9}
+            />
+          </div>
         </div>
       )}
       {N > 1 && (
