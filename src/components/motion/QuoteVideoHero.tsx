@@ -5,9 +5,9 @@
  * 1. The ” blinks while the first video loads.
  * 2. It splits: a 3:4 video window opens between the strokes and grows,
  *    pushing them off-screen, until the video fills the screen.
- * 3. A giant INCH” types in top-left and the header types in over the video;
+ * 3. A giant INCH” fades and grows in top-left and the header types in over the video;
  *    a ruler fades in along the bottom (and fades out as you scroll). The ruler is the carousel control for
- *    the hero items (click a number / drag the tape / arrow keys). Every 4 s
+ *    the hero items (click a number / drag the tape / arrow keys). Every 6 s
  *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
@@ -29,8 +29,10 @@ const MIN_BLINK_MS = 1300 // at least two blinks, even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2000
 const SPLIT = 0.22
-const SLIDE_MS = 4000 // each item stays this long, then the next pushes it out
-const PUSH_MS = 900
+const SLIDE_MS = 6000 // each item stays this long, then the next pushes it out
+const PUSH_MS = 1300
+const PUSH_EASE = 'cubic-bezier(0.83, 0, 0.17, 1)' // strong ease in-out: slow start, slow settle
+const LOGO_IN_MS = 1400
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 const HEADER_LOGO = 28 // px — the real header logo
 const HEADER_TOP = 16 // px — header padding
@@ -39,6 +41,19 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
+
+// Giant logo: big at the top of the page, shrinking into the header logo as you scroll.
+const logoTransform = (big: number, e: number) =>
+  `translateY(${lerp(window.innerHeight * 0.02, HEADER_TOP, e)}px) scale(${lerp(1, HEADER_LOGO / big, e)})`
+function placeLogo(el: HTMLElement | null) {
+  if (!el) return 0
+  const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
+  const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
+  el.style.fontSize = `${big}px`
+  el.style.left = `${window.innerWidth >= 768 ? 40 : 20}px`
+  el.style.transform = logoTransform(big, e)
+  return big
+}
 
 export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const N = videos.length
@@ -93,20 +108,11 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
   // Once open: the header sits over the video until it has scrolled away, and the
   // giant logo shrinks into the header position on the way.
-  const placeLogo = () => {
-    const el = logoRef.current
-    if (!el) return
-    const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
-    const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
-    el.style.fontSize = `${big}px`
-    el.style.left = `${window.innerWidth >= 768 ? 40 : 20}px`
-    el.style.transform = `translateY(${lerp(window.innerHeight * 0.02, HEADER_TOP, e)}px) scale(${lerp(1, HEADER_LOGO / big, e)})`
-  }
   useEffect(() => {
     if (!settled) return
     const on = () => {
       setStage(window.scrollY > window.innerHeight - 48 ? 'past' : 'over')
-      placeLogo()
+      placeLogo(logoRef.current)
       // The ruler fades out over the first quarter screen of scrolling.
       const r = rulerRef.current
       if (r) {
@@ -123,9 +129,23 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       window.removeEventListener('resize', on)
     }
   }, [settled])
+  // First arrival: the logo fades in while growing from header size — the scroll shrink, reversed.
+  const logoIntroDone = useRef(false)
   useLayoutEffect(() => {
-    if (stage === 'over') placeLogo()
-  }, [stage])
+    if (stage !== 'over') return
+    const el = logoRef.current
+    const big = placeLogo(el)
+    if (!el || !big || logoIntroDone.current) return
+    logoIntroDone.current = true
+    if (reduced) return
+    el.animate(
+      [
+        { opacity: 0, transform: logoTransform(big, 1) },
+        { opacity: 1, transform: el.style.transform },
+      ],
+      { duration: LOGO_IN_MS, easing: PUSH_EASE },
+    )
+  }, [stage, reduced])
 
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
@@ -158,7 +178,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     const inn = els.current[mod(idx, N)]
     if (!out || !inn || out === inn) return
     const dir = idx > from ? 1 : -1
-    const opts = { duration: PUSH_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' }
+    const opts = { duration: PUSH_MS, easing: PUSH_EASE }
     inn.animate([{ transform: `translateX(${dir * 100}%)`, opacity: 1 }, { transform: 'translateX(0)', opacity: 1 }], opts)
     out.animate([{ transform: 'translateX(0)', opacity: 1 }, { transform: `translateX(${-dir * 100}%)`, opacity: 1 }], opts)
   }, [idx, N, reduced])
@@ -259,7 +279,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
           ref={logoRef}
           aria-hidden
           className="pointer-events-none fixed top-0 z-30 origin-top-left text-paper"
-          style={{ animation: 'hero-type 0.7s steps(5) both', lineHeight: 0.9 }}
+          style={{ lineHeight: 0.9 }}
         >
           <Logo as="div" className="whitespace-nowrap" />
         </div>
@@ -279,6 +299,8 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
               fontPx={Math.max(11, Math.round(19 * rs))}
               tickH={Math.round(24 * rs)}
               minors={9}
+              duration={PUSH_MS}
+              easing={PUSH_EASE}
             />
           </div>
         </div>

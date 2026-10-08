@@ -28,10 +28,13 @@ export type RulerProps = {
   /** Minor ticks between two numbers (odd, so the middle one can be taller). */
   minors?: number
   reduced?: boolean
+  /** Tape slide timing (ms + CSS easing). */
+  duration?: number
+  easing?: string
   className?: string
 }
 
-export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10, tickH = 8, minors = 3, reduced, className = '' }: RulerProps) {
+export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10, tickH = 8, minors = 3, reduced, duration = 500, easing = EASE, className = '' }: RulerProps) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(1200)
   const [dragging, setDragging] = useState(false)
@@ -104,7 +107,7 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
         className="absolute inset-y-0 left-1/2"
         style={{
           transform: `translateX(${-(pos + 0.5) * segW}px)`,
-          transition: dragging || reduced ? 'none' : `transform 0.5s ${EASE}`,
+          transition: dragging || reduced ? 'none' : `transform ${duration}ms ${easing}`,
           willChange: 'transform',
         }}
       >
