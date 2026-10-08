@@ -28,6 +28,7 @@ const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
 const BLINK_MS = 1200 // one smooth blink; the open always starts at the top of a blink
 const MIN_BLINKS = 2 // even when the video is cached
+const MARK_START_SCALE = 0.55 // the ” grows from this to full size over the first MIN_BLINKS blinks
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
 const SPLIT = 0.25
@@ -91,6 +92,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const logoRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLElement>(null)
   const blinkRef = useRef<HTMLSpanElement>(null)
+  const growRef = useRef<HTMLDivElement>(null)
   const winRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<HTMLDivElement>(null)
   const blinkAnim = useRef<Animation | null>(null)
@@ -111,6 +113,12 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
         iterations: Infinity,
         easing: 'ease-in-out',
       }) ?? null
+    // …and slowly grows to full size, landing as the reveal can start.
+    growRef.current?.animate([{ transform: `scale(${MARK_START_SCALE})` }, { transform: 'scale(1)' }], {
+      duration: BLINK_MS * MIN_BLINKS,
+      easing: 'cubic-bezier(0.3, 0, 0.2, 1)',
+      fill: 'forwards',
+    })
     const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
     const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
     return () => {
@@ -306,9 +314,11 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       {/* 1. Blinking ” while loading. */}
       {!showVideo && !fast && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
-          <span ref={blinkRef}>
-            <QuoteMark height={Math.round(vp.h * MARK_VH)} />
-          </span>
+          <div ref={growRef} style={{ transform: reduced ? undefined : `scale(${MARK_START_SCALE})` }}>
+            <span ref={blinkRef}>
+              <QuoteMark height={Math.round(vp.h * MARK_VH)} />
+            </span>
+          </div>
         </div>
       )}
 
