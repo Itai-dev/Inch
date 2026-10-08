@@ -34,7 +34,10 @@ const SPLIT = 0.25
 const SLIDE_MS = 6000 // each item stays this long, then the next pushes it out
 const PUSH_MS = 1300
 const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
-const LOGO_IN_MS = 1400
+// Hand-off after the reveal (t = 0 when the video has finished growing):
+const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
+const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.85s and the ruler fades in from +1.5s (globals.css / below)
+const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 // The real header (keep in sync with Header.tsx): logo font size, top and side padding.
 const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
@@ -78,6 +81,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
+  const [logoIn, setLogoIn] = useState(false)
   const fast = useSyncExternalStore(() => () => {}, readSkipLoader, () => false)
   const [idx, setIdx] = useState(0) // unbounded, so the ruler always slides forward
   const current = N ? mod(idx, N) : 0
@@ -162,6 +166,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       const tick = (now: number) => {
         const p = Math.min(1, (now - t0) / OPEN_MS)
         layout(p)
+        if (now - t0 >= OPEN_MS - LOGO_LEAD_MS) setLogoIn(true)
         if (p < 1) raf = requestAnimationFrame(tick)
         else {
           done = true
@@ -209,8 +214,17 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   }, [settled])
   // First arrival: the logo fades in while growing from header size — the scroll shrink, reversed.
   const logoIntroDone = useRef(false)
-  useLayoutEffect(() => {
+  const showLogo = stage === 'over' || logoIn
+  // After the first arrival has played (menu typed in), scrolling back up doesn't replay it.
+  useEffect(() => {
     if (stage !== 'over') return
+    const id = setTimeout(() => {
+      if (rootRef.current) rootRef.current.dataset.introDone = '1'
+    }, 2000)
+    return () => clearTimeout(id)
+  }, [stage])
+  useLayoutEffect(() => {
+    if (!showLogo) return
     const el = logoRef.current
     const big = placeLogo(el)
     if (!el || !big || logoIntroDone.current) return
@@ -221,9 +235,9 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
         { opacity: 0, transform: logoTransform(big, 1) },
         { opacity: 1, transform: el.style.transform },
       ],
-      { duration: LOGO_IN_MS, easing: PUSH_EASE },
+      { duration: LOGO_IN_MS, easing: LOGO_EASE },
     )
-  }, [stage, reduced])
+  }, [showLogo, reduced])
 
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
@@ -353,7 +367,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       )}
 
       {/* Giant logo (shrinks into the header on scroll) — fixed, so it can land on the header logo. */}
-      {stage === 'over' && (
+      {showLogo && stage !== 'past' && (
         <div
           ref={logoRef}
           aria-hidden
@@ -366,7 +380,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
-        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: 'hero-fade 0.8s var(--ease-out) 0.9s both' }}>
+        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: 'hero-fade 0.8s var(--ease-out) 1.5s both' }}>
           <div ref={rulerRef}>
             <Ruler
               count={N}
