@@ -14,7 +14,7 @@ const slides = placeholderSlides()
 
 function Label({ n, title, note }: { n: string; title: string; note: string }) {
   return (
-    <header className="flex flex-col gap-2 px-5 pt-24 md:px-10">
+    <header className="flex flex-col gap-2 px-gutter pt-24">
       <p className="label text-muted">{n}</p>
       <h2 className="text-3xl font-bold">{title}</h2>
       <p className="max-w-xl text-muted">{note}</p>
@@ -32,7 +32,7 @@ export default function MotionLab() {
         <Label n="INCH” · 02" title="Tape-measure carousel" note="Drag the ruler, scroll, click a number, hold, or use ← →." />
         <TapeCarousel slides={slides} height="90dvh" />
         <Label n="INCH” · 03" title="Blink and open" note="Plays when in view." />
-        <div className="mx-auto max-w-xl px-5 py-16"><BlinkOpen src={slides[0].src} alt="Placeholder" /></div>
+        <div className="mx-auto max-w-xl px-gutter py-16"><BlinkOpen src={slides[0].src} alt="Placeholder" /></div>
       </section>
 
       <section data-theme="dot" className="bg-bg text-fg">
@@ -41,7 +41,7 @@ export default function MotionLab() {
         <Label n="DOT. · 02" title="Square-index carousel" note="One image at a time, ■ aperture wipe. Squares, arrows, drag or scroll." />
         <DotIndexCarousel slides={slides} height="80dvh" />
         <Label n="DOT. · 03" title="Square aperture open" note="■ pulses twice, then opens into the image." />
-        <div className="mx-auto max-w-md px-5 py-16"><DotOpen src={slides[3].src} alt="Placeholder" /></div>
+        <div className="mx-auto max-w-md px-gutter py-16"><DotOpen src={slides[3].src} alt="Placeholder" /></div>
       </section>
     </div>
   )

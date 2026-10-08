@@ -15,7 +15,7 @@ export function BookViewer({ slides, isDot, defaultView = 'book' }: { slides: Sl
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="label flex justify-end gap-4 px-5 md:px-10" role="group" aria-label="View">
+      <div className="label flex justify-end gap-4 px-gutter" role="group" aria-label="View">
         {(['book', 'thumbnails'] as View[]).map((v) => (
           <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={`uppercase ${view === v ? 'text-fg' : 'text-muted hover:text-fg'}`}>
             {v === 'book' ? 'Book' : 'Thumbnails'}
@@ -30,7 +30,7 @@ export function BookViewer({ slides, isDot, defaultView = 'book' }: { slides: Sl
           <TapeCarousel key={start} slides={slides} height="92dvh" start={start} />
         )
       ) : (
-        <ul className="grid grid-cols-2 gap-x-4 gap-y-8 px-5 md:grid-cols-4 md:px-10">
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-8 px-gutter md:grid-cols-4">
           {slides.map((s, i) => (
             <li key={s.id}>
               <button type="button" onClick={() => { setStart(i); setView('book') }} className="block w-full text-left" aria-label={`Open ${s.alt}`}>

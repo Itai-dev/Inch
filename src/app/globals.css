@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@utility px-gutter {
+  padding-inline: var(--gutter);
+}
+
 /* ── INCH” brand tokens (source: Figma "INCH” Brand") ───────────────────────
    Monochrome + warm stone greys. Archivo only (variable, wdth 62–125).
    DOT. pages invert via [data-theme="dot"] on <html>.                      */
@@ -17,6 +21,9 @@
   --surface: #f4f4f3;
 
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* One side margin for the whole site: the logo's and the menu's distance from the edge
+     (46px on the 1920 artboard, scaled with the viewport). */
+  --gutter: clamp(20px, 2.4vw, 46px);
   --wordmark-stretch: 75%; /* condensed wordmark — update when logo is final */
 }
 
@@ -130,3 +137,14 @@ body:has([data-hero="over"]) [data-site-header] nav > :nth-child(2) { animation-
 body:has([data-hero="over"]) [data-site-header] nav > :nth-child(3) { animation-delay: 0.16s; }
 body:has([data-hero="over"]) [data-site-header] nav > :nth-child(4) { animation-delay: 0.24s; }
 body:has([data-hero="over"]) [data-site-header] nav > :nth-child(5) { animation-delay: 0.32s; }
+
+/* Menu items: tighten to -10% tracking on hover, press and the current page. */
+.nav-item {
+  letter-spacing: -0.02em;
+  transition: letter-spacing 0.35s var(--ease-out);
+}
+.nav-item:hover,
+.nav-item:active,
+.nav-item[aria-current="page"] {
+  letter-spacing: -0.1em;
+}

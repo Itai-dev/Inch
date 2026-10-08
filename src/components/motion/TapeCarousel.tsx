@@ -85,7 +85,7 @@ export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides:
 
   return (
     <section
-      className="relative flex w-full select-none flex-col overflow-hidden bg-bg px-5 pb-6 pt-4 md:px-10"
+      className="relative flex w-full select-none flex-col overflow-hidden bg-bg px-gutter pb-6 pt-4"
       style={{ height }}
       onWheel={onWheel}
       onKeyDown={(e) => {

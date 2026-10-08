@@ -9,7 +9,7 @@ export function IntroSection({ text, images }: { text?: string | null; images?: 
   const imgs = (images ?? []).filter((i) => i?.asset)
   if (!text && !imgs.length) return null
   return (
-    <section className="flex flex-col gap-12 px-5 py-20 md:px-10">
+    <section className="flex flex-col gap-12 px-gutter py-20">
       {text && <p className="max-w-3xl whitespace-pre-line text-lg leading-relaxed md:text-xl">{text}</p>}
       {imgs.length > 0 && (
         <ul className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3">

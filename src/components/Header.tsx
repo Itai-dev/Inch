@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { DotBox, Logo } from './brand/Logo'
 import { SelectionCount } from './selection/SelectionCount'
+import { NavLink } from './NavLink'
 import { SiteSwitchLink } from './SiteSwitchLink'
 
 /**
@@ -16,18 +17,18 @@ export function Header({ site }: { site: Site }) {
   return (
     <header
       data-site-header
-      className="sticky top-0 z-40 flex items-start justify-between px-[clamp(20px,2.4vw,46px)] pb-4 pt-[clamp(16px,2.97vw,57px)] text-paper mix-blend-difference"
+      className="sticky top-0 z-40 flex items-start justify-between px-gutter pb-4 pt-[clamp(16px,2.97vw,57px)] text-paper mix-blend-difference"
     >
       <Link href={sitePath(site)} aria-label={`${s.brand} home`}>
         <Logo division={s.division} className="text-[48px] md:text-[70px]" />
       </Link>
       <nav
-        className="flex items-center gap-[var(--nav-gap)] text-[clamp(12px,1.333vw,25.6px)] font-bold uppercase leading-none tracking-[-0.02em] [--nav-gap:1.65em]"
+        className="flex items-center gap-[var(--nav-gap)] text-[clamp(12px,1.333vw,25.6px)] font-bold uppercase leading-none [--nav-gap:1.65em]"
         style={{ fontStretch: '80%' }}
       >
-        <Link href={sitePath(site, '/models')}>Models</Link>
-        <Link href={sitePath(site, '/apply')} className="hidden md:inline">Apply</Link>
-        <Link href={sitePath(site, '/contact')} className="hidden md:inline">Contact</Link>
+        <NavLink href={sitePath(site, '/models')}>Models</NavLink>
+        <NavLink href={sitePath(site, '/apply')} className="hidden md:inline">Apply</NavLink>
+        <NavLink href={sitePath(site, '/contact')} className="hidden md:inline">Contact</NavLink>
         <SelectionCount />
         {/* The other site, as a box. White + difference blend: a black box on light pages, white on dark. */}
         {site === 'inch' ? (

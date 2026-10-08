@@ -87,7 +87,7 @@ export function TextOpen({ text }: { text: string }) {
 
   return (
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : '210vh' }} className="relative">
-      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-6`}>
+      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(86vw,1214px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
             <QuoteStroke side="left" height={markH} />

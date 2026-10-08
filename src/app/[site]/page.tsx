@@ -66,7 +66,7 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
 
 function ModelsSection({ site, talents }: { site: Site; talents: TalentCard[] }) {
   return (
-    <section className="px-5 py-16 md:px-10">
+    <section className="px-gutter py-16">
       <div className="mb-10 flex items-end justify-between">
         <h2 className="label text-muted">Models</h2>
         <Link href={sitePath(site, '/models')} className="label">All models →</Link>

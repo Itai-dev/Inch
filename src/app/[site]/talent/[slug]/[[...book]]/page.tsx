@@ -61,7 +61,7 @@ export default async function TalentPage({ params }: PageProps<'/[site]/talent/[
 
   return (
     <div className="flex flex-col gap-12 py-10">
-      <header className="grid gap-10 px-5 md:grid-cols-[1fr_1.4fr] md:px-10">
+      <header className="grid gap-10 px-gutter md:grid-cols-[1fr_1.4fr]">
         <div className="flex flex-col gap-6">
           <h1 className="wordmark text-6xl uppercase md:text-8xl">{t.name}</h1>
           <Measurements m={t.measurements} division={t.division} />
@@ -84,7 +84,7 @@ export default async function TalentPage({ params }: PageProps<'/[site]/talent/[
       </header>
 
       {tabs.length > 0 && (
-        <nav className="label flex flex-wrap gap-6 border-b border-line px-5 pb-3 md:px-10" aria-label="Books">
+        <nav className="label flex flex-wrap gap-6 border-b border-line px-gutter pb-3" aria-label="Books">
           {tabs.map((x) => (
             <Link
               key={x.segment}
@@ -103,7 +103,7 @@ export default async function TalentPage({ params }: PageProps<'/[site]/talent/[
         <BookViewer key={active.segment} slides={imageSlides(t[active.field], t.name)} isDot={isDot} defaultView={active.view} />
       )}
       {segment === 'bio' && t.bio && (
-        <section className="max-w-2xl px-5 md:px-10">
+        <section className="max-w-2xl px-gutter">
           <p className="whitespace-pre-line text-lg">{t.bio}</p>
         </section>
       )}
