@@ -1,5 +1,6 @@
 import type { StructureResolver } from 'sanity/structure'
 import { singletonId, SITES, type Site } from '../lib/sites'
+import { apiVersion } from './env'
 
 /** Each Studio workspace only shows its own site's documents. */
 export const structureFor =
@@ -13,6 +14,7 @@ export const structureFor =
         .child(
           S.documentTypeList(type)
             .title(title)
+            .apiVersion(apiVersion)
             .filter('_type == $type && division == $division')
             .params({ type, division })
             .initialValueTemplates([S.initialValueTemplateItem(`${type}-${site}`)]),
