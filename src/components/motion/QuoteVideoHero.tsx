@@ -34,7 +34,8 @@ const PUSH_MS = 1300
 const PUSH_EASE = 'cubic-bezier(0.83, 0, 0.17, 1)' // strong ease in-out: slow start, slow settle
 const LOGO_IN_MS = 1400
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
-const HEADER_LOGO = 35 // px — the real header logo (keep in sync with Header.tsx)
+// px — the real header logo, phone / md+ (keep in sync with Header.tsx)
+const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
 const HEADER_TOP = 16 // px — header padding
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
@@ -44,7 +45,7 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 
 // Giant logo: big at the top of the page, shrinking into the header logo as you scroll.
 const logoTransform = (big: number, e: number) =>
-  `translateY(${lerp(window.innerHeight * 0.02, HEADER_TOP, e)}px) scale(${lerp(1, HEADER_LOGO / big, e)})`
+  `translateY(${lerp(window.innerHeight * 0.02, HEADER_TOP, e)}px) scale(${lerp(1, headerLogo() / big, e)})`
 function placeLogo(el: HTMLElement | null) {
   if (!el) return 0
   const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
@@ -111,7 +112,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   useEffect(() => {
     if (!settled) return
     const on = () => {
-      setStage(window.scrollY > window.innerHeight - 48 ? 'past' : 'over')
+      setStage(window.scrollY > window.innerHeight - 72 ? 'past' : 'over')
       placeLogo(logoRef.current)
       // The ruler fades out over the first quarter screen of scrolling.
       const r = rulerRef.current

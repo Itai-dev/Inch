@@ -107,20 +107,14 @@ body {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
 }
-/* Header hides during the intro, then types in over the video in white. */
+/* Header hides during the intro, then types in over the video. */
 body:has([data-hero]) [data-site-header] {
   position: fixed;
   inset-inline: 0;
-  transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
 }
 body:has([data-hero="intro"]) [data-site-header],
 body:has([data-hero="open"]) [data-site-header] {
   visibility: hidden;
-}
-body:has([data-hero="over"]) [data-site-header] {
-  background: transparent;
-  backdrop-filter: none;
-  color: var(--paper);
 }
 /* The giant hero logo stands in for the header logo until the video scrolls away. */
 body:has([data-hero="over"]) [data-site-header] > a {
