@@ -29,7 +29,7 @@ export default async function CategoryPage({ params }: PageProps<'/[site]/models
   if (!data) notFound()
 
   return (
-    <div className="px-5 py-10 md:px-10">
+    <div className="px-gutter py-10">
       <header className="mb-10 flex flex-col gap-6">
         <h1 className="wordmark text-7xl md:text-9xl">{data.title}</h1>
         <CategoryNav site={site} categories={categories} active={category} />

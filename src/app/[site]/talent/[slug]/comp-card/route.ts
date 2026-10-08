@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage } from 'pdf-lib'
+import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { singletonId, siteForDivision, SITES, type Site } from '@/lib/sites'
 import { cmToFeet, cmToInches } from '@/lib/units'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -52,7 +53,6 @@ export async function GET(_req: Request, { params }: RouteContext<'/[site]/talen
   })
 
   // Footer: name, measurements, agency.
-  const { brand } = SITES[site as Site]
   const text = (s: string, x: number, y: number, size: number, font: PDFFont, color = INK) =>
     page.drawText(safe(s, font), { x, y, size, font, color })
 
@@ -78,7 +78,15 @@ export async function GET(_req: Request, { params }: RouteContext<'/[site]/talen
     const v = safe(s, font)
     page.drawText(v, { x: W - M - font.widthOfTextAtSize(v, size), y, size, font, color })
   }
-  right(brand, FOOT - 36, 24, bold)
+  // Agency mark (” or ■), not the full wordmark — top-aligned with the name's cap height.
+  const markH = 18
+  const markTop = FOOT - 36 + 17
+  if (SITES[site as Site].division === 'men') {
+    page.drawRectangle({ x: W - M - markH * 0.7, y: markTop - markH * 0.7, width: markH * 0.7, height: markH * 0.7, color: INK })
+  } else {
+    const k = markH / 72 // brand ” is 64×72
+    for (const d of [LEFT_PATH, RIGHT_PATH]) page.drawSvgPath(d, { x: W - M - 64 * k, y: markTop, scale: k, color: INK })
+  }
   const contact = [settings?.email, settings?.phone, settings?.instagram?.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')]
   right(contact.filter(Boolean).join('   '), FOOT - 70, 8, regular, MUTED)
 

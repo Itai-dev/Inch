@@ -21,7 +21,7 @@ export default async function ModelsPage({ params }: PageProps<'/[site]/models'>
   ])
 
   return (
-    <div className="px-5 py-10 md:px-10">
+    <div className="px-gutter py-10">
       <header className="mb-10 flex flex-col gap-6">
         <h1 className="flex items-end gap-4">
           <Logo division={division} className="text-7xl md:text-9xl" />

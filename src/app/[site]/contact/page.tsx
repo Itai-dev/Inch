@@ -21,7 +21,7 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   const filled = rows.filter(([, v]) => v)
 
   return (
-    <div className="grid gap-12 px-5 py-16 md:grid-cols-2 md:px-10">
+    <div className="grid gap-12 px-gutter py-16 md:grid-cols-2">
       <h1 className="text-6xl font-bold tracking-tight">Contact</h1>
       <div className="flex flex-col gap-8 text-lg">
         {filled.length ? (
