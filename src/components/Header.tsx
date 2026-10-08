@@ -8,7 +8,7 @@ export function Header({ site }: { site: Site }) {
   return (
     <header data-site-header className="sticky top-0 z-40 flex items-center justify-between bg-bg/90 px-5 py-4 backdrop-blur md:px-10">
       <Link href={sitePath(site)} aria-label={`${s.brand} home`}>
-        <Logo division={s.division} className="text-[28px]" />
+        <Logo division={s.division} className="text-[35px]" />
       </Link>
       <nav className="label flex items-center gap-5 md:gap-8">
         <Link href={sitePath(site, '/models')}>Models</Link>

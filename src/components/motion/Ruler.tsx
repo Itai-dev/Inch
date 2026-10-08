@@ -69,6 +69,13 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
     backgroundRepeat: 'no-repeat',
   } as const
 
+  // Faded tape (Figma Make carousel): only the centre is at full strength, falling away to the sides.
+  const half = segW * (0.53 + (Math.max(1, active.length) - 1) * 0.5)
+  const mask = [
+    `linear-gradient(to right, transparent, rgba(0,0,0,0.06) calc(50% - ${half + segW * 1.28}px), rgba(0,0,0,0.18) calc(50% - ${half + segW * 0.17}px), black calc(50% - ${half}px), black calc(50% + ${half}px), rgba(0,0,0,0.18) calc(50% + ${half + segW * 0.17}px), rgba(0,0,0,0.06) calc(50% + ${half + segW * 1.28}px), transparent)`,
+    `radial-gradient(ellipse ${Math.round(segW * 4.4)}px 100% at 50% 50%, rgba(0,0,0,0.45) 0%, transparent 100%)`,
+  ].join(', ')
+
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { active: true, x: e.clientX, k: Math.round(pos), moved: false }
@@ -97,7 +104,7 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
       ref={boxRef}
       aria-hidden
       className={`relative w-full select-none overflow-hidden ${className}`}
-      style={{ height, touchAction: 'none', cursor: dragging ? 'grabbing' : 'pointer' }}
+      style={{ height, touchAction: 'none', cursor: dragging ? 'grabbing' : 'pointer', maskImage: mask, WebkitMaskImage: mask }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
@@ -112,12 +119,11 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
         }}
       >
         {ks.map((k) => {
-          const on = active.includes(mod(k, N))
           return (
             <div key={k}>
               <span
-                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums transition-opacity duration-300"
-                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx, opacity: on ? 1 : 0.55 }}
+                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums"
+                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx }}
               >
                 {pad2(mod(k, N) + 1)}
               </span>

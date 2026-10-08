@@ -34,7 +34,7 @@ const PUSH_MS = 1300
 const PUSH_EASE = 'cubic-bezier(0.83, 0, 0.17, 1)' // strong ease in-out: slow start, slow settle
 const LOGO_IN_MS = 1400
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
-const HEADER_LOGO = 28 // px — the real header logo
+const HEADER_LOGO = 35 // px — the real header logo (keep in sync with Header.tsx)
 const HEADER_TOP = 16 // px — header padding
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
@@ -170,7 +170,8 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   }, [idx, showVideo, N])
 
   // Push: the incoming item slides in from the side we're moving towards, shoving the old one out.
-  useEffect(() => {
+  // Layout effect so the animation is in place before the browser paints the new item (no blink).
+  useLayoutEffect(() => {
     const from = prevIdx.current
     prevIdx.current = idx
     if (from === idx || reduced || !N) return
