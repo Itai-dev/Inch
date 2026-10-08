@@ -119,11 +119,13 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
         }}
       >
         {ks.map((k) => {
+          // Only the copy under the centre counts as selected (numbers repeat along the tape).
+          const on = Math.abs(k - pos) <= (Math.max(1, active.length) - 1) / 2 + 0.01
           return (
             <div key={k}>
               <span
-                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums"
-                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx }}
+                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums transition-opacity duration-500"
+                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx, opacity: on ? 1 : 0.4 }}
               >
                 {pad2(mod(k, N) + 1)}
               </span>

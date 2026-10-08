@@ -264,7 +264,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
   const showUi = stage === 'over' || stage === 'past'
 
-  // Ruler scales with the viewport (67px per number @ 1920 — 0.84 × the Figma ruler).
+  // Ruler scales with the viewport (60px per number @ 1920 — 0.75 × the Figma ruler).
   const rs = Math.min(1, Math.max(0.6, vp.w / 1920))
 
   return (
@@ -374,9 +374,9 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
               active={[current]}
               onSelect={setIdx}
               reduced={reduced}
-              segW={Math.round(67 * rs)}
-              fontPx={Math.max(13, Math.round(23 * rs))}
-              tickH={Math.round(29 * rs)}
+              segW={Math.round(60 * rs)}
+              fontPx={Math.max(12, Math.round(21 * rs))}
+              tickH={Math.round(26 * rs)}
               minors={9}
               duration={PUSH_MS}
               easing={PUSH_EASE}
