@@ -22,13 +22,13 @@ import { Ruler } from './Ruler'
 export type HeroMedia = { kind: 'video' | 'image'; src: string; poster?: string }
 type Stage = 'intro' | 'open' | 'over' | 'past'
 
-const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080)
+const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080) — keep in sync with the 6.5dvh loader mark
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
 const BLINK_MS = 1200 // one smooth blink; the open always starts at the top of a blink
 const MIN_BLINKS = 2 // even when the video is cached
-const MARK_START_SCALE = 0.55 // the ” grows from this to full size over the first MIN_BLINKS blinks
+const MARK_START_SCALE = 0.9 // the ” grows from this to full size over the first MIN_BLINKS blinks
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
 const SPLIT = 0.25
@@ -315,8 +315,9 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       {!showVideo && !fast && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
           <div ref={growRef} style={{ transform: reduced ? undefined : `scale(${MARK_START_SCALE})` }}>
-            <span ref={blinkRef}>
-              <QuoteMark height={Math.round(vp.h * MARK_VH)} />
+            {/* Sized in CSS (dvh), not from JS, so it's right from the first frame — no jump on load. */}
+            <span ref={blinkRef} className="block [&>svg]:h-[6.5dvh] [&>svg]:w-auto">
+              <QuoteMark />
             </span>
           </div>
         </div>
