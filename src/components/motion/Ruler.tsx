@@ -72,8 +72,8 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
   // Faded tape (Figma Make carousel): only the centre is at full strength, falling away to the sides.
   const half = segW * (0.53 + (Math.max(1, active.length) - 1) * 0.5)
   const mask = [
-    `linear-gradient(to right, transparent, rgba(0,0,0,0.06) calc(50% - ${half + segW * 1.28}px), rgba(0,0,0,0.18) calc(50% - ${half + segW * 0.17}px), black calc(50% - ${half}px), black calc(50% + ${half}px), rgba(0,0,0,0.18) calc(50% + ${half + segW * 0.17}px), rgba(0,0,0,0.06) calc(50% + ${half + segW * 1.28}px), transparent)`,
-    `radial-gradient(ellipse ${Math.round(segW * 4.4)}px 100% at 50% 50%, rgba(0,0,0,0.45) 0%, transparent 100%)`,
+    `linear-gradient(to right, transparent, rgba(0,0,0,0.12) calc(50% - ${half + segW * 2.6}px), rgba(0,0,0,0.38) calc(50% - ${half + segW * 0.6}px), black calc(50% - ${half}px), black calc(50% + ${half}px), rgba(0,0,0,0.38) calc(50% + ${half + segW * 0.6}px), rgba(0,0,0,0.12) calc(50% + ${half + segW * 2.6}px), transparent)`,
+    `radial-gradient(ellipse ${Math.round(segW * 7)}px 100% at 50% 50%, rgba(0,0,0,0.5) 0%, transparent 100%)`,
   ].join(', ')
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {

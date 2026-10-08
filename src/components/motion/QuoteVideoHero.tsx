@@ -25,33 +25,38 @@ const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.06 // gap between window and stroke ÷ window height
-const MIN_BLINK_MS = 1300 // at least two blinks, even when the video is cached
+const BLINK_MS = 1200 // one smooth blink; the open always starts at the top of a blink
+const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
-const OPEN_MS = 2000
-const SPLIT = 0.22
+const OPEN_MS = 2400
+const SPLIT = 0.25
 const SLIDE_MS = 6000 // each item stays this long, then the next pushes it out
 const PUSH_MS = 1300
-const PUSH_EASE = 'cubic-bezier(0.83, 0, 0.17, 1)' // strong ease in-out: slow start, slow settle
+const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 const LOGO_IN_MS = 1400
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
-// px — the real header logo, phone / md+ (keep in sync with Header.tsx)
+// The real header (keep in sync with Header.tsx): logo font size, top and side padding.
 const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
-const HEADER_TOP = 16 // px — header padding
+const headerTop = () => Math.min(57, Math.max(16, window.innerWidth * 0.0297))
+const headerSide = () => Math.min(46, Math.max(20, window.innerWidth * 0.024))
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+const smooth = (t: number) => t * t * (3 - 2 * t)
+// Gap between the two strokes inside the ” itself, as a share of its height.
+const MARK_GAP = (1009.53 - 907.388) / 611
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
 
 // Giant logo: big at the top of the page, shrinking into the header logo as you scroll.
 const logoTransform = (big: number, e: number) =>
-  `translateY(${lerp(window.innerHeight * 0.02, HEADER_TOP, e)}px) scale(${lerp(1, headerLogo() / big, e)})`
+  `translateY(${lerp(window.innerHeight * 0.02, headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
 function placeLogo(el: HTMLElement | null) {
   if (!el) return 0
   const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
   const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
   el.style.fontSize = `${big}px`
-  el.style.left = `${window.innerWidth >= 768 ? 40 : 20}px`
+  el.style.left = `${headerSide()}px`
   el.style.transform = logoTransform(big, e)
   return big
 }
@@ -60,7 +65,6 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const N = videos.length
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
-  const [t, setT] = useState(0)
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
@@ -70,6 +74,10 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const rulerRef = useRef<HTMLDivElement>(null)
   const prevIdx = useRef(0)
   const logoRef = useRef<HTMLDivElement>(null)
+  const blinkRef = useRef<HTMLSpanElement>(null)
+  const winRef = useRef<HTMLDivElement>(null)
+  const strokesRef = useRef<HTMLDivElement>(null)
+  const blinkAnim = useRef<Animation | null>(null)
 
   useEffect(() => {
     const on = () => setVp({ w: window.innerWidth, h: window.innerHeight })
@@ -78,31 +86,76 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     return () => window.removeEventListener('resize', on)
   }, [])
 
-  // Blink for a minimum time, then open once the first video can play (or we give up waiting).
+  // Smooth blink (on the compositor, so loading work can't make it stutter).
   useEffect(() => {
-    const a = setTimeout(() => setWaited(true), MIN_BLINK_MS)
+    if (reduced) return
+    blinkAnim.current =
+      blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }], {
+        duration: BLINK_MS,
+        iterations: Infinity,
+        easing: 'ease-in-out',
+      }) ?? null
+    const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
     const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
     return () => {
       clearTimeout(a)
       clearTimeout(b)
     }
-  }, [])
+  }, [reduced])
 
   const skip = reduced
   const opening = !skip && ready && waited // flips true once, starts the open
 
+  // Reveal, drawn frame by frame straight onto the DOM (no React render per frame).
+  // Phase 1 (SPLIT): the ” splits as a window opens between its strokes.
+  // Phase 2: the window grows to full screen, height leading width; strokes ride its edges.
+  const layout = (p: number) => {
+    const win = winRef.current
+    const strokes = strokesRef.current
+    if (!win) return
+    const W = window.innerWidth
+    const H = window.innerHeight
+    const h0 = H * WIN_VH
+    const w0 = h0 * 0.75
+    const a = smooth(Math.min(1, p / SPLIT))
+    const b = Math.max(0, (p - SPLIT) / (1 - SPLIT))
+    const winH = h0 + (H - h0) * easeInOut(Math.min(1, b / 0.8))
+    const winW = w0 * a + (W - w0) * easeInOut(b)
+    win.style.width = `${winW}px`
+    win.style.height = `${winH}px`
+    if (!strokes) return
+    const strokeH = Math.max(H * MARK_VH, winH * STROKE)
+    // Strokes start exactly where they sit in the ” and part as the window opens.
+    const gap = lerp((H * MARK_VH * MARK_GAP) / 2, winH * STROKE_GAP, a)
+    const [l, r] = strokes.children as unknown as HTMLElement[]
+    strokes.style.setProperty('--h', `${strokeH}px`)
+    l.style.right = `${winW / 2 + gap}px`
+    r.style.left = `${winW / 2 + gap}px`
+  }
+
   useEffect(() => {
     if (!opening) return
     let raf = 0
-    const t0 = performance.now()
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / OPEN_MS)
-      setT(p)
-      setStage(p < 1 ? 'open' : 'over')
-      if (p < 1) raf = requestAnimationFrame(tick)
+    // Start at the top of a blink so the ” never jumps from half-faded.
+    const t = blinkAnim.current?.currentTime
+    const wait = typeof t === 'number' ? (BLINK_MS - (t % BLINK_MS)) % BLINK_MS : 0
+    const timer = setTimeout(() => {
+      blinkAnim.current?.cancel()
+      layout(0)
+      setStage('open')
+      const t0 = performance.now()
+      const tick = (now: number) => {
+        const p = Math.min(1, (now - t0) / OPEN_MS)
+        layout(p)
+        if (p < 1) raf = requestAnimationFrame(tick)
+        else setStage('over')
+      }
+      raf = requestAnimationFrame(tick)
+    }, wait)
+    return () => {
+      clearTimeout(timer)
+      cancelAnimationFrame(raf)
     }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
   }, [opening])
 
   const settled = skip || stage === 'over' || stage === 'past'
@@ -185,17 +238,6 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     out.animate([{ transform: 'translateX(0)', opacity: 1 }, { transform: `translateX(${-dir * 100}%)`, opacity: 1 }], opts)
   }, [idx, N, reduced])
 
-  const p = skip ? 1 : t
-  // Window: the ” splits and a 3:4 window opens between the strokes (first SPLIT of
-  // the time), then it grows — height fills first, then width — ending full-bleed.
-  const h0 = vp.h * WIN_VH
-  const w0 = h0 * 0.75
-  const a = Math.min(1, p / SPLIT)
-  const b = Math.max(0, (p - SPLIT) / (1 - SPLIT))
-  const winH = h0 + (vp.h - h0) * easeOut(b)
-  const winW = b > 0 ? w0 + (vp.w - w0) * easeInOut(b) : w0 * easeOut(a)
-  const strokeH = Math.max(vp.h * MARK_VH, winH * STROKE)
-  const gap = winH * STROKE_GAP
   const showUi = stage === 'over' || stage === 'past'
 
   // Ruler scales with the viewport (56px per number @ 1920 — 0.7 × the Figma ruler).
@@ -216,7 +258,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       {/* 1. Blinking ” while loading. */}
       {!showVideo && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
-          <span style={{ animation: 'hero-blink 0.65s steps(1) infinite' }}>
+          <span ref={blinkRef}>
             <QuoteMark height={Math.round(vp.h * MARK_VH)} />
           </span>
         </div>
@@ -224,8 +266,13 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* 2–3. Video window grows between the two strokes, then fills the screen. */}
       <div
+        ref={winRef}
         className="absolute left-1/2 top-1/2 overflow-hidden bg-ink"
-        style={{ width: winW, height: winH, transform: 'translate(-50%, -50%)', visibility: showVideo ? 'visible' : 'hidden' }}
+        style={{
+          transform: 'translate(-50%, -50%)',
+          visibility: showVideo ? 'visible' : 'hidden',
+          ...(settled ? { width: '100%', height: '100%' } : null),
+        }}
       >
         {videos.map((v, i) => {
           const style = { opacity: i === current ? 1 : 0 }
@@ -264,13 +311,18 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
           )
         })}
       </div>
-      {stage === 'open' && (
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2" style={{ height: strokeH }}>
-          <div className="absolute top-0" style={{ right: winW / 2 + gap, transform: 'translateY(-50%)' }}>
-            <QuoteStroke side="left" height={strokeH} />
+      {!settled && (
+        <div
+          ref={strokesRef}
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2"
+          style={{ visibility: stage === 'open' ? 'visible' : 'hidden' }}
+        >
+          <div className="absolute top-0 -translate-y-1/2 [&>svg]:h-[var(--h)] [&>svg]:w-auto">
+            <QuoteStroke side="left" />
           </div>
-          <div className="absolute top-0" style={{ left: winW / 2 + gap, transform: 'translateY(-50%)' }}>
-            <QuoteStroke side="right" height={strokeH} />
+          <div className="absolute top-0 -translate-y-1/2 [&>svg]:h-[var(--h)] [&>svg]:w-auto">
+            <QuoteStroke side="right" />
           </div>
         </div>
       )}
