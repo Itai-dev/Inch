@@ -12,9 +12,10 @@
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Logo } from '@/components/brand/Logo'
 import { QuoteMark, QuoteStroke } from '@/components/brand/Marks'
+import { SKIP_HERO_LOADER } from '@/components/SiteSwitchLink'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { Ruler } from './Ruler'
 
@@ -39,6 +40,15 @@ const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 �
 const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
 const headerTop = () => Math.min(57, Math.max(16, window.innerWidth * 0.0297))
 const headerSide = () => Math.min(46, Math.max(20, window.innerWidth * 0.024))
+
+// Coming back from DOT.: no blinking loader, start straight at the video reveal.
+const readSkipLoader = () => {
+  try {
+    return sessionStorage.getItem(SKIP_HERO_LOADER) === '1'
+  } catch {
+    return false
+  }
+}
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
@@ -68,6 +78,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
+  const fast = useSyncExternalStore(() => () => {}, readSkipLoader, () => false)
   const [idx, setIdx] = useState(0) // unbounded, so the ruler always slides forward
   const current = N ? mod(idx, N) : 0
   const els = useRef<(HTMLVideoElement | HTMLImageElement | null)[]>([])
@@ -89,7 +100,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
   // Smooth blink (on the compositor, so loading work can't make it stutter).
   useEffect(() => {
-    if (reduced) return
+    if (reduced || fast) return
     blinkAnim.current =
       blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }], {
         duration: BLINK_MS,
@@ -102,10 +113,10 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       clearTimeout(a)
       clearTimeout(b)
     }
-  }, [reduced])
+  }, [reduced, fast])
 
   const skip = reduced
-  const opening = !skip && ready && waited // flips true once, starts the open
+  const opening = !skip && (fast || (ready && waited)) // flips true once, starts the open
 
   // Reveal, drawn frame by frame straight onto the DOM (no React render per frame).
   // Phase 1 (SPLIT): the ” splits as a window opens between its strokes.
@@ -134,9 +145,12 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     r.style.left = `${winW / 2 + gap}px`
   }
 
+  const openedRef = useRef(false)
   useEffect(() => {
-    if (!opening) return
+    if (!opening || openedRef.current) return
+    openedRef.current = true
     let raf = 0
+    let done = false
     // Start at the top of a blink so the ” never jumps from half-faded.
     const t = blinkAnim.current?.currentTime
     const wait = typeof t === 'number' ? (BLINK_MS - (t % BLINK_MS)) % BLINK_MS : 0
@@ -149,13 +163,20 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
         const p = Math.min(1, (now - t0) / OPEN_MS)
         layout(p)
         if (p < 1) raf = requestAnimationFrame(tick)
-        else setStage('over')
+        else {
+          done = true
+          setStage('over')
+          try {
+            sessionStorage.removeItem(SKIP_HERO_LOADER) // the skip is used up once fully open
+          } catch {}
+        }
       }
       raf = requestAnimationFrame(tick)
     }, wait)
     return () => {
       clearTimeout(timer)
       cancelAnimationFrame(raf)
+      if (!done) openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
     }
   }, [opening])
 
@@ -260,7 +281,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       }}
     >
       {/* 1. Blinking ” while loading. */}
-      {!showVideo && (
+      {!showVideo && !fast && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
           <span ref={blinkRef}>
             <QuoteMark height={Math.round(vp.h * MARK_VH)} />

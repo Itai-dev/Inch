@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { sitePath, SITES, type Site } from '@/lib/sites'
-import { Logo } from './brand/Logo'
+import { DotBox, Logo } from './brand/Logo'
 import { SelectionCount } from './selection/SelectionCount'
+import { SiteSwitchLink } from './SiteSwitchLink'
 
 /**
  * Header (Figma "INCH” Brand" › hero › artboard 36). Sizes are the 1920px artboard
@@ -21,7 +22,7 @@ export function Header({ site }: { site: Site }) {
         <Logo division={s.division} className="text-[48px] md:text-[70px]" />
       </Link>
       <nav
-        className="flex items-center gap-[var(--nav-gap)] text-[clamp(12px,1.333vw,25.6px)] font-bold uppercase leading-none tracking-[-0.02em] [--nav-gap:1.338em]"
+        className="flex items-center gap-[var(--nav-gap)] text-[clamp(12px,1.333vw,25.6px)] font-bold uppercase leading-none tracking-[-0.02em] [--nav-gap:1.65em]"
         style={{ fontStretch: '80%' }}
       >
         <Link href={sitePath(site, '/models')}>Models</Link>
@@ -29,19 +30,15 @@ export function Header({ site }: { site: Site }) {
         <Link href={sitePath(site, '/contact')} className="hidden md:inline">Contact</Link>
         <SelectionCount />
         {/* The other site, as a box. White + difference blend: a black box on light pages, white on dark. */}
-        <Link
-          href={site === 'inch' ? sitePath('dot') : sitePath('inch')}
-          aria-label={site === 'inch' ? 'DOT. — Men' : 'INCH” — Women'}
-          className={`order-first flex items-center bg-paper text-ink ${site === 'inch' ? 'pb-[0.11em] pl-[0.08em] pr-[0.12em] pt-[0.23em]' : 'pb-[0.18em] pl-[0.16em] pr-[0.16em] pt-[0.16em]'}`}
-        >
-          {site === 'inch' ? (
-            <span className="block text-[1em] font-bold leading-[0.74] [font-stretch:100%]">
-              DO<span className="tracking-[-0.1em]">T</span>.
-            </span>
-          ) : (
+        {site === 'inch' ? (
+          <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="order-first">
+            <DotBox />
+          </SiteSwitchLink>
+        ) : (
+          <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="order-first flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-ink">
             <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
-          )}
-        </Link>
+          </SiteSwitchLink>
+        )}
       </nav>
     </header>
   )
