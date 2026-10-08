@@ -84,8 +84,8 @@ export async function GET(_req: Request, { params }: RouteContext<'/[site]/talen
   if (SITES[site as Site].division === 'men') {
     page.drawRectangle({ x: W - M - markH * 0.7, y: markTop - markH * 0.7, width: markH * 0.7, height: markH * 0.7, color: INK })
   } else {
-    const k = markH / 611
-    for (const d of [LEFT_PATH, RIGHT_PATH]) page.drawSvgPath(d, { x: W - M - 1268 * k, y: markTop + 235 * k, scale: k, color: INK })
+    const k = markH / 72 // brand ” is 64×72
+    for (const d of [LEFT_PATH, RIGHT_PATH]) page.drawSvgPath(d, { x: W - M - 64 * k, y: markTop, scale: k, color: INK })
   }
   const contact = [settings?.email, settings?.phone, settings?.instagram?.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')]
   right(contact.filter(Boolean).join('   '), FOOT - 70, 8, regular, MUTED)

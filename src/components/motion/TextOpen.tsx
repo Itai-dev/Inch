@@ -72,8 +72,12 @@ export function TextOpen({ text }: { text: string }) {
       place(lerp(start, firstRight, splitT), topNudge, true)
       return
     }
+    // Fully open: the closing stroke stays put after the last character.
     if (reduced || leadIdx >= text.length - 1) {
-      place(0, 0, false)
+      const last = charRefs.current[text.length - 1]
+      if (!last) return
+      const lr = last.getBoundingClientRect()
+      place(lr.right - wr.left + sideGap, lr.top - wr.top + topNudge, true)
       return
     }
     const lead = charRefs.current[leadIdx]

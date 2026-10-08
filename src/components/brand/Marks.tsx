@@ -1,24 +1,24 @@
 /**
  * Brand symbols.  ” = INCH” (women)   ■ = DOT. (men)
- * Quote-mark paths come from the INCH” Brand file (1920×1080 artboard coords).
+ * Quote-mark paths: the brand ” SVG (64×72), split into its two strokes.
  */
 type MarkProps = { height?: number; className?: string; style?: React.CSSProperties }
 
 export const LEFT_PATH =
-  'M651 846V729.222C677.403 723.661 699.637 711.149 717.703 691.686C735.768 672.223 749.664 647.199 759.392 616.614C770.509 584.639 776.068 549.884 776.068 512.348H663.507V235H907.388V483.154C907.388 563.786 894.882 629.821 869.868 681.259C846.244 732.697 814.283 771.623 773.983 798.038C735.073 823.061 694.079 839.049 651 846Z'
+  'M0 72V58.2389C3.09415 57.5836 5.69974 56.1092 7.81678 53.8157C9.93383 51.5222 11.5623 48.5734 12.7023 44.9693C14.0051 41.2014 14.6565 37.1058 14.6565 32.6826H1.46566V0H30.0458V29.2423C30.0458 38.744 28.5801 46.5256 25.6488 52.587C22.8804 58.6485 19.1349 63.2355 14.4122 66.3481C9.85244 69.2969 5.04834 71.1809 0 72Z'
 export const RIGHT_PATH =
-  'M1009.53 846V729.222C1035.93 723.661 1058.16 711.149 1076.23 691.686C1094.3 672.223 1108.19 647.199 1117.92 616.614C1129.04 584.639 1134.59 549.884 1134.59 512.348H1022.03V235H1268V483.154C1268 563.786 1255.49 629.821 1230.48 681.259C1205.47 732.697 1173.5 771.623 1134.59 798.038C1095.68 823.061 1054 839.049 1009.53 846Z'
+  'M33.7099 72V58.2389C36.8041 57.5836 39.4097 56.1092 41.5267 53.8157C43.6438 51.5222 45.2723 48.5734 46.4122 44.9693C47.715 41.2014 48.3664 37.1058 48.3664 32.6826H35.1756V0H64V29.2423C64 38.744 62.5344 46.5256 59.6031 52.587C56.6718 58.6485 52.9262 63.2355 48.3664 66.3481C43.8066 69.2969 38.9211 71.1809 33.7099 72Z'
 
-/** Single stroke of the ” mark — width/height ratio 256/611. */
-export const STROKE_RATIO = 256 / 611
+/** Single stroke of the ” mark — width/height ratio. */
+export const STROKE_RATIO = 30.0458 / 72
 /** Gap between the two strokes relative to height. */
-export const STROKE_GAP_RATIO = 102 / 611
+export const STROKE_GAP_RATIO = (33.7099 - 30.0458) / 72
 
 export function QuoteStroke({ side = 'left', height = 64, className, style }: MarkProps & { side?: 'left' | 'right' }) {
   const left = side === 'left'
   return (
     <svg
-      viewBox={left ? '651 235 256.388 611' : '1009.53 235 258.47 611'}
+      viewBox={left ? '0 0 30.0458 72' : '33.7099 0 30.2901 72'}
       width={Math.round(height * STROKE_RATIO)}
       height={height}
       fill="none"
@@ -33,7 +33,7 @@ export function QuoteStroke({ side = 'left', height = 64, className, style }: Ma
 
 export function QuoteMark({ height = 64, className, style }: MarkProps) {
   return (
-    <svg viewBox="651 235 617 611" width={Math.round(height * (617 / 611))} height={height} fill="none" aria-hidden className={className} style={{ display: 'block', ...style }}>
+    <svg viewBox="0 0 64 72" width={Math.round(height * (64 / 72))} height={height} fill="none" aria-hidden className={className} style={{ display: 'block', ...style }}>
       <path d={LEFT_PATH} fill="currentColor" />
       <path d={RIGHT_PATH} fill="currentColor" />
     </svg>

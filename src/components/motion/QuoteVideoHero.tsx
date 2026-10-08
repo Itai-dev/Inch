@@ -7,14 +7,14 @@
  *    pushing them off-screen, until the video fills the screen.
  * 3. A giant INCH” fades and grows in top-left and the header types in over the video;
  *    a ruler fades in along the bottom (and fades out as you scroll). The ruler is the carousel control for
- *    the hero items (click a number / drag the tape / arrow keys). Every 6 s
+ *    the hero items (click a number / arrow keys). Every 6 s
  *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { QuoteMark, QuoteStroke } from '@/components/brand/Marks'
+import { QuoteMark, QuoteStroke, STROKE_GAP_RATIO } from '@/components/brand/Marks'
 import { SKIP_HERO_LOADER } from '@/components/SiteSwitchLink'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { Ruler } from './Ruler'
@@ -25,7 +25,7 @@ type Stage = 'intro' | 'open' | 'over' | 'past'
 const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080)
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
-const STROKE_GAP = 0.06 // gap between window and stroke ÷ window height
+const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
 const BLINK_MS = 1200 // one smooth blink; the open always starts at the top of a blink
 const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
@@ -58,8 +58,6 @@ const readSkipLoader = () => {
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const smooth = (t: number) => t * t * (3 - 2 * t)
-// Gap between the two strokes inside the ” itself, as a share of its height.
-const MARK_GAP = (1009.53 - 907.388) / 611
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
 
@@ -144,7 +142,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     if (!strokes) return
     const strokeH = Math.max(H * MARK_VH, winH * STROKE)
     // Strokes start exactly where they sit in the ” and part as the window opens.
-    const gap = lerp((H * MARK_VH * MARK_GAP) / 2, winH * STROKE_GAP, a)
+    const gap = lerp((H * MARK_VH * STROKE_GAP_RATIO) / 2, winH * STROKE_GAP, a)
     const [l, r] = strokes.children as unknown as HTMLElement[]
     strokes.style.setProperty('--h', `${strokeH}px`)
     l.style.right = `${winW / 2 + gap}px`

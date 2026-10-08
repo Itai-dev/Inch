@@ -2,8 +2,7 @@
 
 /**
  * INCH” — the ruler. A looping measuring tape numbered 01…N that both shows
- * and controls a carousel: click a number, drag the tape, or let the carousel
- * move it. Shared by the home hero (big, white) and the model books (small).
+ * and controls a carousel: click a number, or let the carousel move it. Shared by the home hero (big, white) and the model books (small).
  *
  * Positions are unbounded slide indices (…, -1, 0, 1, …, N, N+1, …) so the tape
  * always slides the short way round; numbers wrap with `mod`.
@@ -20,7 +19,7 @@ export type RulerProps = {
   pos: number
   /** Slide indices (0-based) drawn at full strength. */
   active: number[]
-  /** Called with an unbounded slide index when a number is clicked or the tape is dragged. */
+  /** Called with an unbounded slide index when a number is clicked. */
   onSelect: (k: number) => void
   segW?: number
   fontPx?: number
@@ -37,8 +36,6 @@ export type RulerProps = {
 export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10, tickH = 8, minors = 3, reduced, duration = 500, easing = EASE, className = '' }: RulerProps) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(1200)
-  const [dragging, setDragging] = useState(false)
-  const drag = useRef({ active: false, x: 0, k: 0, moved: false })
 
   useEffect(() => {
     const el = boxRef.current
@@ -76,27 +73,10 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
     `radial-gradient(ellipse ${Math.round(segW * 7)}px 100% at 50% 50%, rgba(0,0,0,0.5) 0%, transparent 100%)`,
   ].join(', ')
 
-  const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId)
-    drag.current = { active: true, x: e.clientX, k: Math.round(pos), moved: false }
-    setDragging(true)
-  }
-  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = drag.current
-    if (!d.active) return
-    const dx = e.clientX - d.x
-    if (Math.abs(dx) > 6) d.moved = true
-    if (d.moved) onSelect(d.k - Math.round(dx / segW))
-  }
-  const onUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = drag.current
-    if (!d.active) return
-    d.active = false
-    setDragging(false)
-    if (!d.moved) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      onSelect(Math.round(pos + (e.clientX - (rect.left + rect.width / 2)) / segW))
-    }
+  // Click a number to go to it (no dragging).
+  const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    onSelect(Math.round(pos + (e.clientX - (rect.left + rect.width / 2)) / segW))
   }
 
   return (
@@ -104,17 +84,14 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
       ref={boxRef}
       aria-hidden
       className={`relative w-full select-none overflow-hidden ${className}`}
-      style={{ height, touchAction: 'none', cursor: dragging ? 'grabbing' : 'pointer', maskImage: mask, WebkitMaskImage: mask }}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
+      style={{ height, cursor: 'pointer', maskImage: mask, WebkitMaskImage: mask }}
+      onClick={onClick}
     >
       <div
         className="absolute inset-y-0 left-1/2"
         style={{
           transform: `translateX(${-(pos + 0.5) * segW}px)`,
-          transition: dragging || reduced ? 'none' : `transform ${duration}ms ${easing}`,
+          transition: reduced ? 'none' : `transform ${duration}ms ${easing}`,
           willChange: 'transform',
         }}
       >
