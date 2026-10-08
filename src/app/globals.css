@@ -99,6 +99,10 @@ body {
   0% { opacity: 1; }
   50% { opacity: 0.35; }
 }
+@keyframes hero-wipe {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0 0 0 0); }
+}
 @keyframes hero-type {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
@@ -118,7 +122,10 @@ body:has([data-hero="over"]) [data-site-header] {
   backdrop-filter: none;
   color: var(--paper);
 }
-body:has([data-hero="over"]) [data-site-header] > a,
+/* The giant hero logo stands in for the header logo until the video scrolls away. */
+body:has([data-hero="over"]) [data-site-header] > a {
+  visibility: hidden;
+}
 body:has([data-hero="over"]) [data-site-header] nav > * {
   animation: hero-type 0.6s steps(6) both;
 }

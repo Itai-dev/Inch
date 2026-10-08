@@ -6,14 +6,11 @@
  * A small ruler numbered 01…N tracks and drives it. Drag / wheel / click /
  * arrow keys. Credits sit below each image.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { Ruler } from './Ruler'
 import type { Slide } from './types'
 
-const SEG_W = 32
-const TICK_H = 8
-const MINOR_COUNT = 3
-const MINOR_H = 4
 const GAP = 12
 const CAPTION_H = 28
 const EASE = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
@@ -21,18 +18,6 @@ const DUR = '0.5s'
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 const mod = (a: number, n: number) => ((a % n) + n) % n
-
-function ticks(n: number): ReactNode[] {
-  const out: ReactNode[] = []
-  const sub = SEG_W / (MINOR_COUNT + 1)
-  for (let s = 0; s < n; s++) {
-    const x = s * SEG_W
-    out.push(<rect key={`M${s}`} x={x - 0.5} y={0} width={1} height={TICK_H} />)
-    if (s < n - 1)
-      for (let m = 1; m <= MINOR_COUNT; m++) out.push(<rect key={`m${s}-${m}`} x={x + m * sub - 0.5} y={TICK_H - MINOR_H} width={1} height={MINOR_H} />)
-  }
-  return out
-}
 
 export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides: Slide[]; height?: string; start?: number }) {
   const N = slides.length
@@ -56,7 +41,8 @@ export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides:
   const go = useCallback((dPages: number) => setFirst((f) => f - mod(f, per) + dPages * per), [per])
   const prev = useCallback(() => go(-1), [go])
   const next = useCallback(() => go(1), [go])
-  const goToSlide = (i: number) => setFirst((f) => f + (i - (i % per)) - mod(f, pages * per))
+  // Ruler → page: k is an unbounded slide index; land on the page that holds it, the short way round.
+  const selectSlide = (k: number) => setFirst((Math.floor(k / N) * pages + Math.floor(mod(k, N) / per)) * per)
 
   // Image size: fit `per` 3:4 images (plus captions) in the stage.
   const imgH = Math.max(0, stage.h - CAPTION_H)
@@ -94,8 +80,8 @@ export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides:
 
   if (!N) return null
   const anim = reduced ? 'none' : `transform ${DUR} ${EASE}`
-  const centre = visible[0] + (visible.length - 1) / 2
-  const tape = ticks(N)
+  // Unbounded, so wrapping from the last spread to the first keeps the tape moving forward.
+  const rulerPos = Math.floor(page / pages) * N + mod(page, pages) * per + (visible.length - 1) / 2
 
   return (
     <section
@@ -151,24 +137,8 @@ export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides:
         {visible.map((i) => `${pad2(i + 1)} ${slides[i].caption || slides[i].alt}`).join(', ')} of {pad2(N)}
       </p>
 
-      <div className="relative mt-4 h-7 w-full shrink-0 overflow-hidden" aria-hidden>
-        <div className="absolute inset-y-0 left-1/2" style={{ transform: `translateX(${-centre * SEG_W}px)`, transition: anim }}>
-          {slides.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              tabIndex={-1}
-              onClick={() => goToSlide(i)}
-              className={`absolute top-0 -translate-x-1/2 text-[10px] leading-none tabular-nums tracking-wide ${visible.includes(i) ? 'text-fg' : 'text-muted hover:text-fg'}`}
-              style={{ left: i * SEG_W }}
-            >
-              {pad2(i + 1)}
-            </button>
-          ))}
-          <svg width={(N - 1) * SEG_W + 1} height={TICK_H} className="absolute bottom-0 left-0 block -translate-x-px fill-current text-muted" style={{ overflow: 'visible' }}>
-            {tape}
-          </svg>
-        </div>
+      <div className="mt-4 shrink-0">
+        <Ruler count={N} pos={rulerPos} active={visible} onSelect={selectSlide} reduced={reduced} className="text-fg" />
       </div>
       <div className="sr-only">
         <button onClick={prev}>Previous</button>

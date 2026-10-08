@@ -9,18 +9,40 @@ export const homePage = defineType({
   type: 'document',
   fields: [
     defineField({
+      name: 'heroVideos',
+      title: 'Hero videos (INCH”)',
+      description:
+        'Full-screen videos behind the INCH” logo. The ruler at the bottom switches between them; each plays through, then the next starts. MP4/WebM, muted.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'object',
+          name: 'heroVideo',
+          fields: [
+            defineField({ name: 'video', type: 'file', options: { accept: 'video/mp4,video/webm' }, validation: (r) => r.required() }),
+            defineField({ name: 'poster', title: 'Poster', description: 'Shown while this video loads.', type: 'image', options: { hotspot: true } }),
+          ],
+          preview: {
+            select: { title: 'video.asset.originalFilename', media: 'poster' },
+            prepare: ({ title, media }) => ({ title: title || 'Video', media }),
+          },
+        }),
+      ],
+    }),
+    // Older single-video fields: only shown while they still hold something.
+    defineField({
       name: 'heroVideo',
-      title: 'Hero video (INCH”)',
-      description: 'Opens from the ” to full screen on scroll. MP4, muted, loops.',
+      title: 'Hero video (old — move into Hero videos)',
       type: 'file',
       options: { accept: 'video/mp4,video/webm' },
+      hidden: ({ document }) => !document?.heroVideo,
     }),
     defineField({
       name: 'heroPoster',
-      title: 'Hero poster',
-      description: 'Shown while the video loads, or instead of it.',
+      title: 'Hero poster (old)',
       type: 'image',
       options: { hotspot: true },
+      hidden: ({ document }) => !document?.heroVideo,
     }),
     defineField({
       name: 'statement',

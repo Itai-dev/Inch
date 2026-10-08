@@ -14,6 +14,7 @@ import { HOME_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
 import type { SanityImage, TalentCard } from '@/sanity/lib/types'
 
 type Home = {
+  heroVideos?: { src?: string; poster?: SanityImage }[]
   heroVideo?: string
   heroPoster?: SanityImage
   statement?: string
@@ -46,10 +47,12 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
   }
 
   // INCH”: ” opens to full-screen video → statement on scroll → paragraph + images → models.
-  const poster = home?.heroPoster?.asset ? urlFor(home.heroPoster).width(2000).url() : undefined
+  const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
+  const videos = (home?.heroVideos ?? []).flatMap((v) => (v?.src ? [{ src: v.src, poster: posterUrl(v.poster) }] : []))
+  if (!videos.length && home?.heroVideo) videos.push({ src: home.heroVideo, poster: posterUrl(home.heroPoster) })
   return (
     <>
-      <QuoteVideoHero video={home?.heroVideo} poster={poster} />
+      <QuoteVideoHero videos={videos} />
       <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
       <IntroSection text={home?.intro} images={home?.introImages} />
       <ModelsSection site={site} talents={models} />
