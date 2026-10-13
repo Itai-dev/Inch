@@ -38,7 +38,7 @@ export function DotIndexCarousel({ slides, height = '100dvh', start = 0 }: { sli
 
   return (
     <section
-      className="flex w-full select-none flex-col gap-6 bg-bg px-5 py-10 md:flex-row md:items-end md:gap-12 md:px-10"
+      className="flex w-full select-none flex-col gap-6 bg-bg px-gutter py-10 md:flex-row md:items-end md:gap-12"
       style={{ minHeight: height }}
       tabIndex={0}
       role="region"

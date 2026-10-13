@@ -1,5 +1,6 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { DIVISIONS } from './division'
+import { creditedImage } from './objects/creditedImage'
 
 const gallery = (name: string, title: string) =>
   defineField({
@@ -9,17 +10,8 @@ const gallery = (name: string, title: string) =>
     group: 'media',
     options: { layout: 'grid' },
     of: [
-      defineArrayMember({
-        type: 'image',
-        options: { hotspot: true },
-        // Credits show as the caption: PUBLICATION / photographer NAME / stylist NAME
-        fields: [
-          defineField({ name: 'publication', title: 'Publication / client', type: 'string', description: 'e.g. Vogue Italia, Bottega Veneta FW26' }),
-          defineField({ name: 'photographer', type: 'string' }),
-          defineField({ name: 'stylist', type: 'string' }),
-          defineField({ name: 'alt', title: 'Alt text', type: 'string' }),
-        ],
-      }),
+      // Credits show below each image.
+      creditedImage(),
     ],
   })
 

@@ -72,8 +72,12 @@ export function TextOpen({ text }: { text: string }) {
       place(lerp(start, firstRight, splitT), topNudge, true)
       return
     }
+    // Fully open: the closing stroke stays put after the last character.
     if (reduced || leadIdx >= text.length - 1) {
-      place(0, 0, false)
+      const last = charRefs.current[text.length - 1]
+      if (!last) return
+      const lr = last.getBoundingClientRect()
+      place(lr.right - wr.left + sideGap, lr.top - wr.top + topNudge, true)
       return
     }
     const lead = charRefs.current[leadIdx]
@@ -87,7 +91,7 @@ export function TextOpen({ text }: { text: string }) {
 
   return (
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : '210vh' }} className="relative">
-      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-6`}>
+      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(86vw,1214px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
             <QuoteStroke side="left" height={markH} />

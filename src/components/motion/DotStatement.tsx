@@ -45,7 +45,7 @@ export function DotStatement({ text }: { text: string }) {
 
   return (
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : '180vh' }} className="relative">
-      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center px-5 md:px-10`}>
+      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center px-gutter`}>
         <div ref={wrapRef} className="relative w-full max-w-[1400px]">
           <p className="m-0 font-bold uppercase leading-[0.95] tracking-tight" style={{ fontSize: 'clamp(2.5rem, 7vw, 7.5rem)', fontStretch: '80%' }} aria-label={text}>
             {words.map((w, i) => (

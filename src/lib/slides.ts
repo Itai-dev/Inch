@@ -14,9 +14,15 @@ export const talentSlides = (talents: TalentCard[]): Slide[] =>
       href: talentPath(t),
     }))
 
-/** "VOGUE ITALIA / photographer NAME / stylist NAME" — empty parts are skipped. */
+/** "VOGUE ITALIA / photographer NAME / stylist NAME / hair NAME / make-up NAME" — empty parts are skipped. */
 export const creditLine = (img: SanityImage) =>
-  [img.publication, img.photographer && `photographer ${img.photographer}`, img.stylist && `stylist ${img.stylist}`]
+  [
+    img.publication,
+    img.photographer && `photographer ${img.photographer}`,
+    img.stylist && `stylist ${img.stylist}`,
+    img.hair && `hair ${img.hair}`,
+    img.makeup && `make-up ${img.makeup}`,
+  ]
     .filter(Boolean)
     .join(' / ')
 

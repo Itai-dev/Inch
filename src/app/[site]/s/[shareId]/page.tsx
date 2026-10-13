@@ -23,7 +23,7 @@ export default async function SharedSelectionPage({ params }: PageProps<'/[site]
   const talents = sel.talents.filter(Boolean)
 
   return (
-    <div className="px-5 py-10 md:px-10">
+    <div className="px-gutter py-10">
       <p className="text-sm uppercase tracking-wide text-muted">Selection by {brand}</p>
       <h1 className="mt-2 text-5xl font-bold tracking-tight">{sel.title}</h1>
       {sel.note && <p className="mt-4 max-w-2xl whitespace-pre-line text-lg">{sel.note}</p>}

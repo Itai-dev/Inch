@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: PageProps<'/[site]/apply'>): 
 export default async function ApplyPage({ params }: PageProps<'/[site]/apply'>) {
   const site = (await params).site as Site
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-10 px-5 py-16">
+    <div className="mx-auto flex max-w-2xl flex-col gap-10 px-gutter py-16">
       <div className="flex flex-col gap-3">
         <p className="label text-muted">{SITES[site].brand} {SITES[site].label}</p>
         <h1 className="text-6xl font-bold tracking-tight">Become a model</h1>

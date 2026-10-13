@@ -12,7 +12,7 @@ export async function Footer({ site }: { site: Site }) {
   const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
 
   return (
-    <footer className="mt-24 flex flex-col gap-12 px-5 pb-10 pt-16 md:px-10">
+    <footer className="mt-24 flex flex-col gap-12 px-gutter pb-10 pt-16">
       <Pattern variant={site} className="hidden text-fg md:grid" rows={2} cols={16} />
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <Logo division={s.division} className="text-5xl" />

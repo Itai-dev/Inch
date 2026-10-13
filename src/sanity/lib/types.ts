@@ -7,6 +7,8 @@ export type SanityImage = {
   publication?: string
   photographer?: string
   stylist?: string
+  hair?: string
+  makeup?: string
 }
 
 export type Measurements = {
