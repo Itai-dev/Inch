@@ -15,3 +15,11 @@ export function meetsCriteria(division: Division, age: number, height: number) {
   const c = APPLY_CRITERIA[division]
   return age >= c.minAge && age <= c.maxAge && height >= c.minHeight && height <= c.maxHeight
 }
+
+/** Whole years from a YYYY-MM-DD birth date to today (NaN if it isn't a date). */
+export function ageFrom(birthdate: string, today = new Date()) {
+  const [y, m, d] = birthdate.split('-').map(Number)
+  if (!y || !m || !d) return NaN
+  const birthdayPassed = today.getMonth() + 1 > m || (today.getMonth() + 1 === m && today.getDate() >= d)
+  return today.getFullYear() - y - (birthdayPassed ? 0 : 1)
+}
