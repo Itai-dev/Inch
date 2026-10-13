@@ -11,8 +11,8 @@ import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division } from '@/sanity/lib/types'
 
-const DELAY_MS = 100
-const SPLIT_MS = 180 // INCH”: the ” opens before the first letter
+const DELAY_MS = 0 // starts the moment the page opens
+const SPLIT_MS = 120 // INCH”: the ” opens before the first letter
 const CHAR_MS = 45
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)

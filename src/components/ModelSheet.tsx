@@ -33,7 +33,7 @@ const GAP = 16 // between spreads
 const CAPTION_H = 22
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
-const INTRO_AT = 100 // everything starts opening together, this long after the sheet appears
+const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
 const WRITE_MS_PER_CHAR = 28
 const INTRO_MS = 1600 // by then every opening animation is done
 
@@ -179,7 +179,7 @@ export function ModelSheet({
   const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
   // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
-  // other line writes itself in letter by letter, and each image slides into its own crop.
+  // other line writes itself in letter by letter, and the spread slides into its frame as one.
   const [intro, setIntro] = useState(true)
   useEffect(() => {
     const id = setTimeout(() => setIntro(false), INTRO_MS)
@@ -263,6 +263,7 @@ export function ModelSheet({
               <div
                 key={abs}
                 aria-hidden={o !== 0}
+                data-current={o === 0 ? '' : undefined}
                 className="absolute flex justify-center"
                 style={{
                   left: 0,
@@ -348,7 +349,7 @@ export function ModelSheet({
             )}
             {talent && (
               <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
-                {selected ? '✓ Selection' : '+ Selection'}
+                {selected ? 'Selected' : '+ Selection'}
               </button>
             )}
           </div>

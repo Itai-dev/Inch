@@ -17,7 +17,7 @@ export function AddToSelectionButton({ talent, compact }: { talent: TalentCard; 
           : `border px-5 py-3 text-sm uppercase tracking-wide ${selected ? 'border-fg bg-fg text-bg' : 'border-fg'}`
       }
     >
-      {compact ? (selected ? '✓' : '+') : selected ? 'In selection' : 'Add to selection'}
+      {compact ? (selected ? '✓' : '+') : selected ? 'Selected' : 'Add to selection'}
     </button>
   )
 }
