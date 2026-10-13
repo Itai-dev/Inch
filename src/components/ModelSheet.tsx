@@ -33,6 +33,9 @@ const GAP = 16 // between spreads
 const CAPTION_H = 22
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
+const INTRO_AT = 100 // everything starts opening together, this long after the sheet appears
+const WRITE_MS_PER_CHAR = 28
+const INTRO_MS = 1600 // by then every opening animation is done
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 const mod = (a: number, n: number) => ((a % n) + n) % n
@@ -175,31 +178,28 @@ export function ModelSheet({
   const small = stage.w < 640
   const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
-  // Opening: the name opens (NameOpen), then the rest writes in one item after another,
-  // then the book scrolls in and the ruler fades up. Only on first open (data-intro).
-  const nameMs = division === 'men' ? 250 + name.split(/\s+/).length * 280 : 1350
-  const writeAt = nameMs - 250
-  const imagesAt = writeAt + 300
+  // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
+  // other line writes itself in letter by letter, and each image slides into its own crop.
   const [intro, setIntro] = useState(true)
   useEffect(() => {
-    const id = setTimeout(() => setIntro(false), imagesAt + 1600)
+    const id = setTimeout(() => setIntro(false), INTRO_MS)
     return () => clearTimeout(id)
-  }, [imagesAt])
-  let order = 0
+  }, [])
   const at = (ms: number) => ({ '--d': `${ms}ms` }) as React.CSSProperties
-  const write = () => at(writeAt + order++ * 70)
+  // One step per letter, at the same pace for every line.
+  const write = (text: string) => ({ ...at(INTRO_AT), '--n': text.length, '--t': `${text.length * WRITE_MS_PER_CHAR}ms` }) as React.CSSProperties
 
   const renderStats = (className: string) =>
     stats.length ? (
       <div className={className}>
         <dl className="contents">
           {stats.map(([k, v]) => (
-            <div key={k} className="intro-write uppercase" style={write()}>
+            <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
               <dt className="inline font-bold" style={narrow}>{k}</dt> <dd className="inline normal-case">{v}</dd>
             </div>
           ))}
         </dl>
-        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write()}>
+        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write('cm in')}>
           {(['cm', 'in'] as Unit[]).map((u) => (
             <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
               {u}
@@ -252,7 +252,7 @@ export function ModelSheet({
           style={{ touchAction: 'pan-y' }}
         >
           {/* The frame clips its own track: the neighbouring spreads only show while sliding in or out. */}
-          <div className="intro-scroll absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H, ...at(imagesAt) }}>
+          <div className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H, ...at(INTRO_AT) }}>
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
@@ -300,11 +300,11 @@ export function ModelSheet({
       )}
 
       {view === 'thumbnails' && book && (
-        <ul style={at(imagesAt)} className="intro-scroll grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
+        <ul style={at(INTRO_AT)} className="intro-crop grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
           {slides.map((s, i) => (
             <li key={i}>
               <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
-                <span className="block aspect-[3/4] bg-line">
+                <span className="block aspect-[3/4] overflow-hidden bg-line">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
                 </span>
@@ -315,7 +315,7 @@ export function ModelSheet({
       )}
 
       {segment === 'bio' && bio && (
-        <section style={at(imagesAt)} className="intro-scroll flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-gutter py-10">
+        <section style={at(INTRO_AT)} className="intro-fade flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-gutter py-10">
           <p className="max-w-xl whitespace-pre-line text-lg">{bio}</p>
         </section>
       )}
@@ -325,29 +325,29 @@ export function ModelSheet({
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[13px] font-bold uppercase md:text-[14px]" style={narrow}>
           <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
             {tabs.map((t) => (
-              <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write()}>
+              <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
                 {t.title}
               </button>
             ))}
             {handle && (
-              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write()}>
+              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
                 IG
               </a>
             )}
           </nav>
           <div className="flex gap-5 md:justify-end md:gap-[26px]">
             {book && N > 0 && (
-              <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write()}>
+              <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
                 {view === 'book' ? 'Thumbnails' : 'Book'}
               </button>
             )}
             {compCard && (
-              <a href={compCard} className="intro-write hover:opacity-60" style={write()}>
+              <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
                 Comp card
               </a>
             )}
             {talent && (
-              <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write()}>
+              <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
                 {selected ? '✓ Selection' : '+ Selection'}
               </button>
             )}
@@ -356,7 +356,7 @@ export function ModelSheet({
 
         {showBook && S > 1 && (
           <>
-            <div className="intro-fade" style={at(imagesAt + 500)}>
+            <div className="intro-fade" style={at(INTRO_AT + 200)}>
             <Ruler
               count={N}
               pos={rulerPos}
