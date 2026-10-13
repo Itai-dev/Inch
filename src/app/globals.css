@@ -187,11 +187,11 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   [data-intro] .intro-crop > [data-current], [data-intro] ul.intro-crop img { animation: crop-in 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; animation-delay: var(--d, 0ms); }
   [data-intro] .intro-fade { animation: hero-fade 0.6s var(--ease-out) both; animation-delay: var(--d, 0ms); }
 }
-/* No site header, footer or page scroll behind it. */
-body:has([data-model-sheet]) {
+/* Full-screen sheets (model page, apply): no site header, footer or page scroll behind them. */
+body:has([data-model-sheet], [data-sheet]) {
   overflow: hidden;
 }
-body:has([data-model-sheet]) [data-site-header],
-body:has([data-model-sheet]) > footer {
+body:has([data-model-sheet], [data-sheet]) [data-site-header],
+body:has([data-model-sheet], [data-sheet]) > footer {
   display: none;
 }

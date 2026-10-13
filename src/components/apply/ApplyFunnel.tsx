@@ -7,7 +7,8 @@
  * browser before upload so a whole application fits in one request.
  */
 import Link from 'next/link'
-import { useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NameOpen } from '@/components/motion/NameOpen'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
@@ -15,6 +16,7 @@ import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet } from '@/lib/units'
 import { CompCard, type CardStat } from './CompCard'
+import { hasSitePageBehind } from '@/components/RouteMemory'
 import { HeightTape } from './HeightTape'
 import { StepRuler } from './StepRuler'
 import { Silhouette, type Pose } from './Silhouette'
@@ -87,6 +89,8 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const startedAt = useRef(0)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
   const age = d.birthdate ? ageFrom(d.birthdate) : NaN
@@ -98,9 +102,20 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const go = (s: Step) => {
     setStep(s)
     setFurthest((f) => Math.max(f, NUMBER[s] ?? 0))
-    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
+    sheetRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
   }
   const next = () => go(flow[index + 1])
+  const started = step !== 'intro' && step !== 'done'
+  const close = useCallback(() => {
+    if (started && !window.confirm('Leave your application? What you’ve filled in will be lost.')) return
+    if (hasSitePageBehind()) router.back()
+    else router.push(sitePath(site))
+  }, [started, router, site])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [close])
   const back = () => go(index > 0 ? flow[index - 1] : 'intro')
 
   async function addPhoto(pose: Pose, file?: File) {
@@ -169,17 +184,17 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     </form>
   )
 
+  let body: React.ReactNode = null
   if (step === 'intro')
-    return (
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-160px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,480px)_minmax(0,560px)] md:items-center md:justify-center">
+    body = (
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,480px)_minmax(0,560px)] md:items-center md:justify-center">
         {image && (
-          <div className="relative aspect-[3/4] max-h-[72dvh] w-full overflow-hidden bg-line">
+          <div className="relative aspect-[3/4] max-h-[42dvh] w-full overflow-hidden bg-line md:max-h-[72dvh]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image} alt="" className="absolute inset-0 size-full object-cover" />
+            <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[50%_15%]" />
           </div>
         )}
         <div className={`flex max-w-[560px] flex-col gap-7 ${image ? '' : 'md:col-span-2'}`}>
-          <p className="label text-muted">Become a model · {brand} {label}</p>
           <NameOpen name="Get scouted" division={division} className="wordmark text-[clamp(56px,8vw,120px)] uppercase" />
           <div className="flex flex-col gap-3 text-[17px] leading-snug">
             <p>No experience needed. We look at every application ourselves.</p>
@@ -206,14 +221,14 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     )
 
   if (step === 'done')
-    return (
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-160px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,560px)_minmax(0,480px)] md:items-center md:justify-center">
+    body = (
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,560px)_minmax(0,480px)] md:items-center md:justify-center">
         <div className="flex flex-col gap-6">
           <p className="label text-muted">Application sent</p>
           <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">Thank you{d.firstName ? `, ${d.firstName}` : ''}.</h1>
           <p className="text-[17px] leading-snug">Our scouts look at every application. If there’s a fit, we’ll contact you by email or phone.</p>
           {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-          <Link href={sitePath(site)} className="text-[14px] font-bold uppercase underline" style={narrow}>Back to {brand}</Link>
+          <button type="button" onClick={close} className="self-start text-[14px] font-bold uppercase underline" style={narrow}>Back to {brand}</button>
         </div>
         {card()}
       </div>
@@ -221,7 +236,6 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
   const heading = (
     <div className="flex flex-col gap-3">
-      <p className="label text-muted">Become a model · {brand} {label}</p>
       <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">{TITLE[step]}</h1>
     </div>
   )
@@ -237,7 +251,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     </div>
   )
 
-  return (
+  if (!body) body = (
     <div className="flex flex-col">
       {trap}
       {/* Phones: the comp card folds into a strip above the form. */}
@@ -262,7 +276,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent!')}</div>
       </details>
 
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-160px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,640px)_minmax(0,480px)] md:items-start md:justify-center">
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,640px)_minmax(0,480px)] md:items-start md:justify-center">
         <div className="flex flex-col gap-8">
           <StepRuler
             steps={STEP_NAMES}
@@ -392,6 +406,21 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         <aside aria-label="Your comp card" className="hidden self-start md:block">{card()}</aside>
       </div>
 
+    </div>
+  )
+
+  return (
+    <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
+      {/* Top bar, as on the model page: what this is, and close. */}
+      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
+        <p className="label text-muted">Become a model · {brand} {label}</p>
+        <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
+          <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
+            <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
+          </svg>
+        </button>
+      </div>
+      {body}
     </div>
   )
 }
