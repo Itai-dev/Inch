@@ -4,7 +4,7 @@
  * Model page as a full-screen sheet over the site (no header or footer): the book as a
  * magazine. A top rail carries the name, the stats in one line and close; one spread sits
  * in the middle (two portrait pages, or one horizontal image in the same frame) with the
- * neighbouring spreads blurred at the edges; books and
+ * nothing beside it (the neighbours only show while sliding); books and
  * actions run along the bottom over the INCH” ruler from the home hero, which drives the
  * book (click a number, arrow keys, wheel, swipe or either half of the spread).
  * Phones get one page at a time.
@@ -96,7 +96,7 @@ export function ModelSheet({
     i += pair ? 2 : 1
   }
   const S = Math.max(1, spreads.length)
-  const peek = per === 2 ? 80 : 12 // at least this much of the neighbours shows
+  const peek = per === 2 ? 24 : 12 // minimum breathing room each side of the frame
   let pageH = Math.max(0, stage.h - CAPTION_H)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
@@ -172,7 +172,7 @@ export function ModelSheet({
   const stats = measurements ? measurementRows(measurements, division, unit) : []
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
-  const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}, opacity ${SLIDE_MS}ms ${EASE}, filter ${SLIDE_MS}ms ${EASE}`
+  const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
   const renderStats = (className: string) =>
     stats.length ? (
@@ -222,7 +222,7 @@ export function ModelSheet({
         </div>
       </header>
 
-      {/* The book: one spread centred, the neighbouring pages faded at the edges */}
+      {/* The book: one spread centred, nothing beside it */}
       {showBook && (
         <section
           ref={stageRef}
@@ -235,6 +235,8 @@ export function ModelSheet({
           onPointerCancel={() => (swipe.current.on = false)}
           style={{ touchAction: 'pan-y' }}
         >
+          {/* The frame clips its own track: the neighbouring spreads only show while sliding in or out. */}
+          <div className="absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H }}>
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
@@ -247,13 +249,10 @@ export function ModelSheet({
                 aria-hidden={o !== 0}
                 className="absolute flex justify-center"
                 style={{
-                  top,
-                  left,
+                  left: 0,
                   width: frameW,
                   gap: FOLD,
                   transform: `translateX(${o * (frameW + GAP)}px)`,
-                  opacity: o === 0 ? 1 : 0.6,
-                  filter: o === 0 ? 'none' : 'blur(12px)',
                   transition: anim,
                 }}
               >
@@ -274,6 +273,7 @@ export function ModelSheet({
               </div>
             )
           })}
+          </div>
           {/* Either half of the spread: back / on. */}
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 left-0 w-1/2 cursor-w-resize" onClick={() => !swipe.current.moved && step(-1)} />
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 right-0 w-1/2 cursor-e-resize" onClick={() => !swipe.current.moved && step(1)} />
