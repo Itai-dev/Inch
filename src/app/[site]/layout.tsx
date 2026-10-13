@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
+import { RouteMemory } from '@/components/RouteMemory'
 import { SelectionProvider } from '@/components/selection/SelectionProvider'
 import { SelectionTray } from '@/components/selection/SelectionTray'
 import { isSite, SITE_KEYS, SITES } from '@/lib/sites'
@@ -36,6 +37,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<'/[si
           <main className="min-h-dvh">{children}</main>
           <Footer site={site} />
           <SelectionTray site={site} />
+          <RouteMemory />
         </SelectionProvider>
       </body>
     </html>

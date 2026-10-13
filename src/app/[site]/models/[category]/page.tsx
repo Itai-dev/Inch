@@ -29,9 +29,9 @@ export default async function CategoryPage({ params }: PageProps<'/[site]/models
   if (!data) notFound()
 
   return (
-    <div className="px-gutter py-10">
-      <header className="mb-10 flex flex-col gap-6">
-        <h1 className="wordmark text-7xl md:text-9xl">{data.title}</h1>
+    <div className="px-gutter pb-10 pt-6 md:pt-10">
+      <header className="mb-8 flex flex-col items-center gap-4">
+        <h1 className="sr-only">{data.title}</h1>
         <CategoryNav site={site} categories={categories} active={category} />
       </header>
       <TalentGrid talents={data.talents} />

@@ -6,6 +6,7 @@ import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHe
 import { TextOpen } from '@/components/motion/TextOpen'
 import { TalentGrid } from '@/components/TalentCard'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
+import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { talentSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -41,7 +42,7 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
         <DotStatement text={home?.statement || DEFAULT_DOT_STATEMENT} />
         {slides.length > 0 && <DotIndexCarousel slides={slides} height="90dvh" />}
         <IntroSection text={home?.intro} images={home?.introImages} />
-        <ModelsSection site={site} talents={talents} />
+        <ModelsSection site={site} talents={withPlaceholders(talents, division)} />
       </>
     )
   }
@@ -59,7 +60,7 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
       <QuoteVideoHero videos={videos} />
       <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
       <IntroSection text={home?.intro} images={home?.introImages} />
-      <ModelsSection site={site} talents={models} />
+      <ModelsSection site={site} talents={withPlaceholders(models, division)} />
     </>
   )
 }

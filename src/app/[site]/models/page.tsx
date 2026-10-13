@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { Logo } from '@/components/brand/Logo'
 import { CategoryNav } from '@/components/CategoryNav'
 import { TalentGrid } from '@/components/TalentCard'
+import { withPlaceholders } from '@/lib/placeholders'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { CATEGORIES_BY_DIVISION_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
@@ -14,22 +14,19 @@ export async function generateMetadata({ params }: PageProps<'/[site]/models'>):
 
 export default async function ModelsPage({ params }: PageProps<'/[site]/models'>) {
   const site = (await params).site as Site
-  const { division, label } = SITES[site]
+  const { division, label, brand } = SITES[site]
   const [categories, talents] = await Promise.all([
     sanityFetch<Category[]>(CATEGORIES_BY_DIVISION_QUERY, { division }, [], ['category']),
     sanityFetch<TalentCard[]>(TALENTS_BY_DIVISION_QUERY, { division }, [], ['talent']),
   ])
 
   return (
-    <div className="px-gutter py-10">
-      <header className="mb-10 flex flex-col gap-6">
-        <h1 className="flex items-end gap-4">
-          <Logo division={division} className="text-7xl md:text-9xl" />
-          <span className="label pb-2 text-muted">{label}</span>
-        </h1>
+    <div className="px-gutter pb-10 pt-6 md:pt-10">
+      <header className="mb-8 flex flex-col items-center gap-4">
+        <h1 className="sr-only">{brand} — {label}</h1>
         <CategoryNav site={site} categories={categories} />
       </header>
-      <TalentGrid talents={talents} />
+      <TalentGrid talents={withPlaceholders(talents, division)} />
     </div>
   )
 }

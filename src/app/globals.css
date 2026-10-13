@@ -35,6 +35,15 @@
   --surface: #161616;
 }
 
+/* Light, for the model sheet's contrast toggle on DOT. */
+[data-theme="light"] {
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --muted: var(--grey-600);
+  --line: #e6e6e6;
+  --surface: #f4f4f3;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-fg: var(--fg);
@@ -163,4 +172,22 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 }
 .site-switch:active {
   transform: scale(1.12);
+}
+
+/* ── Model page (ModelSheet): a full-screen sheet over the site ───────────── */
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+.model-sheet {
+  animation: sheet-in 0.5s var(--ease-out) both;
+  transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+/* No site header, footer or page scroll behind it. */
+body:has([data-model-sheet]) {
+  overflow: hidden;
+}
+body:has([data-model-sheet]) [data-site-header],
+body:has([data-model-sheet]) > footer {
+  display: none;
 }

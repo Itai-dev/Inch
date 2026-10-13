@@ -1,12 +1,8 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookViewer } from '@/components/BookViewer'
-import { BlinkOpen } from '@/components/motion/BlinkOpen'
-import { DotOpen } from '@/components/motion/DotOpen'
-import { Measurements } from '@/components/Measurements'
-import { AddToSelectionButton } from '@/components/selection/AddToSelectionButton'
-import { siteForDivision, talentPath, type Site } from '@/lib/sites'
+import { ModelSheet, type Book } from '@/components/ModelSheet'
+import { isPlaceholder, placeholderBook, placeholderTalent } from '@/lib/placeholders'
+import { siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
 import { imageSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
@@ -15,19 +11,22 @@ import type { Talent } from '@/sanity/lib/types'
 
 /** Each book has its own URL so bookers can send exactly the right one. */
 const BOOKS = [
-  { segment: '', field: 'portfolio', title: 'Portfolio', view: 'book' },
-  { segment: 'covers', field: 'coversAds', title: 'Covers + Ads', view: 'book' },
-  { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'thumbnails' },
+  { segment: '', field: 'portfolio', title: 'Modelbook', view: 'book', placeholders: 12 },
+  { segment: 'covers', field: 'coversAds', title: 'Covers + Ads', view: 'book', placeholders: 6 },
+  { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'thumbnails', placeholders: 8 },
 ] as const
 
-type Tab = { segment: string; title: string }
+const load = async (slug: string) => (await sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])) ?? placeholderTalent(slug)
 
-const load = (slug: string) => sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])
+const booksFor = (t: Talent): Book[] =>
+  BOOKS.map((b) => ({
+    segment: b.segment,
+    title: b.title,
+    view: b.view,
+    slides: isPlaceholder(t) ? placeholderBook(t, b.placeholders) : imageSlides(t[b.field] ?? [], t.name),
+  })).filter((b) => b.slides.length)
 
-const tabsFor = (t: Talent): Tab[] => [
-  ...BOOKS.filter((b) => t[b.field]?.length),
-  ...(t.bio ? [{ segment: 'bio', title: 'Bio' }] : []),
-]
+const tabsFor = (t: Talent) => [...booksFor(t), ...(t.bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
 
 export async function generateMetadata({ params }: PageProps<'/[site]/talent/[slug]/[[...book]]'>): Promise<Metadata> {
   const { slug, book } = await params
@@ -39,6 +38,7 @@ export async function generateMetadata({ params }: PageProps<'/[site]/talent/[sl
     title: tab && segment ? `${t.name} — ${tab.title}` : t.name,
     alternates: { canonical: talentPath(t) + (segment ? `/${segment}` : '') },
     openGraph: t.cover?.asset ? { images: [urlFor(t.cover).width(1200).height(630).url()] } : undefined,
+    robots: isPlaceholder(t) ? { index: false } : undefined,
   }
 }
 
@@ -52,61 +52,22 @@ export default async function TalentPage({ params }: PageProps<'/[site]/talent/[
   const tabs = tabsFor(t)
   const segment = book?.[0] ?? tabs[0]?.segment ?? ''
   if ((book?.length ?? 0) > 1 || (book && !tabs.some((x) => x.segment === segment))) notFound()
-  const active = BOOKS.find((b) => b.segment === segment)
 
   const base = talentPath(t)
-  const isDot = t.division === 'men'
-  const cover = t.cover?.asset ? urlFor(t.cover).width(1400).url() : null
-  const handle = t.instagram?.replace('@', '')
-
+  const placeholder = isPlaceholder(t)
   return (
-    <div className="flex flex-col gap-12 py-10">
-      <header className="grid gap-10 px-gutter md:grid-cols-[1fr_1.4fr]">
-        <div className="flex flex-col gap-6">
-          <h1 className="wordmark text-6xl uppercase md:text-8xl">{t.name}</h1>
-          <Measurements m={t.measurements} division={t.division} />
-          <div className="label flex flex-wrap gap-6">
-            {handle && (
-              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="underline">
-                IG @{handle}
-              </a>
-            )}
-            <a href={`${base}/comp-card`} className="underline">Comp card PDF</a>
-          </div>
-          <div><AddToSelectionButton talent={t} /></div>
-        </div>
-        {cover &&
-          (isDot ? (
-            <DotOpen src={cover} alt={t.name} className="w-full" />
-          ) : (
-            <BlinkOpen src={cover} alt={t.name} className="w-full" />
-          ))}
-      </header>
-
-      {tabs.length > 0 && (
-        <nav className="label flex flex-wrap gap-6 border-b border-line px-gutter pb-3" aria-label="Books">
-          {tabs.map((x) => (
-            <Link
-              key={x.segment}
-              href={x.segment ? `${base}/${x.segment}` : base}
-              scroll={false}
-              aria-current={x.segment === segment ? 'page' : undefined}
-              className={x.segment === segment ? 'text-fg' : 'text-muted hover:text-fg'}
-            >
-              {x.title}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      {active && !!t[active.field]?.length && (
-        <BookViewer key={active.segment} slides={imageSlides(t[active.field], t.name)} isDot={isDot} defaultView={active.view} />
-      )}
-      {segment === 'bio' && t.bio && (
-        <section className="max-w-2xl px-gutter">
-          <p className="whitespace-pre-line text-lg">{t.bio}</p>
-        </section>
-      )}
-    </div>
+    <ModelSheet
+      talent={placeholder ? null : { _id: t._id, name: t.name, slug: t.slug, division: t.division, cover: t.cover }}
+      name={t.name}
+      division={t.division}
+      measurements={t.measurements}
+      bio={t.bio}
+      instagram={t.instagram}
+      books={booksFor(t)}
+      initial={segment}
+      base={base}
+      compCard={placeholder ? null : `${base}/comp-card`}
+      closeHref={sitePath(site as Site, '/models')}
+    />
   )
 }

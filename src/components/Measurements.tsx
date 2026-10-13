@@ -4,12 +4,10 @@ import { useState } from 'react'
 import { cmToFeet, cmToInches } from '@/lib/units'
 import type { Division, Measurements as M } from '@/sanity/lib/types'
 
-type Unit = 'cm' | 'in'
+export type Unit = 'cm' | 'in'
 
-/** Stored in cm; viewers can switch to feet/inches. Shoes stay EU. */
-export function Measurements({ m, division }: { m?: M; division: Division }) {
-  const [unit, setUnit] = useState<Unit>('cm')
-  if (!m) return null
+/** [label, value] pairs for the stats that are filled in. Stored in cm; shoes stay EU. */
+export function measurementRows(m: M, division: Division, unit: Unit): [string, string | number][] {
   const len = (v?: number) => v && (unit === 'cm' ? v : cmToInches(v))
   const rows: [string, string | number | undefined][] = [
     ['Height', m.height && (unit === 'cm' ? `${m.height} cm` : cmToFeet(m.height))],
@@ -20,10 +18,17 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
     ['Hair', m.hair],
     ['Eyes', m.eyes],
   ]
+  return rows.filter((r): r is [string, string | number] => !!r[1])
+}
+
+/** Stored in cm; viewers can switch to feet/inches. Shoes stay EU. */
+export function Measurements({ m, division }: { m?: M; division: Division }) {
+  const [unit, setUnit] = useState<Unit>('cm')
+  if (!m) return null
   return (
     <div className="flex flex-col gap-3">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm uppercase tracking-wide">
-        {rows.filter(([, v]) => v).map(([k, v]) => (
+        {measurementRows(m, division, unit).map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="text-muted">{k}</dt>
             <dd>{v}</dd>

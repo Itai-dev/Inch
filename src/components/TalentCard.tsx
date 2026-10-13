@@ -1,43 +1,53 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { isPlaceholder } from '@/lib/placeholders'
 import { talentPath } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { TalentCard as TalentCardType } from '@/sanity/lib/types'
 import { AddToSelectionButton } from './selection/AddToSelectionButton'
 
+const coverUrl = (t: TalentCardType) => t.coverSrc ?? (t.cover?.asset ? urlFor(t.cover).width(600).height(800).url() : null)
+
 export function TalentCard({ talent, priority }: { talent: TalentCardType; priority?: boolean }) {
+  const src = coverUrl(talent)
   return (
     <article className="group relative">
       <Link href={talentPath(talent)} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-line">
-          {talent.cover?.asset && (
+          {src && (
             <Image
-              src={urlFor(talent.cover).width(900).height(1200).url()}
+              src={src}
               alt={talent.name}
               fill
-              sizes="(min-width: 1024px) 25vw, 50vw"
+              sizes="(min-width: 1024px) 240px, (min-width: 640px) 30vw, 50vw"
               priority={priority}
+              unoptimized={src.endsWith('.svg')}
               className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
             />
           )}
         </div>
-        <h3 className="mt-3 text-sm uppercase tracking-wide">{talent.name}</h3>
+        <h3 className="mt-2.5 text-center text-[13px] font-bold uppercase leading-tight" style={{ fontStretch: '80%' }}>
+          {talent.name}
+        </h3>
       </Link>
-      <div className="absolute right-2 top-2">
-        <AddToSelectionButton talent={talent} compact />
-      </div>
+      {!isPlaceholder(talent) && (
+        <div className="absolute right-2 top-2 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+          <AddToSelectionButton talent={talent} compact />
+        </div>
+      )}
     </article>
   )
 }
 
+/** The board (monster-mgmt style): small 3:4 cards, five across on desktop, names centred below. */
 export function TalentGrid({ talents }: { talents: TalentCardType[] }) {
   if (!talents.length) {
     return <p className="py-20 text-center text-muted">No talents yet — add them in the Studio.</p>
   }
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+    <div className="mx-auto grid max-w-[1200px] grid-cols-2 gap-x-[clamp(12px,2.2vw,32px)] gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {talents.map((t, i) => (
-        <TalentCard key={t._id} talent={t} priority={i < 4} />
+        <TalentCard key={t._id} talent={t} priority={i < 5} />
       ))}
     </div>
   )
