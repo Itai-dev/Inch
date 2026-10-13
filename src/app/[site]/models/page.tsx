@@ -21,8 +21,8 @@ export default async function ModelsPage({ params }: PageProps<'/[site]/models'>
   ])
 
   return (
-    <div className="px-gutter pb-10 pt-6 md:pt-10">
-      <header className="mb-8 flex flex-col items-center gap-4">
+    <div className="pb-10 pt-6 md:pt-10">
+      <header className="mb-6 flex flex-col items-center gap-4 px-gutter">
         <h1 className="sr-only">{brand} — {label}</h1>
         <CategoryNav site={site} categories={categories} />
       </header>

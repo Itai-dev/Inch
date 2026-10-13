@@ -175,17 +175,31 @@ export function ModelSheet({
   const small = stage.w < 640
   const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
+  // Opening: the name opens (NameOpen), then the rest writes in one item after another,
+  // then the book scrolls in and the ruler fades up. Only on first open (data-intro).
+  const nameMs = division === 'men' ? 250 + name.split(/\s+/).length * 280 : 1350
+  const writeAt = nameMs - 250
+  const imagesAt = writeAt + 300
+  const [intro, setIntro] = useState(true)
+  useEffect(() => {
+    const id = setTimeout(() => setIntro(false), imagesAt + 1600)
+    return () => clearTimeout(id)
+  }, [imagesAt])
+  let order = 0
+  const at = (ms: number) => ({ '--d': `${ms}ms` }) as React.CSSProperties
+  const write = () => at(writeAt + order++ * 70)
+
   const renderStats = (className: string) =>
     stats.length ? (
       <div className={className}>
         <dl className="contents">
           {stats.map(([k, v]) => (
-            <div key={k} className="uppercase">
+            <div key={k} className="intro-write uppercase" style={write()}>
               <dt className="inline font-bold" style={narrow}>{k}</dt> <dd className="inline normal-case">{v}</dd>
             </div>
           ))}
         </dl>
-        <div className="flex gap-2 font-bold italic" role="group" aria-label="Units">
+        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write()}>
           {(['cm', 'in'] as Unit[]).map((u) => (
             <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
               {u}
@@ -198,6 +212,7 @@ export function ModelSheet({
   return (
     <div
       data-model-sheet
+      data-intro={intro ? '' : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={name}
@@ -237,7 +252,7 @@ export function ModelSheet({
           style={{ touchAction: 'pan-y' }}
         >
           {/* The frame clips its own track: the neighbouring spreads only show while sliding in or out. */}
-          <div className="absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H }}>
+          <div className="intro-scroll absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H, ...at(imagesAt) }}>
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
@@ -285,7 +300,7 @@ export function ModelSheet({
       )}
 
       {view === 'thumbnails' && book && (
-        <ul className="grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
+        <ul style={at(imagesAt)} className="intro-scroll grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
           {slides.map((s, i) => (
             <li key={i}>
               <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
@@ -300,7 +315,7 @@ export function ModelSheet({
       )}
 
       {segment === 'bio' && bio && (
-        <section className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-gutter py-10">
+        <section style={at(imagesAt)} className="intro-scroll flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-gutter py-10">
           <p className="max-w-xl whitespace-pre-line text-lg">{bio}</p>
         </section>
       )}
@@ -310,29 +325,29 @@ export function ModelSheet({
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[13px] font-bold uppercase md:text-[14px]" style={narrow}>
           <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
             {tabs.map((t) => (
-              <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={tabCls(t.segment === segment)}>
+              <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write()}>
                 {t.title}
               </button>
             ))}
             {handle && (
-              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={tabCls(false)}>
+              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write()}>
                 IG
               </a>
             )}
           </nav>
           <div className="flex gap-5 md:justify-end md:gap-[26px]">
             {book && N > 0 && (
-              <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="uppercase hover:opacity-60">
+              <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write()}>
                 {view === 'book' ? 'Thumbnails' : 'Book'}
               </button>
             )}
             {compCard && (
-              <a href={compCard} className="hover:opacity-60">
+              <a href={compCard} className="intro-write hover:opacity-60" style={write()}>
                 Comp card
               </a>
             )}
             {talent && (
-              <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="uppercase hover:opacity-60">
+              <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write()}>
                 {selected ? '✓ Selection' : '+ Selection'}
               </button>
             )}
@@ -341,6 +356,7 @@ export function ModelSheet({
 
         {showBook && S > 1 && (
           <>
+            <div className="intro-fade" style={at(imagesAt + 500)}>
             <Ruler
               count={N}
               pos={rulerPos}
@@ -354,6 +370,7 @@ export function ModelSheet({
               duration={SLIDE_MS}
               easing={EASE}
             />
+            </div>
             <div className="sr-only">
               <button type="button" onClick={() => step(-1)}>Previous</button>
               <button type="button" onClick={() => step(1)}>Next</button>

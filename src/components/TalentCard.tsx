@@ -19,14 +19,14 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
               src={src}
               alt={talent.name}
               fill
-              sizes="(min-width: 1024px) 240px, (min-width: 640px) 30vw, 50vw"
+              sizes="(min-width: 1280px) 17vw, (min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
               priority={priority}
               unoptimized={src.endsWith('.svg')}
               className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
             />
           )}
         </div>
-        <h3 className="mt-2.5 text-center text-[13px] font-bold uppercase leading-tight" style={{ fontStretch: '80%' }}>
+        <h3 className="mt-2 px-1 text-center text-[12px] font-bold uppercase leading-tight md:text-[13px]" style={{ fontStretch: '80%' }}>
           {talent.name}
         </h3>
       </Link>
@@ -39,15 +39,15 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
   )
 }
 
-/** The board (monster-mgmt style): small 3:4 cards, five across on desktop, names centred below. */
+/** The board: edge to edge, cards almost touching, names small and centred below. */
 export function TalentGrid({ talents }: { talents: TalentCardType[] }) {
   if (!talents.length) {
     return <p className="py-20 text-center text-muted">No talents yet — add them in the Studio.</p>
   }
   return (
-    <div className="mx-auto grid max-w-[1200px] grid-cols-2 gap-x-[clamp(12px,2.2vw,32px)] gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-x-[3px] gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {talents.map((t, i) => (
-        <TalentCard key={t._id} talent={t} priority={i < 5} />
+        <TalentCard key={t._id} talent={t} priority={i < 6} />
       ))}
     </div>
   )

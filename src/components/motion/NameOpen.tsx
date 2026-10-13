@@ -11,11 +11,11 @@ import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division } from '@/sanity/lib/types'
 
-const DELAY_MS = 350
-const TOTAL_MS = 1500
+const DELAY_MS = 250
+const TOTAL_MS = 1100
 const SPLIT = 0.22 // share of the run spent opening the ”
 const FADE_CHARS = 5
-const WORD_MS = 320
+const WORD_MS = 280
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -46,6 +46,7 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
   const rightRef = useRef<HTMLSpanElement>(null)
   const unitRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(44)
+  const [, bump] = useState(0)
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
@@ -53,6 +54,8 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
     read()
     const ro = new ResizeObserver(read)
     ro.observe(el)
+    // A late web font changes the letters' widths: place the closing mark again.
+    document.fonts?.ready.then(() => bump((n) => n + 1))
     return () => ro.disconnect()
   }, [])
 
@@ -68,7 +71,8 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
   const strokeGap = Math.round(markH * STROKE_GAP_RATIO)
   const topNudge = Math.round(font * 0.14)
   const sideGap = Math.round(font * 0.13)
-  const leftX = -(markW + sideGap)
+  // The ” sits inside the margin, in front of the name (the name is padded to make room).
+  const lead = dot ? 0 : markW + sideGap
 
   // The moving mark is placed straight on the DOM (no extra render per frame).
   useLayoutEffect(() => {
@@ -91,20 +95,20 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
     const first = el(0)
     if (splitT < 1 || cursor <= 0) {
       const firstRight = first ? first.getBoundingClientRect().right - wr.left + sideGap : sideGap
-      return put(lerp(leftX + markW + strokeGap, firstRight, splitT), topNudge)
+      return put(lerp(markW + strokeGap, firstRight, splitT), topNudge)
     }
-    const lead = el(Math.min(units.length - 1, Math.max(0, done ? units.length - 1 : Math.floor(cursor))))
-    if (!lead) return
-    const lr = lead.getBoundingClientRect()
+    const at = el(Math.min(units.length - 1, Math.max(0, done ? units.length - 1 : Math.floor(cursor))))
+    if (!at) return
+    const lr = at.getBoundingClientRect()
     const next = done ? null : el(Math.floor(cursor) + 1)
     const newRow = next ? Math.abs(next.getBoundingClientRect().top - lr.top) > 4 : false
     put(lr.right - wr.left + sideGap, lr.top - wr.top + topNudge, !newRow)
   })
 
   return (
-    <h1 ref={wrapRef} aria-label={name} className={`relative ${className}`}>
+    <h1 ref={wrapRef} aria-label={name} className={`relative ${className}`} style={{ paddingLeft: lead }}>
       {!dot && (
-        <span aria-hidden className="pointer-events-none absolute block" style={{ left: leftX, top: topNudge }}>
+        <span aria-hidden className="pointer-events-none absolute left-0 block" style={{ top: topNudge }}>
           <QuoteStroke side="left" height={markH} />
         </span>
       )}
