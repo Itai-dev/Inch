@@ -2,15 +2,14 @@
 
 /**
  * INCH” — "Text open" (from Figma Make prototype).
- * Scroll-driven: the ” splits into two strokes; the right stroke travels with
- * a character-by-character fade-in reveal of the statement.
+ * Scroll-driven: the ” splits into two strokes; the right stroke writes the
+ * statement letter by letter (hard cuts, no fade).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useScrollProgress } from '@/hooks/useScrollProgress'
 
-const FADE_CHARS = 18
 const ANIM_END = 0.78
 const DROP_END = 0.18
 const DROP_PX = 48
@@ -51,7 +50,7 @@ export function TextOpen({ text }: { text: string }) {
   const splitT = easeOutCubic(dropT)
   const translateY = (1 - splitT) * -DROP_PX - animP * 60 + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
-  const cursor = reduced ? text.length + FADE_CHARS : revealP * (text.length + FADE_CHARS)
+  const cursor = reduced ? text.length : revealP * text.length
   const leadIdx = Math.min(text.length - 1, Math.max(0, Math.floor(cursor)))
   const leftX = -(markW + sideGap)
 
@@ -105,7 +104,7 @@ export function TextOpen({ text }: { text: string }) {
                 key={i}
                 aria-hidden
                 ref={(el) => { charRefs.current[i] = el }}
-                style={{ opacity: Math.min(1, Math.max(0, (cursor - i) / FADE_CHARS)) }}
+                style={{ opacity: i < cursor ? 1 : 0 }}
               >
                 {c}
               </span>
