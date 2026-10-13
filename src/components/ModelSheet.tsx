@@ -296,7 +296,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[13px] font-bold uppercase md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:text-[14px]" style={narrow}>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[13px] font-bold uppercase md:text-[14px]" style={narrow}>
           <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
             {tabs.map((t) => (
               <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={tabCls(t.segment === segment)}>
@@ -309,9 +309,6 @@ export function ModelSheet({
               </a>
             )}
           </nav>
-          <span className="hidden tabular-nums text-muted md:block">
-            {showBook && `${visible.map((i) => pad2(i + 1)).join('–')} / ${pad2(N)}`}
-          </span>
           <div className="flex gap-5 md:justify-end md:gap-[26px]">
             {book && N > 0 && (
               <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="uppercase hover:opacity-60">
