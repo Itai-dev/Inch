@@ -61,9 +61,13 @@ export function placeholderTalent(slug: string): Talent | null {
   return null
 }
 
-/** Placeholder books, rotated so each model's book starts on a different look. */
-export const placeholderBook = (t: TalentCard, n: number): Slide[] => {
+/** Placeholder books, rotated so each model's book starts on a different look; `wideAt` puts a horizontal image there. */
+export const placeholderBook = (t: TalentCard, n: number, wideAt?: number): Slide[] => {
   const shift = Number(t._id.split('-').pop()) || 0
   const all = placeholderSlides(10)
-  return Array.from({ length: n }, (_, j) => ({ ...all[(j + shift) % 10], id: String(j) }))
+  return Array.from({ length: n }, (_, j) =>
+    j === wideAt
+      ? { id: String(j), src: '/placeholders/look-wide.svg', alt: 'Horizontal look', caption: 'Horizontal look', landscape: true }
+      : { ...all[(j + shift) % 10], id: String(j) },
+  )
 }

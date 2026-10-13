@@ -3,7 +3,8 @@
 /**
  * Model page as a full-screen sheet over the site (no header or footer): the book as a
  * magazine. A top rail carries the name, the stats in one line and close; one spread sits
- * in the middle with the neighbouring pages peeking in faded at the edges; books and
+ * in the middle (two portrait pages, or one horizontal image in the same frame) with the
+ * neighbouring spreads blurred at the edges; books and
  * actions run along the bottom over the INCH” ruler from the home hero, which drives the
  * book (click a number, arrow keys, wheel, swipe or either half of the spread).
  * Phones get one page at a time.
@@ -86,7 +87,15 @@ export function ModelSheet({
     return () => ro.disconnect()
   }, [showBook])
   const per = stage.w < 640 ? 1 : 2
-  const pages = Math.max(1, Math.ceil(N / per))
+  // Spreads: two portrait pages side by side, or one horizontal image filling the same frame.
+  // A portrait with no portrait partner (before a horizontal one, or last) sits alone. Phones: one image each.
+  const spreads: number[][] = []
+  for (let i = 0; i < N; ) {
+    const pair = per === 2 && !slides[i].landscape && i + 1 < N && !slides[i + 1].landscape
+    spreads.push(pair ? [i, i + 1] : [i])
+    i += pair ? 2 : 1
+  }
+  const S = Math.max(1, spreads.length)
   const peek = per === 2 ? 80 : 12 // at least this much of the neighbours shows
   let pageH = Math.max(0, stage.h - CAPTION_H)
   let pageW = pageH * 0.75
@@ -94,23 +103,21 @@ export function ModelSheet({
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
     pageH = pageW / 0.75
   }
-  const spreadW = pageW * per + FOLD * (per - 1)
-  const left = (stage.w - spreadW) / 2
+  // Every spread takes the same frame, so the margins never change.
+  const frameW = pageW * per + FOLD * (per - 1)
+  const left = (stage.w - frameW) / 2
   const top = Math.max(0, (stage.h - pageH - CAPTION_H) / 2)
 
-  // First visible page, unbounded so wrapping keeps moving forward (and the ruler the short way round).
-  const [first, setFirst] = useState(0)
-  const page = Math.floor(first / per)
-  const indices = (abs: number) => {
-    const p = mod(abs, pages)
-    return Array.from({ length: per }, (_, j) => p * per + j).filter((i) => i < N)
-  }
-  const visible = indices(page)
+  // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
+  const [cur, setCur] = useState(0)
+  const spreadAt = (abs: number) => spreads[mod(abs, S)] ?? []
+  const spreadOf = (i: number) => Math.max(0, spreads.findIndex((sp) => sp.includes(i)))
+  const visible = spreadAt(cur)
 
-  const step = useCallback((d: number) => N > per && setFirst((f) => f - mod(f, per) + d * per), [N, per])
-  // Ruler → spread: k is an unbounded page index; land on the spread that holds it.
-  const select = (k: number) => setFirst((Math.floor(k / N) * pages + Math.floor(mod(k, N) / per)) * per)
-  const rulerPos = Math.floor(page / pages) * N + mod(page, pages) * per + (visible.length - 1) / 2
+  const step = useCallback((d: number) => S > 1 && setCur((c) => c + d), [S])
+  // Ruler → spread: k is an unbounded image index; land on the spread that holds it.
+  const select = (k: number) => setCur(Math.floor(k / N) * S + spreadOf(mod(k, N)))
+  const rulerPos = Math.floor(cur / S) * N + ((visible[0] ?? 0) + (visible[visible.length - 1] ?? 0)) / 2
 
   const close = useCallback(() => {
     if (hasSitePageBehind()) router.back()
@@ -121,7 +128,7 @@ export function ModelSheet({
     const b = books.find((x) => x.segment === s)
     setSegment(s)
     setView(b?.view ?? 'book')
-    setFirst(0)
+    setCur(0)
     window.history.replaceState(null, '', s ? `${base}/${s}` : base)
   }
 
@@ -165,7 +172,7 @@ export function ModelSheet({
   const stats = measurements ? measurementRows(measurements, division, unit) : []
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
-  const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}, opacity ${SLIDE_MS}ms ${EASE}`
+  const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}, opacity ${SLIDE_MS}ms ${EASE}, filter ${SLIDE_MS}ms ${EASE}`
 
   const renderStats = (className: string) =>
     stats.length ? (
@@ -229,31 +236,34 @@ export function ModelSheet({
           style={{ touchAction: 'pan-y' }}
         >
           {OFFSETS.map((o) => {
-            const abs = page + o
-            const idx = indices(abs)
-            // A short last spread sits against the current one on the left, centred when current.
-            const short = (per - idx.length) * (pageW + FOLD) * (o < 0 ? 1 : o === 0 ? 0.5 : 0)
+            const abs = cur + o
+            const idx = spreadAt(abs)
+            // A horizontal image fills the whole frame (on phones it fits inside the page).
+            const wide = per === 2 && idx.length === 1 && !!slides[idx[0]]?.landscape
+            const w = wide ? frameW : pageW
             return (
               <div
                 key={abs}
                 aria-hidden={o !== 0}
-                className="absolute flex"
+                className="absolute flex justify-center"
                 style={{
                   top,
-                  left: left + short,
+                  left,
+                  width: frameW,
                   gap: FOLD,
-                  transform: `translateX(${o * (spreadW + GAP)}px)`,
-                  opacity: o === 0 ? 1 : 0.22,
+                  transform: `translateX(${o * (frameW + GAP)}px)`,
+                  opacity: o === 0 ? 1 : 0.6,
+                  filter: o === 0 ? 'none' : 'blur(12px)',
                   transition: anim,
                 }}
               >
                 {idx.map((i) => {
                   const s = slides[i]
                   return (
-                    <figure key={i} className="m-0 shrink-0" style={{ width: pageW }}>
-                      <div className="overflow-hidden bg-line" style={{ width: pageW, height: pageH }}>
+                    <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
+                      <div className="overflow-hidden bg-line" style={{ width: w, height: pageH }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className="block size-full object-cover" />
+                        <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                       </div>
                       {o === 0 && s.caption && (
                         <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-wide text-muted">{s.caption}</figcaption>
@@ -277,7 +287,7 @@ export function ModelSheet({
         <ul className="grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
           {slides.map((s, i) => (
             <li key={i}>
-              <button type="button" onClick={() => { setFirst(i); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
+              <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
                 <span className="block aspect-[3/4] bg-line">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
@@ -328,7 +338,7 @@ export function ModelSheet({
           </div>
         </div>
 
-        {showBook && N > per && (
+        {showBook && S > 1 && (
           <>
             <Ruler
               count={N}
