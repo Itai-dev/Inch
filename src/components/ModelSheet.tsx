@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, type Unit } from './Measurements'
+import { NameOpen } from './motion/NameOpen'
 import { Ruler } from './motion/Ruler'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
@@ -205,7 +206,7 @@ export function ModelSheet({
       {/* Top rail: name | stats in one line | close */}
       <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-8 md:py-0">
         <div className="flex items-start justify-between gap-4">
-          <h1 className="wordmark text-[clamp(32px,3vw,44px)] uppercase">{name}</h1>
+          <NameOpen name={name} division={division} className="wordmark text-[clamp(32px,3vw,44px)] uppercase" />
           <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
             <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
               <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
