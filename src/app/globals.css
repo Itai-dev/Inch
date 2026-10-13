@@ -35,15 +35,6 @@
   --surface: #161616;
 }
 
-/* Light, for the model sheet's contrast toggle on DOT. */
-[data-theme="light"] {
-  --bg: var(--paper);
-  --fg: var(--ink);
-  --muted: var(--grey-600);
-  --line: #e6e6e6;
-  --surface: #f4f4f3;
-}
-
 @theme inline {
   --color-bg: var(--bg);
   --color-fg: var(--fg);
