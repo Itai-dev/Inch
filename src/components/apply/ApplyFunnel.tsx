@@ -9,7 +9,6 @@
 import Link from 'next/link'
 import { useMemo, useRef, useState } from 'react'
 import { NameOpen } from '@/components/motion/NameOpen'
-import { Ruler } from '@/components/motion/Ruler'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
@@ -17,6 +16,7 @@ import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet } from '@/lib/units'
 import { CompCard, type CardStat } from './CompCard'
 import { HeightTape } from './HeightTape'
+import { StepRuler } from './StepRuler'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
@@ -58,6 +58,7 @@ const SLOTS: { pose: Pose; label: string; hint: string; optional?: boolean }[] =
 
 /** Step numbers on the ruler (the guardian step belongs to 01). */
 const NUMBER: Partial<Record<Step, number>> = { you: 1, guardian: 1, measure: 2, digitals: 3, send: 4 }
+const STEP_NAMES = ['You', 'Measurements', 'Digitals', 'Send']
 const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A parent or guardian', measure: 'Measurements', digitals: 'Digitals', send: 'Last thing' }
 
 const narrow = { fontStretch: '80%' } as const
@@ -170,9 +171,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
   if (step === 'intro')
     return (
-      <div className="grid gap-10 px-gutter pb-16 pt-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-[clamp(32px,6vw,96px)] md:pt-10">
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-160px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,480px)_minmax(0,560px)] md:items-center md:justify-center">
         {image && (
-          <div className="relative aspect-[3/4] max-h-[78dvh] w-full overflow-hidden bg-line md:justify-self-end">
+          <div className="relative aspect-[3/4] max-h-[72dvh] w-full overflow-hidden bg-line">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={image} alt="" className="absolute inset-0 size-full object-cover" />
           </div>
@@ -206,8 +207,8 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
   if (step === 'done')
     return (
-      <div className="grid gap-10 px-gutter pb-16 pt-6 md:grid-cols-[minmax(0,1fr)_minmax(0,520px)] md:gap-[clamp(32px,6vw,96px)] md:pt-10">
-        <div className="flex max-w-[560px] flex-col gap-6">
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-160px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,560px)_minmax(0,480px)] md:items-center md:justify-center">
+        <div className="flex flex-col gap-6">
           <p className="label text-muted">Application sent</p>
           <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">Thank you{d.firstName ? `, ${d.firstName}` : ''}.</h1>
           <p className="text-[17px] leading-snug">Our scouts look at every application. If there’s a fit, we’ll contact you by email or phone.</p>
@@ -220,7 +221,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
   const heading = (
     <div className="flex flex-col gap-3">
-      <p className="label text-muted">Become a model · {brand} {label} · 0{number} / 04</p>
+      <p className="label text-muted">Become a model · {brand} {label}</p>
       <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">{TITLE[step]}</h1>
     </div>
   )
@@ -261,8 +262,14 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent!')}</div>
       </details>
 
-      <div className="grid gap-10 px-gutter pb-8 pt-6 md:grid-cols-[minmax(0,1fr)_minmax(0,520px)] md:gap-[clamp(32px,6vw,96px)] md:pt-10">
-        <div className="flex max-w-[640px] flex-col gap-8">
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-160px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,640px)_minmax(0,480px)] md:items-start md:justify-center">
+        <div className="flex flex-col gap-8">
+          <StepRuler
+            steps={STEP_NAMES}
+            current={number - 1}
+            reached={furthest - 1}
+            onSelect={(i) => go(flow.find((s) => NUMBER[s] === i + 1) ?? step)}
+          />
           {heading}
 
           {step === 'you' && (
@@ -294,7 +301,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               <div className="flex flex-col gap-2">
                 <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Height</span>
                 <div className="flex items-baseline gap-2.5">
-                  <span className="wordmark text-[clamp(64px,7vw,96px)] tabular-nums">{d.height ?? '—'}</span>
+                  <span className={`wordmark text-[clamp(64px,7vw,96px)] tabular-nums ${d.height ? '' : 'text-muted/40'}`}>{d.height ?? 175}</span>
                   <span className="text-[22px] font-bold">cm</span>
                   {d.height && <span className="ml-2 text-[14px] text-muted">{cmToFeet(d.height)}</span>}
                 </div>
@@ -385,23 +392,6 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         <aside aria-label="Your comp card" className="hidden self-start md:block">{card()}</aside>
       </div>
 
-      {/* Progress: the INCH” ruler, one number per step (go back to any step already reached). */}
-      <div className="pb-6">
-        <Ruler
-          count={4}
-          pos={number - 1}
-          active={[number - 1]}
-          onSelect={(k) => {
-            const n = ((k % 4) + 4) % 4 + 1
-            if (n <= furthest) go(flow.find((s) => NUMBER[s] === n) ?? step)
-          }}
-          reduced={reduced}
-          segW={48}
-          fontPx={14}
-          tickH={18}
-          minors={9}
-        />
-      </div>
     </div>
   )
 }
