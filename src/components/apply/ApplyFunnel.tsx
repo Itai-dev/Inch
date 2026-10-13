@@ -19,6 +19,7 @@ import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { HeightTape } from './HeightTape'
 import { StepRuler } from './StepRuler'
+import { EYES, HAIR, SwatchPicker } from './SwatchPicker'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
@@ -327,8 +328,12 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 <Field label="Waist (cm)"><input required inputMode="numeric" className={mid} value={d.waist} onChange={(e) => set('waist', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
                 <Field label="Hips (cm)"><input required inputMode="numeric" className={mid} value={d.hips} onChange={(e) => set('hips', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
                 <Field label="Shoes (EU)"><input required inputMode="decimal" className={mid} value={d.shoes} onChange={(e) => set('shoes', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
-                <Field label="Hair colour" className="col-span-1 sm:col-span-2"><input required className={mid} placeholder="Brown" value={d.hair} onChange={(e) => set('hair', e.target.value)} /></Field>
-                <Field label="Eye colour" className="col-span-1 sm:col-span-2"><input required className={mid} placeholder="Green" value={d.eyes} onChange={(e) => set('eyes', e.target.value)} /></Field>
+                <div className="col-span-2 sm:col-span-4">
+                  <SwatchPicker label="Hair colour" name="hair" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
+                </div>
+                <div className="col-span-2 sm:col-span-4">
+                  <SwatchPicker label="Eye colour" name="eyes" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
+                </div>
               </div>
               {nav('Continue →', !d.height)}
             </form>
