@@ -26,8 +26,8 @@ const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
-const BLINK_MS = 560 // one hard on/off blink, like a cursor; the open always starts as it comes on
-const MIN_BLINKS = 3 // even when the video is cached
+const BLINK_MS = 900 // one soft blink (a slight fade out and back, eased); the open always starts at the top of one
+const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
 const SPLIT = 0.25
@@ -36,10 +36,10 @@ const PUSH_MS = 1300
 const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 // Hand-off after the reveal (t = 0 when the video has finished growing):
 const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
-const LOGO_IN_MS = 520 // …cutting in, in three jumps; the menu types in from +0.4s (globals.css)
+const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.4s (globals.css)
 const RULER_IN_MS = 1000 // ruler blinks in at +1s…
 const RULER_STEP_MS = 1400 // …and moves on one item as it arrives, to show what it does
-const CUT = 'steps(1, end)' // hold each keyframe, then jump: hard cuts, no fades
+const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 // The real header (keep in sync with Header.tsx): logo font size, top and side padding.
 const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
@@ -118,14 +118,11 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     }
     if (reduced || fast) return
     blinkAnim.current =
-      blinkRef.current?.animate(
-        [
-          { opacity: 1, easing: CUT },
-          { opacity: 0, offset: 0.5, easing: CUT },
-          { opacity: 0 },
-        ],
-        { duration: BLINK_MS, iterations: Infinity },
-      ) ?? null
+      blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.4 }, { opacity: 1 }], {
+        duration: BLINK_MS,
+        iterations: Infinity,
+        easing: 'ease-in-out',
+      }) ?? null
     const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
     const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
     return () => {
@@ -255,17 +252,12 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     if (!el || !big || logoIntroDone.current) return
     logoIntroDone.current = true
     if (skip) return
-    // Jump cuts, no fade: it flashes in at header size, then cuts bigger, then to full size.
     el.animate(
       [
-        { opacity: 0, transform: logoTransform(big, 1), easing: CUT },
-        { opacity: 1, transform: logoTransform(big, 1), offset: 0.15, easing: CUT },
-        { opacity: 0, transform: logoTransform(big, 1), offset: 0.35, easing: CUT },
-        { opacity: 1, transform: logoTransform(big, 0.55), offset: 0.5, easing: CUT },
-        { opacity: 1, transform: el.style.transform, offset: 0.75, easing: CUT },
+        { opacity: 0, transform: logoTransform(big, 1) },
         { opacity: 1, transform: el.style.transform },
       ],
-      { duration: LOGO_IN_MS },
+      { duration: LOGO_IN_MS, easing: LOGO_EASE },
     )
   }, [showLogo, skip])
 
