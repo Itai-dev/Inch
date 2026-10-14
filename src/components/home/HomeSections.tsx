@@ -16,9 +16,9 @@ import { YearRuler } from './YearRuler'
 
 /**
  * The home page below the statement: the agency's story in chapters, the board's names
- * running past, a row of selected models, and a way in for new faces. Most chapters are centred
- * and stacked: the heading and paragraph type in, then a pile of prints lands below them; one
- * is a magazine whose pages turn as you scroll.
+ * running past, a row of selected models, and a way in for new faces. The first chapter is a
+ * magazine whose pages turn as you scroll; the others are centred and stacked: the heading and
+ * paragraph type in, then a pile of prints lands below them.
  */
 
 export type Chapter = { _key?: string; heading: string; text: string; images?: SanityImage[] | null }
@@ -29,27 +29,28 @@ const fromSanity = (img: SanityImage): Pic => ({ src: urlFor(img).width(1400).ur
 const fromTalent = (t: TalentCardType): Pic | null =>
   t.cover?.asset ? { src: urlFor(t.cover).width(1400).url(), alt: t.name } : t.coverSrc ? { src: t.coverSrc, alt: '' } : null
 
-/** The chapter told as a magazine instead of a pile (the second, when there are two or more). */
-const MAGAZINE_AT = 1
+/** The chapter told as a magazine instead of a pile: the first, right after the statement. */
+const MAGAZINE_AT = 0
 /** Prints per pile (PrintPile places up to ten). */
 const PRINTS = 10
 const SPREADS = 5
 
-/** Story → each chapter's text and three prints (its own pictures, else the board's covers, real ones first); one chapter as a magazine of the board. */
-export function StorySection({ site, chapters, talents }: { site: Site; chapters?: Chapter[] | null; talents: TalentCardType[] }) {
-  const { brand, division } = SITES[site]
+type StoryProps = { site: Site; chapters?: Chapter[] | null; talents: TalentCardType[] }
+
+/** The story's chapters, each chapter's prints (its own pictures, else the board's covers, real ones first), and the magazine's spreads and cover. */
+function storyParts({ chapters, talents }: StoryProps) {
   const story: Chapter[] = chapters?.length ? chapters : DEFAULT_STORY
   const board = [...talents.filter((t) => !isPlaceholder(t)), ...talents.filter(isPlaceholder)]
   const covers = board.map(fromTalent).filter((p): p is Pic => !!p)
   let next = 0
-  const pics = story.map((c) => {
-    const own = (c.images ?? []).filter((i) => i?.asset).map(fromSanity)
+  const pics = story.map((c, i) => {
+    const own = (c.images ?? []).filter((img) => img?.asset).map(fromSanity)
+    if (i === MAGAZINE_AT) return own
     while (own.length < PRINTS && covers.length) own.push(covers[next++ % covers.length])
     return own
   })
   // The magazine: the chapter's own pictures (named by their alt text), else the board, a model a spread.
-  const magazine = story[MAGAZINE_AT]
-  const ownSpreads: Spread[] = (magazine?.images ?? []).filter((i) => i?.asset).map((i) => ({ name: i.alt || '', pic: fromSanity(i) }))
+  const ownSpreads: Spread[] = (story[MAGAZINE_AT]?.images ?? []).filter((i) => i?.asset).map((i) => ({ name: i.alt || '', pic: fromSanity(i) }))
   const spreads: Spread[] =
     ownSpreads.length >= 2
       ? ownSpreads
@@ -57,9 +58,34 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
           const pic = fromTalent(t)
           return pic ? [{ name: t.name, pic: { ...pic, alt: t.name } }] : []
         }).slice(0, SPREADS)
+  // The cover: the chapter's own first picture, else the board's first (real ones come first).
+  const cover = ownSpreads[0]?.pic ?? covers[0] ?? spreads[0]?.pic
+  return { story, pics, spreads, cover, hasMagazine: !!story[MAGAZINE_AT] && spreads.length > 1 }
+}
 
-  // The magazine's cover: the chapter's own first picture, else the board's first (real ones come first).
-  const magCover = ownSpreads[0]?.pic ?? covers[0] ?? spreads[0]?.pic
+/**
+ * The story's first chapter as a magazine. With `overlap` (after the INCH” statement) it is
+ * pulled up over the statement's last screen, so the closed magazine slides in as soon as the
+ * statement has finished writing itself, over its last lines.
+ */
+export function StoryMagazine({ overlap = false, ...props }: StoryProps & { overlap?: boolean }) {
+  const { brand, division } = SITES[props.site]
+  const { story, spreads, cover, hasMagazine } = storyParts(props)
+  if (!hasMagazine || !cover) return null
+  const c = story[MAGAZINE_AT]
+  return (
+    // TextOpen is 210vh tall and has written its statement 86vh into its scroll: start pinning there.
+    <div className={overlap ? 'relative z-10 motion-safe:-mt-[124vh]' : ''}>
+      <Magazine number={MAGAZINE_AT + 1} heading={c.heading} text={c.text} brand={brand} division={division} cover={cover} spreads={spreads} />
+    </div>
+  )
+}
+
+/** The rest of the story: the ruler of years, then each chapter's text and its pile of prints. */
+export function StorySection(props: StoryProps) {
+  const { brand } = SITES[props.site]
+  const { story, pics, hasMagazine } = storyParts(props)
+  const shown = story.map((c, i) => ({ c, i })).filter(({ i }) => !(hasMagazine && i === MAGAZINE_AT))
 
   return (
     <section aria-labelledby="story-title" className="overflow-x-clip py-[clamp(80px,11vw,200px)]">
@@ -73,16 +99,8 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
       </div>
 
       <ol className="mt-[clamp(72px,9vw,160px)] flex flex-col gap-[clamp(120px,15vw,260px)] px-gutter">
-        {story.map((c, i) => {
-          const flip = i % 2 === 1
+        {shown.map(({ c, i }) => {
           const textAt = typeEnd(c.heading, 0, 45) + 150
-          if (i === MAGAZINE_AT && spreads.length > 1)
-            return (
-              // Full width, out of the margins.
-              <li key={c._key || i} className="-mx-[var(--gutter)]">
-                <Magazine number={i + 1} heading={c.heading} text={c.text} brand={brand} division={division} cover={magCover} spreads={spreads} />
-              </li>
-            )
           return (
             <li key={c._key || i} className="flex flex-col items-center text-center">
               {/* The heading types in when it comes into view, then the paragraph. */}
@@ -100,7 +118,7 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
                 </p>
               </TypeOnView>
               {/* Prints on a wall, landing on the pile one after another. */}
-              <PrintPile pics={pics[i]} flip={flip} className="mt-[clamp(40px,5vw,88px)] w-full max-w-[960px]" />
+              <PrintPile pics={pics[i]} flip={i % 2 === 1} className="mt-[clamp(40px,5vw,88px)] w-full max-w-[960px]" />
             </li>
           )
         })}

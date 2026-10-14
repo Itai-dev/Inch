@@ -1,8 +1,9 @@
 'use client'
 
 /**
- * A chapter told as a magazine, full screen. The closed magazine slides in from the side,
- * turning straight as it lands on the floor, then opens from its cover: the chapter on the
+ * A chapter told as a magazine, full screen, on the page itself (no floor of its own, so it can
+ * land over what came before). The closed magazine slides in from beyond the side of the
+ * screen, turning straight as it lands, then opens from its cover: the chapter on the
  * first left page, a model on every right page and her name on the page facing it. Scrolling
  * turns the pages, and they bend as they turn: each leaf is a row of thin strips, each turned
  * a little further than the one before, so the free edge leads and the page curls over. The
@@ -137,8 +138,8 @@ export function Magazine({
         // Closed, the cover sits in the middle; open, the spine does.
         const b = book.current
         if (b) {
-          const x = -25 * (1 - opened) + 70 * (1 - arrive)
-          b.style.transform = `translate(${x.toFixed(2)}%, ${(14 * (1 - arrive)).toFixed(2)}%) rotate(${(11 * (1 - arrive)).toFixed(2)}deg)`
+          const x = -25 * (1 - opened)
+          b.style.transform = `translate(calc(${x.toFixed(2)}% + ${(95 * (1 - arrive)).toFixed(2)}vw), ${(12 * (1 - arrive)).toFixed(2)}%) rotate(${(11 * (1 - arrive)).toFixed(2)}deg)`
         }
         if (shadow.current) shadow.current.style.left = `${(50 * (1 - opened) + 1).toFixed(2)}%`
         if (spine.current) spine.current.style.opacity = String(opened)
@@ -198,11 +199,11 @@ export function Magazine({
   ]
   return (
     <section ref={section} aria-label={`${pad(number)} ${heading}`} className="relative" style={{ height: `${(turns + 1.4) * 90 + 10}dvh` }}>
-      <div className="sticky top-0 flex h-[100dvh] items-center justify-center overflow-hidden bg-[#e7e6e3]">
+      <div className="sticky top-0 flex h-[100dvh] items-center justify-center overflow-hidden">
         <div
           ref={book}
           className="relative will-change-transform"
-          style={{ width: 'min(92vw, 104dvh)', aspectRatio: '3 / 2', perspective: '2600px', transform: 'translate(45%, 14%) rotate(11deg)' }}
+          style={{ width: 'min(92vw, 104dvh)', aspectRatio: '3 / 2', perspective: '2600px', transform: 'translate(calc(-25% + 95vw), 12%) rotate(11deg)' }}
         >
           {/* The book's shadow on the floor: under the cover while closed, under both pages once open. */}
           <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-2xl" style={{ bottom: '-2%' }} />
