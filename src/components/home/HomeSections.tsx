@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
 import { TalentCard } from '@/components/TalentCard'
@@ -8,16 +7,16 @@ import { creditLine } from '@/lib/slides'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, TalentCard as TalentCardType } from '@/sanity/lib/types'
+import { Magazine, type Spread } from './Magazine'
+import { PrintPile, type Pic } from './PrintPile'
 
 /**
  * The home page below the statement: the agency's story in chapters, the board's names
- * running past, a taste of the models, and a way in for new faces. The motion is CSS only
- * (scroll-driven, see globals.css), and stands still with reduced motion or where the
- * browser has no scroll timelines.
+ * running past, a taste of the models, and a way in for new faces. Most chapters are a
+ * paragraph beside a pile of prints; one is a magazine whose pages turn as you scroll.
  */
 
 export type Chapter = { _key?: string; heading: string; text: string; images?: SanityImage[] | null }
-type Pic = { src: string; alt: string; credit?: string }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -25,24 +24,33 @@ const fromSanity = (img: SanityImage): Pic => ({ src: urlFor(img).width(1400).ur
 const fromTalent = (t: TalentCardType): Pic | null =>
   t.cover?.asset ? { src: urlFor(t.cover).width(1400).url(), alt: t.name } : t.coverSrc ? { src: t.coverSrc, alt: '' } : null
 
-/** Where each print lands on the pile: offset (share of its own size) and angle. */
-const PILE = [
-  { x: '-92%', y: '-62%', r: '-4deg' },
-  { x: '-12%', y: '-52%', r: '3deg' },
-  { x: '-52%', y: '-34%', r: '-1.5deg' },
-]
+/** The chapter told as a magazine instead of a pile (the second, when there are two or more). */
+const MAGAZINE_AT = 1
+const PRINTS = 3
+const SPREADS = 5
 
-/** Story → each chapter's text and three prints (its own pictures, else the board's covers, real ones first). */
+/** Story → each chapter's text and three prints (its own pictures, else the board's covers, real ones first); one chapter as a magazine of the board. */
 export function StorySection({ site, chapters, talents }: { site: Site; chapters?: Chapter[] | null; talents: TalentCardType[] }) {
   const { brand } = SITES[site]
   const story: Chapter[] = chapters?.length ? chapters : DEFAULT_STORY
-  const covers = [...talents.filter((t) => !isPlaceholder(t)), ...talents.filter(isPlaceholder)].map(fromTalent).filter((p): p is Pic => !!p)
+  const board = [...talents.filter((t) => !isPlaceholder(t)), ...talents.filter(isPlaceholder)]
+  const covers = board.map(fromTalent).filter((p): p is Pic => !!p)
   let next = 0
   const pics = story.map((c) => {
     const own = (c.images ?? []).filter((i) => i?.asset).map(fromSanity)
-    while (own.length < PILE.length && covers.length) own.push(covers[next++ % covers.length])
+    while (own.length < PRINTS && covers.length) own.push(covers[next++ % covers.length])
     return own
   })
+  // The magazine: the chapter's own pictures (named by their alt text), else the board, a model a spread.
+  const magazine = story[MAGAZINE_AT]
+  const ownSpreads: Spread[] = (magazine?.images ?? []).filter((i) => i?.asset).map((i) => ({ name: i.alt || '', pic: fromSanity(i) }))
+  const spreads: Spread[] =
+    ownSpreads.length >= 2
+      ? ownSpreads
+      : board.flatMap((t) => {
+          const pic = fromTalent(t)
+          return pic ? [{ name: t.name, pic: { ...pic, alt: t.name } }] : []
+        }).slice(0, SPREADS)
 
   return (
     <section aria-labelledby="story-title" className="overflow-x-clip py-[clamp(80px,11vw,200px)]">
@@ -68,6 +76,13 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
       <ol className="mt-[clamp(72px,9vw,160px)] flex flex-col gap-[clamp(120px,15vw,260px)] px-gutter">
         {story.map((c, i) => {
           const flip = i % 2 === 1
+          if (i === MAGAZINE_AT && spreads.length > 1)
+            return (
+              // Full width, out of the margins.
+              <li key={c._key || i} className="-mx-[var(--gutter)]">
+                <Magazine number={i + 1} heading={c.heading} text={c.text} brand={brand} spreads={spreads} />
+              </li>
+            )
           return (
             <li key={c._key || i} className="grid items-center gap-y-14 md:grid-cols-12 md:gap-x-6">
               <div className={`flex flex-col md:col-span-5 ${flip ? 'md:col-start-8' : 'md:col-start-1'} md:row-start-1`}>
@@ -78,21 +93,8 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
                 <h3 className="story-rise wordmark mt-5 text-[clamp(56px,8.5vw,150px)] uppercase leading-[0.82]">{c.heading}</h3>
                 <p className="mt-7 max-w-[38ch] whitespace-pre-line text-[17px] leading-snug md:text-[19px]">{c.text}</p>
               </div>
-              {/* Prints on a wall: small, black and white, landing on the pile one after another as the chapter scrolls in. */}
-              <div className={`story-pile relative h-[clamp(340px,36vw,540px)] md:col-span-6 md:row-start-1 ${flip ? 'md:col-start-1' : 'md:col-start-7'}`}>
-                {pics[i].map((pic, k) => (
-                  <figure
-                    key={k}
-                    className="story-print absolute left-1/2 top-1/2 w-[clamp(150px,15vw,240px)] bg-white p-[5%] pb-[13%] shadow-[0_1px_2px_rgb(0_0_0/0.08),8px_14px_28px_-10px_rgb(0_0_0/0.35)]"
-                    style={{ '--x': PILE[k].x, '--y': PILE[k].y, '--r': flip ? `calc(${PILE[k].r} * -1)` : PILE[k].r, '--k': k, zIndex: k } as React.CSSProperties}
-                  >
-                    <span className="relative block aspect-[4/5] overflow-hidden bg-line">
-                      <Image src={pic.src} alt={pic.alt} fill sizes="240px" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.08]" />
-                    </span>
-                    {pic.credit && <figcaption className="absolute bottom-[3%] left-[5%] text-[9px] uppercase tracking-wide text-[#6f6f6f]">{pic.credit}</figcaption>}
-                  </figure>
-                ))}
-              </div>
+              {/* Prints on a wall, landing on the pile one after another. */}
+              <PrintPile pics={pics[i]} flip={flip} className={`md:col-span-6 md:row-start-1 ${flip ? 'md:col-start-1' : 'md:col-start-7'}`} />
             </li>
           )
         })}
