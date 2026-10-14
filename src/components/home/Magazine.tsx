@@ -3,7 +3,8 @@
 /**
  * A chapter told as a magazine, full screen: an open book on the floor, the chapter on the
  * first left page, a model on every right page and her name on the page facing it. Scrolling
- * turns the pages. The section is as tall as the book has spreads; the book stays put while
+ * turns the pages, and they bend as they turn: each leaf is a row of thin strips, each turned
+ * a little further than the one before, so the free edge leads and the page curls over. The section is as tall as the book has spreads; the book stays put while
  * it is read. With reduced motion the pages change without turning.
  */
 import Image from 'next/image'
@@ -40,6 +41,33 @@ function PhotoPage({ pic }: { pic: Pic }) {
 const fold = (side: 'left' | 'right') =>
   `linear-gradient(to ${side === 'left' ? 'left' : 'right'}, rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.03) 7%, transparent 16%)`
 
+/** How many strips a leaf is cut into, and how far its free edge leads at the middle of a turn. */
+const STRIPS = 18
+const CURL = 70
+
+/** One strip of a leaf, with the rest of the leaf hanging off its right edge (each turns on the one before). */
+function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: React.ReactNode }) {
+  // Faces overlap the next strip by a pixel so no seam shows; the page inside stays aligned.
+  const slice = (i: number) => ({ width: `calc(${STRIPS} * (100% - 1px))`, left: `calc(${-i} * (100% - 1px))` })
+  return (
+    <div
+      data-strip
+      className="absolute inset-y-0 origin-left [transform-style:preserve-3d]"
+      style={k === 0 ? { left: 0, width: `${100 / STRIPS}%` } : { left: '100%', width: '100%' }}
+    >
+      <div className="absolute inset-y-0 left-0 w-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden]">
+        <div className="absolute inset-y-0" style={slice(k)}>{front}</div>
+        <span aria-hidden className="pointer-events-none absolute inset-0 bg-black" style={{ opacity: 'var(--sf, 0)' }} />
+      </div>
+      <div className="absolute inset-y-0 left-0 w-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)]">
+        <div className="absolute inset-y-0" style={slice(STRIPS - 1 - k)}>{back}</div>
+        <span aria-hidden className="pointer-events-none absolute inset-0 bg-black" style={{ opacity: 'var(--sb, 0)' }} />
+      </div>
+      {k + 1 < STRIPS && <Strip k={k + 1} front={front} back={back} />}
+    </div>
+  )
+}
+
 export function Magazine({ number, heading, text, brand, spreads }: { number: number; heading: string; text: string; brand: string; spreads: Spread[] }) {
   const section = useRef<HTMLElement>(null)
   const leaves = useRef<(HTMLDivElement | null)[]>([])
@@ -49,6 +77,7 @@ export function Magazine({ number, heading, text, brand, spreads }: { number: nu
     const el = section.current
     if (!el || !turns) return
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const strips = leaves.current.map((leaf) => Array.from(leaf?.querySelectorAll<HTMLElement>('[data-strip]') ?? []))
     let frame = 0
     const turn = () => {
       cancelAnimationFrame(frame)
@@ -63,10 +92,20 @@ export function Magazine({ number, heading, text, brand, spreads }: { number: nu
           let p = Math.min(1, Math.max(0, (at - k - 0.15) / 0.7))
           if (reduce) p = Math.round(p)
           const e = smooth(p)
-          leaf.style.transform = `rotateY(${(-180 * e).toFixed(2)}deg)`
           // Turned pages pile on the left, the latest on top; the rest wait on the right, the next on top.
           leaf.style.zIndex = String(e > 0.5 ? 20 + k : 20 - k)
-          leaf.style.setProperty('--shade', (Math.sin(Math.PI * e) * 0.55).toFixed(3))
+          // The page's angle at each strip: the free edge leads by up to CURL degrees mid-turn.
+          const bend = Math.sin(Math.PI * e) * CURL
+          let before = 0
+          strips[k].forEach((strip, i) => {
+            const angle = Math.min(180, 180 * e + bend * ((i + 1) / STRIPS) ** 1.6)
+            strip.style.transform = `rotateY(${(before - angle).toFixed(2)}deg)` // relative to the strip before
+            before = angle
+            // Light from the front: the face darkens as it turns away.
+            const c = Math.cos((angle * Math.PI) / 180)
+            strip.style.setProperty('--sf', (0.32 * (1 - c)).toFixed(3))
+            strip.style.setProperty('--sb', (0.26 * (1 + c)).toFixed(3))
+          })
         })
       })
     }
@@ -105,26 +144,31 @@ export function Magazine({ number, heading, text, brand, spreads }: { number: nu
             <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
           </div>
 
-          {/* The leaves: a model on the front, the next model's name on the back. */}
+          {/* The leaves: a model on the front, the next model's name on the back, each cut into strips that bend. */}
           {spreads.slice(0, turns).map((s, k) => (
             <div
               key={k}
               ref={(n) => {
                 leaves.current[k] = n
               }}
-              className="absolute inset-y-0 right-0 w-1/2 origin-left will-change-transform [transform-style:preserve-3d]"
+              className="absolute inset-y-0 right-0 w-1/2 [transform-style:preserve-3d]"
               style={{ zIndex: 20 - k }}
             >
-              <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]">
-                <PhotoPage pic={s.pic} />
-                <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
-                <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/40 to-transparent" style={{ opacity: 'var(--shade, 0)' }} />
-              </div>
-              <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                <NamePage name={spreads[k + 1].name} n={4 + k * 2} />
-                <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
-                <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" style={{ opacity: 'var(--shade, 0)' }} />
-              </div>
+              <Strip
+                k={0}
+                front={
+                  <>
+                    <PhotoPage pic={s.pic} />
+                    <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
+                  </>
+                }
+                back={
+                  <>
+                    <NamePage name={spreads[k + 1].name} n={4 + k * 2} />
+                    <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
+                  </>
+                }
+              />
             </div>
           ))}
 
