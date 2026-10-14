@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
-import { TalentCard } from '@/components/TalentCard'
+import { BOARD_GAP, TalentCard } from '@/components/TalentCard'
 import { DEFAULT_STORY, STORY_FROM } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
 import { creditLine } from '@/lib/slides'
@@ -161,13 +161,13 @@ export function NameMarquee({ site, talents }: { site: Site; talents: TalentCard
   const names: StripName[] = talents.slice(0, 12).map((t) => ({ name: t.name, href: talentPath(t), pics: stripPics(t) }))
   if (!names.length) return null
   return (
-    <section aria-label="The board" className="overflow-hidden border-y-2 border-fg py-[clamp(16px,2vw,28px)]">
+    <section aria-label="The board" className="overflow-hidden border-t-2 border-fg pb-[clamp(8px,1vw,14px)] pt-[clamp(16px,2vw,28px)]">
       <NameStrip names={names} mark={<DivisionMark division={division} size={28} />} />
     </section>
   )
 }
 
-/** Selected models in one even row, numbered, with the way to the whole board. Phones swipe along it. */
+/** Selected models in one even row on the ruler, with the way to the whole board. Phones swipe along it. */
 export function SelectedModels({ site, talents, total }: { site: Site; talents: TalentCardType[]; total: number }) {
   const picks = talents.slice(0, 6)
   if (!picks.length) return null
@@ -178,11 +178,11 @@ export function SelectedModels({ site, talents, total }: { site: Site; talents: 
         <h2 id="selected-title" className="wordmark text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected models</h2>
         <Link href={all} className="label hover:opacity-60">Show all ({total}) →</Link>
       </div>
-      <ol className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-6 md:gap-[clamp(16px,1.6vw,28px)] md:overflow-visible">
+      {/* As on the board: the cards almost touching, each on her numbered stretch of ruler. */}
+      <ol className="ruler-board flex snap-x snap-mandatory overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-6 md:overflow-visible" style={{ columnGap: BOARD_GAP }}>
         {picks.map((t, i) => (
           <li key={t._id} className="w-[44vw] shrink-0 snap-start md:w-auto">
-            <p className="mb-2 text-[13px] font-extrabold tabular-nums">{pad(i + 1)}</p>
-            <TalentCard talent={t} priority={false} />
+            <TalentCard talent={t} priority={false} n={i + 1} />
           </li>
         ))}
       </ol>

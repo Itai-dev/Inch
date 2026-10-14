@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { isPlaceholder } from '@/lib/placeholders'
+import { rulerTicks, rulerTicksDown } from '@/lib/ruler'
 import { talentPath } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { TalentCard as TalentCardType } from '@/sanity/lib/types'
@@ -9,10 +10,17 @@ import { AddToSelectionButton } from './selection/AddToSelectionButton'
 
 const coverUrl = (t: TalentCardType) => t.coverSrc ?? (t.cover?.asset ? urlFor(t.cover).width(600).height(800).url() : null)
 
-export function TalentCard({ talent, priority }: { talent: TalentCardType; priority?: boolean }) {
+/** The gap between cards on the board (and in Selected models): as close as they go. */
+export const BOARD_GAP = '3px'
+
+/**
+ * A model on the board. With `n`, she stands on her numbered stretch of the INCH” ruler, which
+ * reaches across the gap to the next card so a row reads as one ruler (`.ruler-board` lights it on hover).
+ */
+export function TalentCard({ talent, priority, n }: { talent: TalentCardType; priority?: boolean; n?: number }) {
   const src = coverUrl(talent)
   return (
-    <article className="group relative">
+    <article className={`group relative ${n ? 'ruler-cell' : ''}`}>
       <Link href={talentPath(talent)} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-line">
           {src && (
@@ -31,6 +39,12 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
           {talent.name}
         </h3>
       </Link>
+      {n !== undefined && (
+        <span aria-hidden className="ruler-seg relative mt-4 block h-[30px]" style={{ width: `calc(100% + ${BOARD_GAP})` }}>
+          <span className="absolute left-0 top-0 -translate-x-1/2 text-[11px] font-extrabold tabular-nums leading-none">{String(n).padStart(2, '0')}</span>
+          <span className="ruler-draw absolute inset-x-0 bottom-0 block h-4" style={rulerTicks(16, 9)} />
+        </span>
+      )}
       {!isPlaceholder(talent) && (
         <div className="absolute right-2 top-2 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
           <AddToSelectionButton talent={talent} compact />
@@ -40,32 +54,34 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
   )
 }
 
-/** The board: room around every model, the name large and centred below. */
+/** The board: the cards almost touching, each model on her numbered stretch of ruler, the name centred below. */
 export function TalentGrid({ talents }: { talents: TalentCardType[] }) {
   if (!talents.length) {
     return <p className="py-20 text-center text-muted">No talents yet — add them in the Studio.</p>
   }
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 md:grid-cols-4 md:gap-x-[clamp(20px,2.2vw,40px)] md:gap-y-[clamp(48px,5vw,88px)] lg:grid-cols-5">
+    <div className="ruler-board grid grid-cols-2 gap-y-10 sm:grid-cols-3 md:grid-cols-4 md:gap-y-[clamp(44px,4.4vw,72px)] lg:grid-cols-5" style={{ columnGap: BOARD_GAP }}>
       {talents.map((t, i) => (
-        <TalentCard key={t._id} talent={t} priority={i < 6} />
+        <TalentCard key={t._id} talent={t} priority={i < 6} n={i + 1} />
       ))}
     </div>
   )
 }
 
-/** The board as a list: a row a model, numbered, with a small picture and the name large. */
+/** The board as a list: a row a model, a small picture and the name large, on one long tape down the left, a stretch a model. */
 export function TalentList({ talents }: { talents: TalentCardType[] }) {
   if (!talents.length) return null
   return (
-    <ol className="border-b border-line">
+    <ol className="ruler-board border-l border-current/40">
       {talents.map((t, i) => {
         const src = coverUrl(t)
         return (
-          <li key={t._id} className="border-t border-line">
-            <Link href={talentPath(t)} className="group grid grid-cols-[2.5rem_56px_1fr_auto] items-center gap-x-4 py-3 md:grid-cols-[4rem_72px_1fr_auto] md:gap-x-8 md:py-4">
-              <span className="text-[13px] font-extrabold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-              <span className="relative block aspect-[3/4] overflow-hidden bg-line">
+          <li key={t._id} className="ruler-cell">
+            <Link href={talentPath(t)} className="group grid grid-cols-[3.5rem_56px_1fr_auto] items-center gap-x-4 md:grid-cols-[6rem_72px_1fr_auto] md:gap-x-8">
+              <span aria-hidden className="ruler-seg relative self-stretch" style={rulerTicksDown(26, 9)}>
+                <span className="absolute left-[34px] top-[-6px] text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
+              </span>
+              <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
               </span>
               <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2">
