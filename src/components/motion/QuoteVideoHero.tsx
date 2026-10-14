@@ -10,8 +10,8 @@
  *    the hero items (click a number / arrow keys). Every 6 s
  *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
- * `opening="grow"` (on /logotest) replaces step 2: the ” grows, the video fades in inside
- * it, and it keeps growing, into its left stroke, until the video fills the screen.
+ * `opening="grow"` (on /logotest) replaces step 2: the ” grows in one movement, ever faster,
+ * the video fading in inside it, into its left stroke until the video fills the screen.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -32,10 +32,9 @@ const BLINK_MS = 900 // one soft blink (a slight fade out and back, eased); the 
 const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
-const GROW_MS = 2800 // the "grow" opening, start to full screen
-const GROW_MID_VH = 0.42 // …first growing to this height (still a ” you can read)…
-const GROW_FADE = [0.18, 0.5] // …while the video fades in inside it (share of GROW_MS)…
-const GROW_INTO = [15.7 / 64, 16.3 / 72] // …then into the solid top of its left stroke (share of the mark)
+const GROW_MS = 2600 // the "grow" opening: one movement, ever faster, until the video fills the screen
+const GROW_FADE = [0.15, 0.55] // the video fades in inside the ” (share of GROW_MS)…
+const GROW_INTO = [15.7 / 64, 16.3 / 72] // …as it grows into the solid top of its left stroke (share of the mark)
 const GROW_SQUARE = [28.6 / 64, 32.7 / 72] // size of that solid part (share of the mark)
 const MARK_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72"><path d="${LEFT_PATH}"/><path d="${RIGHT_PATH}"/></svg>`)}")`
 const SPLIT = 0.25
@@ -179,16 +178,15 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     const H = window.innerHeight
     const mh0 = H * MARK_VH
     const mw0 = (mh0 * 64) / 72
-    const sMid = GROW_MID_VH / MARK_VH
     const sEnd = Math.max((W * 1.15) / (mw0 * GROW_SQUARE[0]), (H * 1.15) / (mh0 * GROW_SQUARE[1]))
-    const a = easeInOut(Math.min(1, p / 0.42))
-    const b = easeInOut(Math.max(0, Math.min(1, (p - 0.45) / 0.55)))
-    const s = 1 + (sMid - 1) * a + (sEnd - sMid) * b
+    // One movement, ever faster: exponential growth, and the exponent itself accelerating.
+    const s = sEnd ** (p ** 1.7)
     const mw = mw0 * s
     const mh = mh0 * s
-    // Grows from its middle, then into its left stroke, which comes to the middle of the screen.
-    const ax = lerp(0.5, GROW_INTO[0], b)
-    const ay = lerp(0.5, GROW_INTO[1], b)
+    // Grows from its middle and drifts into its left stroke, which comes to the middle of the screen.
+    const into = p * p
+    const ax = lerp(0.5, GROW_INTO[0], into)
+    const ay = lerp(0.5, GROW_INTO[1], into)
     win.style.setProperty('--mw', `${mw}px`)
     win.style.setProperty('--mh', `${mh}px`)
     win.style.setProperty('--mx', `${W / 2 - ax * mw}px`)
