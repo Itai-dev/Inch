@@ -17,10 +17,9 @@ import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet, cmToInches } from '@/lib/units'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
-import { HeightTape } from './HeightTape'
 import { StepRuler } from './StepRuler'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
-import { range, WheelField } from './NumberWheel'
+import { HeightTape, Tape, type TapeScale } from './Tape'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
@@ -82,18 +81,22 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
 
 type Unit = 'in' | 'cm'
 
-/** Measurement wheels, in cm and in inches (halves), with the grey value shown until one is picked (cm). */
+/** The sizes on tapes, in cm and in inches (half-inch ticks), with where each tape rests before it's touched (cm). */
+const CM = (min: number, max: number): TapeScale => ({ min, max, px: 12.8, snap: 1, every: 5 })
+const IN = (min: number, max: number): TapeScale => ({ min, max, px: 25.6, snap: 0.5, every: 2 })
 const SIZES = {
-  bust: { cm: range(60, 140), in: range(24, 55, 0.5), start: { women: 84, men: 96 } },
-  waist: { cm: range(45, 120), in: range(18, 47, 0.5), start: { women: 62, men: 78 } },
-  hips: { cm: range(60, 140), in: range(24, 55, 0.5), start: { women: 90, men: 94 } },
+  bust: { cm: CM(60, 140), in: IN(24, 55), start: { women: 84, men: 96 } },
+  waist: { cm: CM(45, 120), in: IN(18, 47), start: { women: 62, men: 78 } },
+  hips: { cm: CM(60, 140), in: IN(24, 55), start: { women: 90, men: 94 } },
 } as const
-const SHOES = range(34, 48, 0.5)
+const SIZE_KEYS: Size[] = ['bust', 'waist', 'hips', 'shoes']
+const SHOES: TapeScale = { min: 34, max: 48, px: 32, snap: 0.5, every: 1 }
+type Size = keyof typeof SIZES | 'shoes'
 
 // Sizes are kept in cm; inches are shown to the nearest half, written 32½.
 const toShown = (cm: string | number, unit: Unit) => (unit === 'cm' ? String(cm) : String(Math.round((Number(cm) / 2.54) * 2) / 2))
 const fromShown = (v: string, unit: Unit) => (unit === 'cm' ? v : String(Math.round(Number(v) * 2.54)))
-const half = (v: string) => v.replace('.5', '½')
+const half = (v: string | number) => String(v).replace('.5', '½')
 
 export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
   const { brand, division, label } = SITES[site]
@@ -106,6 +109,12 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [unit, setUnit] = useState<Unit>('in')
+  const [openSize, setOpenSize] = useState<Size | null>(null)
+  const tapeRef = useRef<HTMLDivElement>(null)
+  // The open tape takes the keyboard, so the arrow keys move it straight away.
+  useEffect(() => {
+    if (openSize) (tapeRef.current?.querySelector('[role=slider]') as HTMLElement | null)?.focus({ preventScroll: true })
+  }, [openSize])
   /** Continue was pressed with something still unset: say what. */
   const [tried, setTried] = useState(false)
   const startedAt = useRef(0)
@@ -169,6 +178,14 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     if (res?.ok) go('done')
     else setError(`Something went wrong. Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
   }
+
+  // Sizes in the unit shown (shoes are always EU); kept in cm.
+  const sizeName = (k: Size) => (k === 'bust' ? (division === 'men' ? 'Chest' : 'Bust') : k === 'waist' ? 'Waist' : k === 'hips' ? 'Hips' : 'Shoes')
+  const sizeShown = (k: Size) =>
+    k === 'shoes'
+      ? { value: d.shoes ? Number(d.shoes) : null, start: division === 'men' ? 43 : 39 }
+      : { value: d[k] ? Number(toShown(d[k], unit)) : null, start: Number(toShown(SIZES[k].start[division], unit)) }
+  const setSize = (k: Size, x: number) => set(k, k === 'shoes' ? String(x) : fromShown(String(x), unit))
 
   // What the measurements step still needs.
   const gaps = (
@@ -374,39 +391,65 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 <HeightTape value={d.height} unit={unit} onChange={(cm) => set('height', cm)} />
                 <span className="text-[12px] text-muted">{d.height ? 'Drag the tape, or use the arrow keys.' : 'Drag the tape to your height.'}</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4">
-                {(['bust', 'waist', 'hips'] as const).map((k) => {
-                  const items = [...SIZES[k][unit]]
-                  return (
-                    <WheelField
-                      key={k}
-                      label={k === 'bust' ? (division === 'men' ? 'Chest' : 'Bust') : k === 'waist' ? 'Waist' : 'Hips'}
-                      unit={unit}
-                      items={items}
-                      labels={unit === 'in' ? items.map(half) : undefined}
-                      value={d[k] ? toShown(d[k], unit) : ''}
-                      fallback={toShown(SIZES[k].start[division], unit)}
-                      onChange={(v) => set(k, fromShown(v, unit))}
-                      long={unit === 'in' ? (v) => Number(v) % 2 === 0 : undefined}
+              {/* Each size is a closed field; tap one and its tape opens below, full width. */}
+              <div className="flex flex-col gap-5">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4">
+                  {SIZE_KEYS.map((k) => {
+                    const shown = sizeShown(k)
+                    const open = openSize === k
+                    return (
+                      <div key={k} className="flex min-w-0 flex-col gap-1.5">
+                        <span className="truncate text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
+                          {sizeName(k)} <span className="text-muted">{k === 'shoes' ? 'EU' : unit}</span>
+                        </span>
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-label={`${sizeName(k)}, ${shown.value ? half(shown.value) : 'not set'}`}
+                          onClick={() => {
+                            if (open) return setOpenSize(null)
+                            if (!shown.value) setSize(k, shown.start)
+                            setOpenSize(k)
+                          }}
+                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.8vw,26px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
+                        >
+                          <span className={`min-w-0 flex-1 truncate ${shown.value ? '' : 'text-muted/40'}`}>{half(shown.value ?? shown.start)}</span>
+                          <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
+                            <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                {openSize && (
+                  <div ref={tapeRef} className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
+                        {sizeName(openSize)} <span className="text-muted">{openSize === 'shoes' ? 'EU' : unit}</span>
+                      </span>
+                      <button type="button" onClick={() => setOpenSize(null)} className="text-[12px] font-bold uppercase underline" style={narrow}>
+                        Done
+                      </button>
+                    </div>
+                    <Tape
+                      key={`${openSize}-${unit}`}
+                      label={sizeName(openSize)}
+                      value={sizeShown(openSize).value}
+                      start={sizeShown(openSize).start}
+                      scale={openSize === 'shoes' ? SHOES : SIZES[openSize][unit]}
+                      onChange={(x) => setSize(openSize, x)}
+                      valueText={(x) => `${half(x)} ${openSize === 'shoes' ? 'EU' : unit}`}
+                      onDone={() => setOpenSize(null)}
                     />
-                  )
-                })}
-                <WheelField
-                  label="Shoes"
-                  unit="EU"
-                  items={SHOES}
-                  labels={SHOES.map(half)}
-                  value={d.shoes}
-                  fallback={division === 'men' ? '43' : '39'}
-                  onChange={(v) => set('shoes', v)}
-                  long={(v) => !v.includes('.')}
-                />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to roll its wheel.')}
+              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to open its tape.')}
             </form>
           )}
 
