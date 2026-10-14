@@ -71,7 +71,7 @@ const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(18px,
 
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
-    <label className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
+    <label className={`flex min-w-0 flex-col gap-2 ${className}`}>
       <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
@@ -280,7 +280,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     )
 
   const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
       <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
       </button>
@@ -292,7 +292,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   )
 
   if (!body) body = (
-    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-gutter pb-12 pt-4 md:gap-10 md:pt-6">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       <StepRuler
@@ -325,10 +325,11 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
       </details>
 
-      <div className="grid gap-10 md:grid-cols-[minmax(0,600px)_minmax(0,420px)] md:items-start md:justify-between">
-        <div className="flex flex-col gap-7">
+      {/* The form and the card, centred in the space under the ruler. */}
+      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,580px)_minmax(0,400px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(64px,8vw,128px)] md:py-10">
+        <div className="flex flex-col gap-9">
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
               <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
@@ -343,7 +344,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'guardian' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {GUARDIAN_AGE}, so we’ll speak to a parent or guardian first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
@@ -353,7 +354,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
           {step === 'measure' && (
             <form
-              className="flex flex-col gap-7"
+              className="flex flex-col gap-10"
               onSubmit={(e) => {
                 e.preventDefault()
                 if (gaps.length) setTried(true)
@@ -390,7 +391,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               </div>
               {/* Each size is a closed field; tap one and its tape opens below, full width. */}
               <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
                   {SIZE_KEYS.map((k) => {
                     const shown = sizeShown(k)
                     const open = openSize === k
@@ -442,7 +443,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
@@ -451,7 +452,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'digitals' && (
-            <form className="flex flex-col gap-6" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="flex flex-col gap-9" onSubmit={(e) => { e.preventDefault(); next() }}>
               <p className="max-w-[520px] text-[16px] leading-snug">Three photos taken today. Daylight, no make-up, hair back, fitted clothes, plain wall. Phone photos are perfect.</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {SLOTS.map((s) => {
@@ -499,7 +500,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'send' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
+            <form className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
               <Field label="Instagram"><input className={big} placeholder="@handle" value={d.instagram} onChange={(e) => set('instagram', e.target.value)} /></Field>
               <Field label="TikTok"><input className={big} placeholder="@handle" value={d.tiktok} onChange={(e) => set('tiktok', e.target.value)} /></Field>
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">
