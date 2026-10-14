@@ -37,16 +37,23 @@ const SPREADS = 5
 
 type StoryProps = { site: Site; chapters?: Chapter[] | null; talents: TalentCardType[] }
 
-/** The story's chapters, each chapter's prints (its own pictures, else the board's covers, real ones first), and the magazine's spreads and cover. */
+/** The story's chapters, each chapter's prints (its own pictures, else the real models' pictures, else the board's covers), and the magazine's spreads and cover. */
 function storyParts({ chapters, talents }: StoryProps) {
   const story: Chapter[] = chapters?.length ? chapters : DEFAULT_STORY
   const board = [...talents.filter((t) => !isPlaceholder(t)), ...talents.filter(isPlaceholder)]
   const covers = board.map(fromTalent).filter((p): p is Pic => !!p)
+  // The prints: the real models' own pictures (cover and book), else the board's covers.
+  const real = talents.filter((t) => !isPlaceholder(t)).flatMap((t) => {
+    const imgs = [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset)
+    const seen = new Set<string>()
+    return imgs.filter((i) => !seen.has(i.asset!._ref) && !!seen.add(i.asset!._ref)).map((i) => ({ ...fromSanity(i), alt: i.alt || t.name }))
+  })
+  const stock = real.length ? real : covers
   let next = 0
   const pics = story.map((c, i) => {
     const own = (c.images ?? []).filter((img) => img?.asset).map(fromSanity)
     if (i === MAGAZINE_AT) return own
-    while (own.length < PRINTS && covers.length) own.push(covers[next++ % covers.length])
+    while (own.length < PRINTS && stock.length) own.push(stock[next++ % stock.length])
     return own
   })
   // The magazine: the chapter's own pictures (named by their alt text), else the board, a model a spread.

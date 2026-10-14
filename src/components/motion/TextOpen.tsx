@@ -3,7 +3,9 @@
 /**
  * INCH” — "Text open" (from Figma Make prototype).
  * Scroll-driven: the ” splits into two strokes; the right stroke writes the
- * statement letter by letter (hard cuts, no fade).
+ * statement letter by letter (hard cuts, no fade). The statement is set as large as it can be
+ * while staying clear of the header, and its lines vanish at the header's edge as it scrolls
+ * away, so the header logo never sinks into the big type.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
@@ -13,9 +15,14 @@ import { useScrollProgress } from '@/hooks/useScrollProgress'
 const ANIM_END = 0.78
 const DROP_END = 0.18
 const DROP_PX = 48
-const EXIT_UP = 70
+const EXIT_UP = 40
+const DRIFT_UP = 30 // the statement rises this much while it is written
 const WIDTH_PER_FONT = 12.5 // container width ÷ font size
 const MAX_FONT = 104
+const MIN_FONT = 26
+
+/** The bottom of the header logo, with a little air under it. */
+const headerBottom = () => (document.querySelector('[data-site-header] > a')?.getBoundingClientRect().bottom ?? 90) + 16
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -25,19 +32,60 @@ export function TextOpen({ text }: { text: string }) {
   const { ref: zoneRef, progress: rawProgress } = useScrollProgress<HTMLDivElement>()
   const progress = reduced ? 1 : rawProgress
 
+  const stickyRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLParagraphElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(MAX_FONT)
 
   useEffect(() => {
     const el = wrapRef.current
-    if (!el) return
-    // As large as the width allows, but short enough for the whole statement to fit the screen.
-    const ro = new ResizeObserver(([e]) => setFont(Math.min(MAX_FONT, e.contentRect.width / WIDTH_PER_FONT, window.innerHeight / 9)))
+    const t = textRef.current
+    if (!el || !t) return
+    // As large as the width allows, then smaller until the statement, centred and at its highest,
+    // stays below the header: the height goes roughly with the square of the size (more lines too).
+    const fit = (width: number) => {
+      const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + Math.max(DROP_PX, DRIFT_UP + EXIT_UP)))
+      let f = Math.min(MAX_FONT, width / WIDTH_PER_FONT)
+      const was = t.style.fontSize
+      for (let i = 0; i < 4; i++) {
+        t.style.fontSize = `${f}px`
+        const h = t.offsetHeight
+        if (h <= room) break
+        f = Math.max(MIN_FONT, f * Math.sqrt(room / h) * 0.98)
+      }
+      t.style.fontSize = was
+      setFont(f)
+    }
+    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // Once the statement scrolls away, its lines vanish at the header's edge instead of passing under the logo.
+  useEffect(() => {
+    const el = stickyRef.current
+    if (!el || reduced) return
+    let frame = 0
+    const clip = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const top = el.getBoundingClientRect().top
+        const mask = top < -1 ? `linear-gradient(to bottom, transparent ${headerBottom() - top}px, #000 ${headerBottom() - top + 48}px)` : ''
+        el.style.maskImage = mask
+        el.style.webkitMaskImage = mask
+      })
+    }
+    clip()
+    addEventListener('scroll', clip, { passive: true })
+    addEventListener('resize', clip)
+    return () => {
+      cancelAnimationFrame(frame)
+      removeEventListener('scroll', clip)
+      removeEventListener('resize', clip)
+    }
+  }, [reduced])
 
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
@@ -49,7 +97,7 @@ export function TextOpen({ text }: { text: string }) {
   const exitT = Math.max(0, (progress - ANIM_END) / (1 - ANIM_END))
   const dropT = Math.min(animP / DROP_END, 1)
   const splitT = easeOutCubic(dropT)
-  const translateY = (1 - splitT) * -DROP_PX - animP * 60 + exitT * -EXIT_UP
+  const translateY = (1 - splitT) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
   const cursor = reduced ? text.length : revealP * text.length
   const leadIdx = Math.min(text.length - 1, Math.max(0, Math.floor(cursor)))
@@ -91,15 +139,15 @@ export function TextOpen({ text }: { text: string }) {
 
   return (
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : '210vh' }} className="relative">
-      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
-        <div ref={wrapRef} className="relative w-[min(88vw,1400px)]" style={{ transform: `translateY(${translateY}px)` }}>
+      <div ref={stickyRef} className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
+        <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
             <QuoteStroke side="left" height={markH} />
           </div>
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p className="m-0 font-bold" style={{ fontSize: font, lineHeight: 1.1 }} aria-label={text}>
+          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: 1.1 }} aria-label={text}>
             {text.split('').map((c, i) => (
               <span
                 key={i}
