@@ -19,7 +19,8 @@ import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { HeightTape } from './HeightTape'
 import { StepRuler } from './StepRuler'
-import { EYES, HAIR, SwatchPicker } from './SwatchPicker'
+import { ColorSelect, EYES, HAIR } from './ColorSelect'
+import { NumberWheel, range } from './NumberWheel'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
@@ -79,6 +80,40 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
   )
 }
 
+/** Measurement wheels: range, and the grey starting value until one is picked. */
+const SIZES = {
+  bust: { items: range(60, 140), start: { women: '84', men: '96' } },
+  waist: { items: range(45, 120), start: { women: '62', men: '78' } },
+  hips: { items: range(60, 140), start: { women: '90', men: '94' } },
+  shoes: { items: range(34, 48, 0.5), start: { women: '39', men: '43' } },
+} as const
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** Date of birth as three wheels — day, month, year — like the iPhone's date picker. */
+function BirthWheels({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const thisYear = new Date().getFullYear()
+  const years = range(thisYear - 80, thisYear - 10)
+  const [y, m, day] = value ? value.split('-') : [String(thisYear - 18), '01', '01']
+  const set = (part: 0 | 1 | 2, v: string) => {
+    const next = [y, m, day]
+    next[part] = v
+    // Clamp the day to the month (31 Feb → 28/29); the day wheel rolls back to it.
+    const last = new Date(Number(next[0]), Number(next[1]), 0).getDate()
+    next[2] = pad(Math.min(Number(next[2]), last))
+    onChange(next.join('-'))
+  }
+  const wheel = 'min-w-0 flex-1'
+  return (
+    <div className="flex gap-4">
+      <NumberWheel className={wheel} label="Day of birth" items={range(1, 31).map((n) => pad(+n))} value={value ? day : ''} fallback="01" onChange={(v) => set(2, v)} />
+      <NumberWheel className="min-w-0 flex-[1.3]" label="Month of birth" items={MONTHS.map((_, i) => pad(i + 1))} labels={MONTHS} value={value ? m : ''} fallback="01" onChange={(v) => set(1, v)} long={() => false} />
+      <NumberWheel className="min-w-0 flex-[1.6]" label="Year of birth" items={years} value={value ? y : ''} fallback={String(thisYear - 18)} onChange={(v) => set(0, v)} />
+    </div>
+  )
+}
+
 export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
   const { brand, division, label } = SITES[site]
   const reduced = useReducedMotion()
@@ -89,6 +124,8 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Continue was pressed with something still unset: say what. */
+  const [tried, setTried] = useState(false)
   const startedAt = useRef(0)
   const sheetRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -101,6 +138,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const number = NUMBER[step] ?? 0
 
   const go = (s: Step) => {
+    setTried(false)
     setStep(s)
     setFurthest((f) => Math.max(f, NUMBER[s] ?? 0))
     sheetRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
@@ -149,6 +187,11 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     if (res?.ok) go('done')
     else setError(`Something went wrong. Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
   }
+
+  // What the measurements step still needs.
+  const gaps = (
+    [['Height', d.height], [division === 'men' ? 'Chest' : 'Bust', d.bust], ['Waist', d.waist], ['Hips', d.hips], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
+  ).filter(([, v]) => !v).map(([k]) => k)
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
@@ -288,12 +331,16 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           {heading}
 
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (d.birthdate) next(); else setTried(true) }}>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-              <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
-                <input required type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
-              </Field>
+              <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
+                <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Date of birth</span>
+                <BirthWheels value={d.birthdate} onChange={(v) => set('birthdate', v)} />
+                <span className={`text-[12px] ${tried && !d.birthdate ? 'text-red-600' : 'text-muted'}`}>
+                  {Number.isFinite(age) && age > 0 ? `${age} years old` : 'Roll the wheels to your date of birth.'}
+                </span>
+              </div>
               <Field label="City"><input required autoComplete="address-level2" className={big} value={d.city} onChange={(e) => set('city', e.target.value)} /></Field>
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
@@ -312,7 +359,14 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'measure' && (
-            <form className="flex flex-col gap-8" onSubmit={(e) => { e.preventDefault(); if (d.height) next() }}>
+            <form
+              className="flex flex-col gap-8"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (gaps.length) setTried(true)
+                else next()
+              }}
+            >
               <div className="flex flex-col gap-2">
                 <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Height</span>
                 <div className="flex items-baseline gap-2.5">
@@ -323,19 +377,35 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 <HeightTape value={d.height} onChange={(cm) => set('height', cm)} />
                 <span className="text-[12px] text-muted">{d.height ? 'Drag the tape, or use the arrow keys.' : 'Drag the tape to your height.'}</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-                <Field label={division === 'men' ? 'Chest (cm)' : 'Bust (cm)'}><input required inputMode="numeric" className={mid} value={d.bust} onChange={(e) => set('bust', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
-                <Field label="Waist (cm)"><input required inputMode="numeric" className={mid} value={d.waist} onChange={(e) => set('waist', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
-                <Field label="Hips (cm)"><input required inputMode="numeric" className={mid} value={d.hips} onChange={(e) => set('hips', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
-                <Field label="Shoes (EU)"><input required inputMode="decimal" className={mid} value={d.shoes} onChange={(e) => set('shoes', e.target.value.replace(/[^\d.]/g, ''))} /></Field>
-                <div className="col-span-2 sm:col-span-4">
-                  <SwatchPicker label="Hair colour" name="hair" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
-                </div>
-                <div className="col-span-2 sm:col-span-4">
-                  <SwatchPicker label="Eye colour" name="eyes" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
-                </div>
+              <div className="grid grid-cols-4 gap-x-3 sm:gap-x-6">
+                {(
+                  [
+                    ['bust', division === 'men' ? 'Chest' : 'Bust', 'cm'],
+                    ['waist', 'Waist', 'cm'],
+                    ['hips', 'Hips', 'cm'],
+                    ['shoes', 'Shoes', 'EU'],
+                  ] as const
+                ).map(([k, name, unit]) => (
+                  <div key={k} className="flex min-w-0 flex-col gap-1.5">
+                    <span className="truncate text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
+                      {name} <span className="text-muted">{unit}</span>
+                    </span>
+                    <NumberWheel
+                      label={`${name}, ${unit}`}
+                      items={[...SIZES[k].items]}
+                      value={d[k]}
+                      fallback={SIZES[k].start[division]}
+                      onChange={(v) => set(k, v)}
+                      long={k === 'shoes' ? (v) => !v.includes('.') : undefined}
+                    />
+                  </div>
+                ))}
               </div>
-              {nav('Continue →', !d.height)}
+              <div className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2">
+                <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
+                <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
+              </div>
+              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Roll each wheel to your size.')}
             </form>
           )}
 
