@@ -6,6 +6,7 @@
  * in cm or inches; until it's touched it rests on a typical value.
  */
 import { useEffect, useRef, useState } from 'react'
+import { rulerTicks } from '@/lib/ruler'
 import { cmToFeet } from '@/lib/units'
 
 export type TapeScale = {
@@ -15,7 +16,7 @@ export type TapeScale = {
   px: number
   /** Smallest step: one tick. */
   snap: number
-  /** A number every this many units. */
+  /** A number every this many units; (every / snap − 1) should be odd, so the ruler's taller middle tick lands on a tick. */
   every: number
   label?: (n: number) => string
 }
@@ -110,38 +111,39 @@ export function Tape({
         e.preventDefault()
       }}
     >
+      {/* The INCH” ruler (as in the hero): a number and a full tick every `every`, a taller tick halfway, short ones between. */}
       <div
         className="absolute inset-y-0 left-0"
         style={{
           width: (max - min) * px + 1,
           transform: `translateX(${w / 2 - (v - min) * px}px)`,
           transition: dragging ? 'none' : 'transform 0.18s var(--ease-out)',
-          backgroundImage: `repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px ${px * snap}px)`,
-          backgroundSize: '100% 12px',
-          backgroundPosition: 'left bottom',
-          backgroundRepeat: 'no-repeat',
         }}
       >
-        {marks.map((n) => (
+        {marks.map((n, i) => (
           <div key={n} className="absolute bottom-0 top-0" style={{ left: (n - min) * px }}>
             <span
-              className="absolute top-0 w-12 -translate-x-1/2 text-center text-[14px] font-extrabold tabular-nums transition-opacity"
+              className="absolute top-0 w-12 -translate-x-1/2 text-center text-[14px] font-bold leading-none tabular-nums transition-opacity"
               style={{ opacity: Math.abs(n - v) < every * 0.6 ? 1 : 0.4 }}
             >
               {mark(n)}
             </span>
-            <span className="absolute bottom-0 block h-[26px] w-[2px] bg-current" />
+            {i < marks.length - 1 ? (
+              <span className="absolute bottom-0 left-0 block h-[26px]" style={{ width: every * px, ...rulerTicks(26, Math.round(every / snap) - 1, every * px) }} />
+            ) : (
+              <span className="absolute bottom-0 left-0 block h-[26px] w-[2px] bg-current" />
+            )}
           </div>
         ))}
       </div>
-      <span aria-hidden className="absolute bottom-0 left-1/2 block h-10 w-[3px] -translate-x-1/2 bg-fg" />
+      <span aria-hidden className="absolute bottom-0 left-1/2 block h-9 w-[2px] -translate-x-1/2 bg-fg" />
     </div>
   )
 }
 
-/** Height: in cm a tick a centimetre and a number every 5; in inches a tick every half inch, feet and inches every 2. Kept in cm. */
+/** Height: in cm a tick a centimetre and a number every 10; in inches a tick every half inch, feet and inches every 2. Kept in cm. */
 const HEIGHT = {
-  cm: { min: 140, max: 210, px: 12.8, snap: 1, every: 5 },
+  cm: { min: 140, max: 210, px: 12.8, snap: 1, every: 10 },
   // 4′6″ to 7′0″; 25.6 px an inch, so the half-inch ticks sit as close as the centimetres.
   in: { min: 54, max: 84, px: 25.6, snap: 0.5, every: 2, label: (n: number) => cmToFeet(n * 2.54) },
 } satisfies Record<string, TapeScale>

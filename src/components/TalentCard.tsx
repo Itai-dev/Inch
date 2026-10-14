@@ -26,7 +26,7 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
             />
           )}
         </div>
-        <h3 className="mt-2 px-1 text-center text-[12px] font-bold uppercase leading-tight md:text-[13px]" style={{ fontStretch: '80%' }}>
+        <h3 className="wordmark mt-3 px-1 text-center text-[17px] uppercase leading-none md:text-[22px]">
           {talent.name}
         </h3>
       </Link>
@@ -39,13 +39,13 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
   )
 }
 
-/** The board: cards almost touching, names small and centred below. */
+/** The board: room around every model, the name large and centred below. */
 export function TalentGrid({ talents }: { talents: TalentCardType[] }) {
   if (!talents.length) {
     return <p className="py-20 text-center text-muted">No talents yet — add them in the Studio.</p>
   }
   return (
-    <div className="grid grid-cols-2 gap-x-[3px] gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 md:grid-cols-4 md:gap-x-[clamp(20px,2.2vw,40px)] md:gap-y-[clamp(48px,5vw,88px)] lg:grid-cols-5">
       {talents.map((t, i) => (
         <TalentCard key={t._id} talent={t} priority={i < 6} />
       ))}

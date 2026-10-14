@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
+import { rulerTicks } from '@/lib/ruler'
 import { TalentCard } from '@/components/TalentCard'
 import { DEFAULT_STORY } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
@@ -62,12 +63,9 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
       <div aria-hidden className="mt-4 overflow-hidden">
         <div className="story-ruler flex w-max">
           {Array.from({ length: 60 }, (_, i) => (
-            <span key={i} className="flex h-10 w-16 shrink-0 flex-col justify-between border-l-2 border-current">
-              <span className="pl-1 text-[12px] font-extrabold leading-none tabular-nums">{i}</span>
-              <span
-                className="block h-3"
-                style={{ backgroundImage: 'repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px 8px)', backgroundPosition: 'left bottom', backgroundRepeat: 'repeat-x' }}
-              />
+            <span key={i} className="flex h-10 w-16 shrink-0 flex-col justify-between">
+              <span className="text-center text-[12px] font-bold leading-none tabular-nums">{String(i).padStart(2, '0')}</span>
+              <span className="block h-[18px]" style={rulerTicks(18, 9, 64)} />
             </span>
           ))}
         </div>
@@ -139,7 +137,7 @@ export function ModelsTaste({ site, talents, total }: { site: Site; talents: Tal
         <h2 id="taste-title" className="label text-muted">A taste of the board</h2>
         <Link href={all} className="label hover:opacity-60">Show all ({total}) →</Link>
       </div>
-      <ul className="grid grid-cols-2 gap-x-[3px] gap-y-6 md:grid-cols-3 xl:grid-cols-6 md:max-xl:[&>li:nth-child(3n+2)]:translate-y-14 xl:[&>li:nth-child(even)]:translate-y-16">
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-6 xl:grid-cols-6 md:max-xl:[&>li:nth-child(3n+2)]:translate-y-14 xl:[&>li:nth-child(even)]:translate-y-16">
         {taste.map((t, i) => (
           <li key={t._id}>
             <TalentCard talent={t} priority={i < 2} />

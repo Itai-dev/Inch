@@ -8,6 +8,7 @@
  * always slides the short way round; numbers wrap with `mod`.
  */
 import { useEffect, useRef, useState } from 'react'
+import { rulerTicks } from '@/lib/ruler'
 
 const EASE = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
@@ -53,18 +54,7 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
   // Numbers sit just above the ticks.
   const labelH = Math.round(fontPx * 1.05)
   const height = labelH + Math.round(fontPx * 0.15) + tickH
-  const majorW = tickH >= 24 ? 2 : 1
-  const sub = segW / (minors + 1)
-  const tickBg = {
-    backgroundImage: [
-      'linear-gradient(currentColor, currentColor)',
-      'linear-gradient(currentColor, currentColor)',
-      `repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px ${sub}px)`,
-    ].join(','),
-    backgroundSize: `${majorW}px ${tickH}px, 1px ${Math.round(tickH * 0.7)}px, 100% ${Math.round(tickH * 0.45)}px`,
-    backgroundPosition: 'left bottom, 50% bottom, left bottom',
-    backgroundRepeat: 'no-repeat',
-  } as const
+  const tickBg = rulerTicks(tickH, minors, segW)
 
   // Faded tape (Figma Make carousel): only the centre is at full strength, falling away to the sides.
   const half = segW * (0.53 + (Math.max(1, active.length) - 1) * 0.5)

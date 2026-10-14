@@ -194,6 +194,12 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 body:has([data-model-sheet], [data-sheet]) {
   overflow: hidden;
 }
+/* One-screen pages (contact): no scrolling and no footer, from tablet up. */
+@media (min-width: 768px) {
+  body:has([data-fit-screen]) { overflow: hidden; }
+  body:has([data-fit-screen]) > footer { display: none; }
+  body:has([data-fit-screen]) > main { min-height: 0; }
+}
 body:has([data-model-sheet], [data-sheet]) [data-site-header],
 body:has([data-model-sheet], [data-sheet]) > footer {
   display: none;
@@ -215,4 +221,10 @@ body:has([data-model-sheet], [data-sheet]) > footer {
     .story-ruler { animation: story-ruler linear both; animation-timeline: view(); }
     .story-rise { animation: story-rise linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
   }
+}
+
+/* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
+@keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .type-char { animation: type-char 1ms steps(1, end) var(--at, 0ms) both; }
 }

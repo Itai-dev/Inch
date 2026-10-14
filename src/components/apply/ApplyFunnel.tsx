@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NameOpen } from '@/components/motion/NameOpen'
+import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
@@ -82,7 +83,7 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
 type Unit = 'in' | 'cm'
 
 /** The sizes on tapes, in cm and in inches (half-inch ticks), with where each tape rests before it's touched (cm). */
-const CM = (min: number, max: number): TapeScale => ({ min, max, px: 12.8, snap: 1, every: 5 })
+const CM = (min: number, max: number): TapeScale => ({ min, max, px: 12.8, snap: 1, every: 10 })
 const IN = (min: number, max: number): TapeScale => ({ min, max, px: 25.6, snap: 0.5, every: 2 })
 const SIZES = {
   bust: { cm: CM(60, 140), in: IN(24, 55), start: { women: 84, men: 96 } },
@@ -230,24 +231,30 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   )
 
   let body: React.ReactNode = null
+  // The opening screen: a picture filling the left half (as on a sign-in page), and the words
+  // written in one after another: the title, each line, then the button.
+  const INTRO = [
+    'No experience needed. We look at every application ourselves.',
+    'You’ll need three photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.',
+  ]
+  const introAt = [700, typeEnd(INTRO[0], 700) + 150]
+  const startAt = typeEnd(INTRO[1], introAt[1]) + 150
   if (step === 'intro')
     body = (
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,480px)_minmax(0,560px)] md:items-center md:justify-center">
+      <div className={`grid ${image ? 'md:fixed md:inset-0 md:grid-cols-2' : 'md:min-h-[calc(100dvh-84px)]'}`}>
         {image && (
-          <div className="relative aspect-[3/4] max-h-[42dvh] w-full overflow-hidden bg-line md:max-h-[72dvh]">
+          <div className="relative h-[46dvh] overflow-hidden bg-line md:h-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[50%_15%]" />
           </div>
         )}
-        <div className={`flex max-w-[560px] flex-col gap-7 ${image ? '' : 'md:col-span-2'}`}>
-          <NameOpen name="Get scouted" division={division} className="wordmark text-[clamp(56px,8vw,120px)] uppercase" />
-          <div className="flex flex-col gap-3 text-[17px] leading-snug">
-            <p>No experience needed. We look at every application ourselves.</p>
-            <p className="text-muted">
-              You’ll need three photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.
-            </p>
+        <div className="flex flex-col justify-center gap-7 px-gutter py-10 md:px-[clamp(40px,6vw,120px)] md:py-24">
+          <NameOpen name="Get scouted" division={division} className="wordmark text-[clamp(56px,7vw,112px)] uppercase" />
+          <div className="flex max-w-[520px] flex-col gap-3 text-[17px] leading-snug">
+            <p><TypeText text={INTRO[0]} at={introAt[0]} /></p>
+            <p className="text-muted"><TypeText text={INTRO[1]} at={introAt[1]} /></p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="type-char flex items-center gap-6" style={{ '--at': `${startAt}ms` } as React.CSSProperties}>
             <button
               type="button"
               onClick={() => {
@@ -528,8 +535,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   return (
     <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
       {/* Top bar, as on the model page: what this is, and close. */}
-      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
-        <p className="label text-muted">Become a model · {brand} {label}</p>
+      {/* Over the opening picture the bar is see-through and its label white. */}
+      <div className={`sticky top-0 z-10 flex shrink-0 items-center justify-between px-gutter pb-3 pt-[clamp(16px,2vw,28px)] ${step === 'intro' && image ? 'md:bg-transparent' : ''} bg-bg`}>
+        <p className={`label ${step === 'intro' && image ? 'text-muted md:text-white' : 'text-muted'}`}>Become a model · {brand} {label}</p>
         <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
             <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />

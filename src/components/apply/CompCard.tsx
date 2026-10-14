@@ -7,7 +7,7 @@ import type { Division } from '@/sanity/lib/types'
 export type CardStat = [label: string, value: string | number | undefined]
 
 /**
- * The application as a comp card: light grey with a fine outline, lifted off the page, and
+ * The application as a comp card: a yellow sticky note with a fine outline, lifted off the page, and
  * turned a little toward the mouse wherever it is (also while filling in the form). It fills in while the form is filled in: the name, the stats, then the photos. The
  * name isn't set between the ’ ’ marks (those are for INCH” models); the card carries the
  * ” logo instead (DOT.: the ■).
@@ -49,7 +49,7 @@ export function CompCard({
         const x = clamp((e.clientX - (r.left + r.width / 2)) / (innerWidth / 2))
         const y = clamp((e.clientY - (r.top + r.height / 2)) / (innerHeight / 2))
         el.style.transform = `perspective(1100px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) translateY(-4px)`
-        el.style.boxShadow = `${(-x * 22).toFixed(1)}px ${(30 - y * 14).toFixed(1)}px 60px -24px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.05)`
+        el.style.boxShadow = `${(-8 - x * 14).toFixed(1)}px ${(30 - y * 10).toFixed(1)}px 20px -24px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.06)`
       })
     }
     const rest = () => {
@@ -69,9 +69,9 @@ export function CompCard({
   return (
     <div
       ref={card}
-      // A light card, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
-      style={flat ? undefined : ({ '--bg': '#f9f9f9', '--fg': '#0a0a0a', '--muted': '#6f6f6f', '--line': '#e6e6e6' } as React.CSSProperties)}
-      className={`flex flex-col gap-5 bg-bg p-[clamp(20px,2.2vw,32px)] text-fg ${flat ? '' : 'border border-[#bcbcbc] shadow-[0_24px_56px_-24px_rgb(0_0_0/0.28),0_2px_8px_rgb(0_0_0/0.05)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] will-change-transform'} ${className}`}
+      // A sticky note, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
+      style={flat ? undefined : ({ '--bg': '#fffed0', '--fg': '#0a0a0a', '--muted': '#6f6f6f', '--line': '#e6e6e6' } as React.CSSProperties)}
+      className={`flex flex-col gap-5 bg-bg p-[clamp(20px,2.2vw,32px)] text-fg ${flat ? '' : 'border border-[#bcbcbc] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] will-change-transform'} ${className}`}
     >
       <div className="label flex items-start justify-between text-[11px] text-muted">
         <span>{brand} — Application</span>
