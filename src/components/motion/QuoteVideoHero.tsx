@@ -32,8 +32,8 @@ const BLINK_MS = 900 // one soft blink (a slight fade out and back, eased); the 
 const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
-const GROW_MS = 2600 // the "grow" opening: one movement, ever faster, until the video fills the screen
-const GROW_FADE = [0.15, 0.55] // the video fades in inside the ” (share of GROW_MS)…
+const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the video fills the screen
+const GROW_FADE = [0.3, 0.7] // the video fades in inside the ” (share of GROW_MS)…
 const GROW_INTO = [15.7 / 64, 16.3 / 72] // …as it grows into the solid top of its left stroke (share of the mark)
 const GROW_SQUARE = [28.6 / 64, 32.7 / 72] // size of that solid part (share of the mark)
 const MARK_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72"><path d="${LEFT_PATH}"/><path d="${RIGHT_PATH}"/></svg>`)}")`
@@ -184,7 +184,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     const mw = mw0 * s
     const mh = mh0 * s
     // Grows from its middle and drifts into its left stroke, which comes to the middle of the screen.
-    const into = p * p
+    // The drift follows the growth (not the clock), so the mark never slides before it has grown.
+    const into = (s - 1) / (sEnd - 1)
     const ax = lerp(0.5, GROW_INTO[0], into)
     const ay = lerp(0.5, GROW_INTO[1], into)
     win.style.setProperty('--mw', `${mw}px`)
