@@ -14,13 +14,13 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
-import { cmToFeet } from '@/lib/units'
+import { cmToFeet, cmToInches } from '@/lib/units'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { HeightTape } from './HeightTape'
 import { StepRuler } from './StepRuler'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
-import { NumberWheel, range } from './NumberWheel'
+import { range, WheelField } from './NumberWheel'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
@@ -80,39 +80,20 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
   )
 }
 
-/** Measurement wheels: range, and the grey starting value until one is picked. */
+type Unit = 'in' | 'cm'
+
+/** Measurement wheels, in cm and in inches (halves), with the grey value shown until one is picked (cm). */
 const SIZES = {
-  bust: { items: range(60, 140), start: { women: '84', men: '96' } },
-  waist: { items: range(45, 120), start: { women: '62', men: '78' } },
-  hips: { items: range(60, 140), start: { women: '90', men: '94' } },
-  shoes: { items: range(34, 48, 0.5), start: { women: '39', men: '43' } },
+  bust: { cm: range(60, 140), in: range(24, 55, 0.5), start: { women: 84, men: 96 } },
+  waist: { cm: range(45, 120), in: range(18, 47, 0.5), start: { women: 62, men: 78 } },
+  hips: { cm: range(60, 140), in: range(24, 55, 0.5), start: { women: 90, men: 94 } },
 } as const
+const SHOES = range(34, 48, 0.5)
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const pad = (n: number) => String(n).padStart(2, '0')
-
-/** Date of birth as three wheels — day, month, year — like the iPhone's date picker. */
-function BirthWheels({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const thisYear = new Date().getFullYear()
-  const years = range(thisYear - 80, thisYear - 10)
-  const [y, m, day] = value ? value.split('-') : [String(thisYear - 18), '01', '01']
-  const set = (part: 0 | 1 | 2, v: string) => {
-    const next = [y, m, day]
-    next[part] = v
-    // Clamp the day to the month (31 Feb → 28/29); the day wheel rolls back to it.
-    const last = new Date(Number(next[0]), Number(next[1]), 0).getDate()
-    next[2] = pad(Math.min(Number(next[2]), last))
-    onChange(next.join('-'))
-  }
-  const wheel = 'min-w-0 flex-1'
-  return (
-    <div className="flex gap-4">
-      <NumberWheel className={wheel} label="Day of birth" items={range(1, 31).map((n) => pad(+n))} value={value ? day : ''} fallback="01" onChange={(v) => set(2, v)} />
-      <NumberWheel className="min-w-0 flex-[1.3]" label="Month of birth" items={MONTHS.map((_, i) => pad(i + 1))} labels={MONTHS} value={value ? m : ''} fallback="01" onChange={(v) => set(1, v)} long={() => false} />
-      <NumberWheel className="min-w-0 flex-[1.6]" label="Year of birth" items={years} value={value ? y : ''} fallback={String(thisYear - 18)} onChange={(v) => set(0, v)} />
-    </div>
-  )
-}
+// Sizes are kept in cm; inches are shown to the nearest half, written 32½.
+const toShown = (cm: string | number, unit: Unit) => (unit === 'cm' ? String(cm) : String(Math.round((Number(cm) / 2.54) * 2) / 2))
+const fromShown = (v: string, unit: Unit) => (unit === 'cm' ? v : String(Math.round(Number(v) * 2.54)))
+const half = (v: string) => v.replace('.5', '½')
 
 export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
   const { brand, division, label } = SITES[site]
@@ -124,6 +105,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [unit, setUnit] = useState<Unit>('in')
   /** Continue was pressed with something still unset: say what. */
   const [tried, setTried] = useState(false)
   const startedAt = useRef(0)
@@ -195,13 +177,14 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
+  const inUnit = (cm: string) => (cm && unit === 'in' ? cmToInches(Number(cm)) : cm)
   const stats: CardStat[] = [
     ['Age', Number.isFinite(age) && age > 0 ? age : undefined],
     ['City', d.city],
-    ['Height', d.height ?? undefined],
-    [division === 'men' ? 'Chest' : 'Bust', d.bust],
-    ['Waist', d.waist],
-    ['Hips', d.hips],
+    ['Height', d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : undefined],
+    [division === 'men' ? 'Chest' : 'Bust', inUnit(d.bust)],
+    ['Waist', inUnit(d.waist)],
+    ['Hips', inUnit(d.hips)],
     ['Shoes', d.shoes],
     ['Hair', d.hair],
     ['Eyes', d.eyes],
@@ -312,7 +295,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="wordmark truncate text-[18px] uppercase">{fullName ? `’${fullName}’` : 'Your comp card'}</span>
             <span className="truncate text-[11px] uppercase text-muted">
-              {[Number.isFinite(age) && age > 0 ? age : null, d.city, d.height ? `${d.height} cm` : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
+              {[Number.isFinite(age) && age > 0 ? age : null, d.city, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
             </span>
           </span>
           <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
@@ -331,16 +314,12 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           {heading}
 
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (d.birthdate) next(); else setTried(true) }}>
+            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-              <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
-                <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Date of birth</span>
-                <BirthWheels value={d.birthdate} onChange={(v) => set('birthdate', v)} />
-                <span className={`text-[12px] ${tried && !d.birthdate ? 'text-red-600' : 'text-muted'}`}>
-                  {Number.isFinite(age) && age > 0 ? `${age} years old` : 'Roll the wheels to your date of birth.'}
-                </span>
-              </div>
+              <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
+                <input required type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
+              </Field>
               <Field label="City"><input required autoComplete="address-level2" className={big} value={d.city} onChange={(e) => set('city', e.target.value)} /></Field>
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
@@ -368,44 +347,66 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               }}
             >
               <div className="flex flex-col gap-2">
-                <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Height</span>
-                <div className="flex items-baseline gap-2.5">
-                  <span className={`wordmark text-[clamp(64px,7vw,96px)] tabular-nums ${d.height ? '' : 'text-muted/40'}`}>{d.height ?? 175}</span>
-                  <span className="text-[22px] font-bold">cm</span>
-                  {d.height && <span className="ml-2 text-[14px] text-muted">{cmToFeet(d.height)}</span>}
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Height</span>
+                  {/* Inches or centimetres, for every size on this step. */}
+                  <div role="group" aria-label="Units" className="flex border-2 border-fg text-[12px] font-bold uppercase" style={narrow}>
+                    {(['in', 'cm'] as Unit[]).map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        aria-pressed={unit === u}
+                        onClick={() => setUnit(u)}
+                        className={`min-w-11 px-3 py-1.5 ${unit === u ? 'bg-fg text-bg' : 'hover:bg-surface'}`}
+                      >
+                        {u === 'in' ? 'Inches' : 'cm'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <HeightTape value={d.height} onChange={(cm) => set('height', cm)} />
+                <div className="flex items-baseline gap-2.5">
+                  <span className={`wordmark text-[clamp(64px,7vw,96px)] tabular-nums ${d.height ? '' : 'text-muted/40'}`}>
+                    {unit === 'in' ? cmToFeet(d.height ?? 175) : (d.height ?? 175)}
+                  </span>
+                  {unit === 'cm' && <span className="text-[22px] font-bold">cm</span>}
+                  {d.height && <span className="ml-2 text-[14px] text-muted">{unit === 'in' ? `${d.height} cm` : cmToFeet(d.height)}</span>}
+                </div>
+                <HeightTape value={d.height} unit={unit} onChange={(cm) => set('height', cm)} />
                 <span className="text-[12px] text-muted">{d.height ? 'Drag the tape, or use the arrow keys.' : 'Drag the tape to your height.'}</span>
               </div>
-              <div className="grid grid-cols-4 gap-x-3 sm:gap-x-6">
-                {(
-                  [
-                    ['bust', division === 'men' ? 'Chest' : 'Bust', 'cm'],
-                    ['waist', 'Waist', 'cm'],
-                    ['hips', 'Hips', 'cm'],
-                    ['shoes', 'Shoes', 'EU'],
-                  ] as const
-                ).map(([k, name, unit]) => (
-                  <div key={k} className="flex min-w-0 flex-col gap-1.5">
-                    <span className="truncate text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
-                      {name} <span className="text-muted">{unit}</span>
-                    </span>
-                    <NumberWheel
-                      label={`${name}, ${unit}`}
-                      items={[...SIZES[k].items]}
-                      value={d[k]}
-                      fallback={SIZES[k].start[division]}
-                      onChange={(v) => set(k, v)}
-                      long={k === 'shoes' ? (v) => !v.includes('.') : undefined}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4">
+                {(['bust', 'waist', 'hips'] as const).map((k) => {
+                  const items = [...SIZES[k][unit]]
+                  return (
+                    <WheelField
+                      key={k}
+                      label={k === 'bust' ? (division === 'men' ? 'Chest' : 'Bust') : k === 'waist' ? 'Waist' : 'Hips'}
+                      unit={unit}
+                      items={items}
+                      labels={unit === 'in' ? items.map(half) : undefined}
+                      value={d[k] ? toShown(d[k], unit) : ''}
+                      fallback={toShown(SIZES[k].start[division], unit)}
+                      onChange={(v) => set(k, fromShown(v, unit))}
+                      long={unit === 'in' ? (v) => Number(v) % 2 === 0 : undefined}
                     />
-                  </div>
-                ))}
+                  )
+                })}
+                <WheelField
+                  label="Shoes"
+                  unit="EU"
+                  items={SHOES}
+                  labels={SHOES.map(half)}
+                  value={d.shoes}
+                  fallback={division === 'men' ? '43' : '39'}
+                  onChange={(v) => set('shoes', v)}
+                  long={(v) => !v.includes('.')}
+                />
               </div>
               <div className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Roll each wheel to your size.')}
+              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to roll its wheel.')}
             </form>
           )}
 

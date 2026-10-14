@@ -6,7 +6,7 @@
  * drag, click a number, or use the arrow keys. Until it's touched it shows a typical value
  * in grey, like the height tape.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 const ROW = 40
 const VISIBLE = 5
@@ -20,6 +20,7 @@ export function NumberWheel({
   fallback,
   onChange,
   long = (v) => Number(v) % 5 === 0,
+  onDone,
   className = '',
 }: {
   /** Accessible name, e.g. "Waist, cm". */
@@ -33,6 +34,8 @@ export function NumberWheel({
   onChange: (v: string) => void
   /** Which ticks are long (every fifth value by default). */
   long?: (item: string) => boolean
+  /** Enter or Esc: the pick is made (closes the popover it sits in). */
+  onDone?: () => void
   className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -105,6 +108,13 @@ export function NumberWheel({
   }
 
   const onKey = (e: React.KeyboardEvent) => {
+    if (onDone && (e.key === 'Enter' || e.key === 'Escape')) {
+      // Close the wheel, not the whole application.
+      e.preventDefault()
+      e.stopPropagation()
+      onDone()
+      return
+    }
     const step = { ArrowUp: -1, ArrowDown: 1, PageUp: -5, PageDown: 5 }[e.key]
     if (step === undefined) return
     e.preventDefault()
@@ -188,3 +198,79 @@ export function NumberWheel({
 /** Values from `from` to `to`, `step` apart, as strings ("38.5"). */
 export const range = (from: number, to: number, step = 1) =>
   Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => String(+(from + i * step).toFixed(1)))
+
+/**
+ * A measurement field that opens its wheel on tap, like a dropdown: closed it shows the value
+ * on an underline; open, the wheel hangs below it. Opening picks the value shown, so what
+ * you see is what's sent.
+ */
+export function WheelField({
+  label,
+  unit,
+  items,
+  labels,
+  value,
+  fallback,
+  onChange,
+  long,
+}: {
+  label: string
+  unit: string
+  items: string[]
+  labels?: string[]
+  value: string
+  fallback: string
+  onChange: (v: string) => void
+  long?: (item: string) => boolean
+}) {
+  const id = useId()
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const show = (v: string) => labels?.[items.indexOf(v)] ?? v
+
+  useEffect(() => {
+    if (!open) return
+    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('pointerdown', away)
+    ;(root.current?.querySelector('[role=spinbutton]') as HTMLElement | null)?.focus({ preventScroll: true })
+    return () => document.removeEventListener('pointerdown', away)
+  }, [open])
+
+  const close = () => {
+    setOpen(false)
+    button.current?.focus()
+  }
+
+  return (
+    <div ref={root} className="relative flex min-w-0 flex-col gap-1.5">
+      <span id={`${id}-label`} className="truncate text-[12px] font-bold uppercase tracking-[0.04em]" style={{ fontStretch: '80%' }}>
+        {label} <span className="text-muted">{unit}</span>
+      </span>
+      <button
+        ref={button}
+        type="button"
+        aria-expanded={open}
+        aria-labelledby={`${id}-label ${id}-value`}
+        onClick={() => {
+          if (open) return setOpen(false)
+          if (!value) onChange(fallback)
+          setOpen(true)
+        }}
+        className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.8vw,26px)] font-semibold tabular-nums outline-none ${value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
+      >
+        <span id={`${id}-value`} className={`min-w-0 flex-1 truncate ${value ? '' : 'text-muted/40'}`}>
+          {show(value || fallback)}
+        </span>
+        <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
+          <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-full min-w-[112px] border-2 border-fg bg-bg px-2">
+          <NumberWheel label={`${label}, ${unit}`} items={items} labels={labels} value={value} fallback={fallback} onChange={onChange} long={long} onDone={close} />
+        </div>
+      )}
+    </div>
+  )
+}
