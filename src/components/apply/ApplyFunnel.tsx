@@ -206,8 +206,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     ['Hair', d.hair],
     ['Eyes', d.eyes],
   ]
-  const card = (className = '') => (
+  const card = (className = '', flat = false) => (
     <CompCard
+      flat={flat}
       brand={brand}
       division={division}
       name={fullName}
@@ -310,14 +311,14 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
             ))}
           </span>
           <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="wordmark truncate text-[18px] uppercase">{fullName ? `’${fullName}’` : 'Your comp card'}</span>
+            <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
             <span className="truncate text-[11px] uppercase text-muted">
               {[Number.isFinite(age) && age > 0 ? age : null, d.city, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
             </span>
           </span>
           <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
         </summary>
-        <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent!')}</div>
+        <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent!', true)}</div>
       </details>
 
       <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,640px)_minmax(0,480px)] md:items-start md:justify-center">
