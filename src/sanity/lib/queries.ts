@@ -4,7 +4,7 @@ const cardFields = `_id, name, "slug": slug.current, division, cover`
 
 export const HOME_QUERY = defineQuery(`*[_id == $id][0]{
   "heroVideos": heroVideos[]{ _type, "src": video.asset->url, poster, asset, hotspot, crop },
-  "heroVideo": heroVideo.asset->url, heroPoster, statement, intro, introImages,
+  "heroVideo": heroVideo.asset->url, heroPoster, statement, intro, introImages, story[]{ _key, heading, text, images },
   "featured": featured[]->{ ${cardFields} }
 }`)
 

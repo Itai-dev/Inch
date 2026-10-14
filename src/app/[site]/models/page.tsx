@@ -26,7 +26,10 @@ export default async function ModelsPage({ params }: PageProps<'/[site]/models'>
         <h1 className="sr-only">{brand} — {label}</h1>
         <CategoryNav site={site} categories={categories} />
       </header>
-      <TalentGrid talents={withPlaceholders(talents, division)} />
+      {/* The board keeps the header's side margins. */}
+      <div className="px-gutter">
+        <TalentGrid talents={withPlaceholders(talents, division)} />
+      </div>
     </div>
   )
 }

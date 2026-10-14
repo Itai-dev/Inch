@@ -1,13 +1,12 @@
-import Link from 'next/link'
 import { IntroSection } from '@/components/IntroSection'
 import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotStatement } from '@/components/motion/DotStatement'
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { TalentGrid } from '@/components/TalentCard'
+import { ApplyCallout, ModelsTaste, NameMarquee, StorySection, type Chapter } from '@/components/home/HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
-import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
+import { singletonId, SITES, type Site } from '@/lib/sites'
 import { talentSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
@@ -21,6 +20,7 @@ type Home = {
   statement?: string
   intro?: string
   introImages?: SanityImage[]
+  story?: Chapter[] | null
   featured?: TalentCard[]
 } | null
 
@@ -41,13 +41,12 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
       <>
         <DotStatement text={home?.statement || DEFAULT_DOT_STATEMENT} />
         {slides.length > 0 && <DotIndexCarousel slides={slides} height="90dvh" />}
-        <IntroSection text={home?.intro} images={home?.introImages} />
-        <ModelsSection site={site} talents={withPlaceholders(talents, division)} />
+        <Story site={site} home={home} talents={withPlaceholders(talents, division)} />
       </>
     )
   }
 
-  // INCH”: ” opens to full-screen video → statement on scroll → paragraph + images → models.
+  // INCH”: ” opens to full-screen video → statement on scroll → the story and the board (Story).
   const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
   const videos = (home?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
     m?._type === 'heroImage'
@@ -59,20 +58,20 @@ export default async function HomePage({ params }: PageProps<'/[site]'>) {
     <>
       <QuoteVideoHero videos={videos} />
       <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
-      <IntroSection text={home?.intro} images={home?.introImages} />
-      <ModelsSection site={site} talents={withPlaceholders(models, division)} />
+      <Story site={site} home={home} talents={withPlaceholders(models, division)} />
     </>
   )
 }
 
-function ModelsSection({ site, talents }: { site: Site; talents: TalentCard[] }) {
+/** Below the opening, on both sites: the story, the paragraph and images from the Studio, the board's names, a taste of the models, and Apply. */
+function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
   return (
-    <section className="px-gutter py-16">
-      <div className="mb-10 flex items-end justify-between">
-        <h2 className="label text-muted">Models</h2>
-        <Link href={sitePath(site, '/models')} className="label">All models →</Link>
-      </div>
-      <TalentGrid talents={talents} />
-    </section>
+    <>
+      <StorySection site={site} chapters={home?.story} talents={talents} />
+      <IntroSection text={home?.intro} images={home?.introImages} />
+      <NameMarquee site={site} talents={talents} />
+      <ModelsTaste site={site} talents={talents} total={talents.length} />
+      <ApplyCallout site={site} />
+    </>
   )
 }

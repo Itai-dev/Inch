@@ -39,7 +39,7 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
   )
 }
 
-/** The board: edge to edge, cards almost touching, names small and centred below. */
+/** The board: cards almost touching, names small and centred below. */
 export function TalentGrid({ talents }: { talents: TalentCardType[] }) {
   if (!talents.length) {
     return <p className="py-20 text-center text-muted">No talents yet — add them in the Studio.</p>

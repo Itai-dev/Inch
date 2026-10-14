@@ -43,7 +43,7 @@ const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settle
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 // The real header (keep in sync with Header.tsx): logo font size, top and side padding.
 const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
-const headerTop = () => Math.min(57, Math.max(16, window.innerWidth * 0.0297))
+const headerTop = () => Math.min(40, Math.max(12, window.innerWidth * 0.021))
 const headerSide = () => Math.min(46, Math.max(20, window.innerWidth * 0.024))
 
 // Coming back from DOT.: no blinking loader, start straight at the video reveal.

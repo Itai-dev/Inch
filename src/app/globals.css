@@ -195,3 +195,25 @@ body:has([data-model-sheet], [data-sheet]) [data-site-header],
 body:has([data-model-sheet], [data-sheet]) > footer {
   display: none;
 }
+
+/* Home: the story and the board's names. Scroll-driven where the browser has view timelines;
+   still otherwise, and with reduced motion. */
+.marquee-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--fg);
+}
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes story-ruler { from { transform: translateX(0); } to { transform: translateX(-35%); } }
+@keyframes story-drift { from { transform: translateY(-7%) scale(1.16); } to { transform: translateY(7%) scale(1.16); } }
+@keyframes story-float { from { transform: translateY(18%); } to { transform: translateY(-18%); } }
+@keyframes story-rise { from { clip-path: inset(100% 0 0 0); transform: translateY(0.3em); } to { clip-path: inset(0 0 0 0); transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .marquee-track { animation: marquee 60s linear infinite; }
+  .marquee-track:hover, .marquee-track:focus-visible { animation-play-state: paused; }
+  @supports (animation-timeline: view()) {
+    .story-ruler { animation: story-ruler linear both; animation-timeline: view(); }
+    .story-drift { animation: story-drift linear both; animation-timeline: view(); }
+    .story-float { animation: story-float linear both; animation-timeline: view(); }
+    .story-rise { animation: story-rise linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
+  }
+}

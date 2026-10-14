@@ -34,7 +34,9 @@ export default async function CategoryPage({ params }: PageProps<'/[site]/models
         <h1 className="sr-only">{data.title}</h1>
         <CategoryNav site={site} categories={categories} active={category} />
       </header>
-      <TalentGrid talents={data.talents} />
+      <div className="px-gutter">
+        <TalentGrid talents={data.talents} />
+      </div>
     </div>
   )
 }

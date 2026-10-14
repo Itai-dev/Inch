@@ -8,7 +8,7 @@ import { SiteSwitchLink } from './SiteSwitchLink'
 /**
  * Header (Figma "INCH” Brand" › hero › artboard 36). Sizes are the 1920px artboard
  * scaled with the viewport: menu Archivo Bold caps / width 80 / -2% tracking at 0.8 × the
- * artboard's 32px, 57px from the top, 46px from the sides, menu top-aligned with the logo.
+ * artboard's 32px, 40px from the top, 46px from the sides, menu top-aligned with the logo.
  * The other site's box (DOT. on INCH”, INCH” on DOT.) sits first, with even padding all round. Keep HEADER_* in QuoteVideoHero in sync.
  * No background: white + difference blend, so it inverts against whatever is behind it.
  */
@@ -17,7 +17,7 @@ export function Header({ site }: { site: Site }) {
   return (
     <header
       data-site-header
-      className="sticky top-0 z-40 flex items-start justify-between px-gutter pb-4 pt-[clamp(16px,2.97vw,57px)] text-paper mix-blend-difference"
+      className="sticky top-0 z-40 flex items-start justify-between px-gutter pb-4 pt-[clamp(12px,2.1vw,40px)] text-paper mix-blend-difference"
     >
       <Link href={sitePath(site)} aria-label={`${s.brand} home`}>
         <Logo division={s.division} className="text-[48px] md:text-[70px]" />
