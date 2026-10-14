@@ -4,6 +4,7 @@ import { isPlaceholder } from '@/lib/placeholders'
 import { talentPath } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { TalentCard as TalentCardType } from '@/sanity/lib/types'
+import { BoardView } from './BoardView'
 import { AddToSelectionButton } from './selection/AddToSelectionButton'
 
 const coverUrl = (t: TalentCardType) => t.coverSrc ?? (t.cover?.asset ? urlFor(t.cover).width(600).height(800).url() : null)
@@ -52,3 +53,35 @@ export function TalentGrid({ talents }: { talents: TalentCardType[] }) {
     </div>
   )
 }
+
+/** The board as a list: a row a model, numbered, with a small picture and the name large. */
+export function TalentList({ talents }: { talents: TalentCardType[] }) {
+  if (!talents.length) return null
+  return (
+    <ol className="border-b border-line">
+      {talents.map((t, i) => {
+        const src = coverUrl(t)
+        return (
+          <li key={t._id} className="border-t border-line">
+            <Link href={talentPath(t)} className="group grid grid-cols-[2.5rem_56px_1fr_auto] items-center gap-x-4 py-3 md:grid-cols-[4rem_72px_1fr_auto] md:gap-x-8 md:py-4">
+              <span className="text-[13px] font-extrabold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+              <span className="relative block aspect-[3/4] overflow-hidden bg-line">
+                {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
+              </span>
+              <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2">
+                {t.name}
+              </span>
+              <span aria-hidden className="label text-muted transition-opacity md:opacity-0 md:group-hover:opacity-100">View →</span>
+            </Link>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/** The board with its view switch: thumbnails or list. */
+export function TalentBoard({ talents }: { talents: TalentCardType[] }) {
+  return <BoardView count={talents.length} grid={<TalentGrid talents={talents} />} list={<TalentList talents={talents} />} />
+}
+

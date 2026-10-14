@@ -237,8 +237,11 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     'No experience needed. We look at every application ourselves.',
     'You’ll need three photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.',
   ]
-  const introAt = [700, typeEnd(INTRO[0], 700) + 150]
-  const startAt = typeEnd(INTRO[1], introAt[1]) + 150
+  // The lines type in quickly (6ms a letter) once the title is written; the button grows in, then its note types.
+  const INTRO_MS = 6
+  const introAt = [650, typeEnd(INTRO[0], 650, INTRO_MS) + 100]
+  const startAt = typeEnd(INTRO[1], introAt[1], INTRO_MS) + 120
+  const NOTE = 'Takes about 3 minutes'
   if (step === 'intro')
     body = (
       <div className={`grid ${image ? 'md:fixed md:inset-0 md:grid-cols-2' : 'md:min-h-[calc(100dvh-84px)]'}`}>
@@ -251,22 +254,24 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         <div className="flex flex-col justify-center gap-7 px-gutter py-10 md:px-[clamp(40px,6vw,120px)] md:py-24">
           <NameOpen name="Get scouted" division={division} className="wordmark text-[clamp(56px,7vw,112px)] uppercase" />
           <div className="flex max-w-[520px] flex-col gap-3 text-[17px] leading-snug">
-            <p><TypeText text={INTRO[0]} at={introAt[0]} /></p>
-            <p className="text-muted"><TypeText text={INTRO[1]} at={introAt[1]} /></p>
+            <p><TypeText text={INTRO[0]} at={introAt[0]} ms={INTRO_MS} /></p>
+            <p className="text-muted"><TypeText text={INTRO[1]} at={introAt[1]} ms={INTRO_MS} /></p>
           </div>
-          <div className="type-char flex items-center gap-6" style={{ '--at': `${startAt}ms` } as React.CSSProperties}>
+          <div className="flex items-center gap-6">
             <button
               type="button"
               onClick={() => {
                 startedAt.current = Date.now()
                 go('you')
               }}
-              className="h-14 bg-fg px-8 text-[15px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85"
-              style={narrow}
+              className="scale-in h-14 origin-left bg-fg px-8 text-[15px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85"
+              style={{ ...narrow, '--at': `${startAt}ms` } as React.CSSProperties}
             >
               Start →
             </button>
-            <span className="text-[13px] text-muted">Takes about 3 minutes</span>
+            <span className="text-[13px] text-muted">
+              <TypeText text={NOTE} at={startAt + 260} ms={18} />
+            </span>
           </div>
         </div>
       </div>

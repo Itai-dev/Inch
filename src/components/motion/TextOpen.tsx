@@ -21,6 +21,7 @@ const DRIFT_UP = 30 // the statement rises this much while it is written
 const WIDTH_PER_FONT = 12.5 // container width ÷ font size
 const MAX_FONT = 104
 const MIN_FONT = 26
+const LINE_HEIGHT = 1.28
 
 /** The bottom of the header logo, with a little air under it. */
 const headerBottom = () => (document.querySelector('[data-site-header] > a')?.getBoundingClientRect().bottom ?? 90) + 16
@@ -72,7 +73,8 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
   const strokeGap = Math.round(markH * STROKE_GAP_RATIO)
-  const topNudge = Math.round(font * 0.18)
+  // The marks hang from the top of the capitals: 0.18em at line-height 1.1, plus half of the extra leading.
+  const topNudge = Math.round(font * (0.18 + (LINE_HEIGHT - 1.1) / 2))
   const sideGap = Math.round(font * 0.13)
 
   const animP = Math.min(1, progress / ANIM_END)
@@ -129,7 +131,7 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: 1.1 }} aria-label={text}>
+          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT }} aria-label={text}>
             {text.split('').map((c, i) => (
               <span
                 key={i}

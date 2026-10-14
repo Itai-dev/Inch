@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CategoryNav } from '@/components/CategoryNav'
-import { TalentGrid } from '@/components/TalentCard'
+import { TalentBoard } from '@/components/TalentCard'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { CATEGORIES_BY_DIVISION_QUERY, CATEGORY_QUERY } from '@/sanity/lib/queries'
@@ -35,7 +35,7 @@ export default async function CategoryPage({ params }: PageProps<'/[site]/models
         <CategoryNav site={site} categories={categories} active={category} />
       </header>
       <div className="px-gutter">
-        <TalentGrid talents={data.talents} />
+        <TalentBoard talents={data.talents} />
       </div>
     </div>
   )

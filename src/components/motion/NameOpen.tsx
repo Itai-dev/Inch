@@ -2,9 +2,9 @@
 
 /**
  * A model's name, written in when the page opens.
- * INCH”: a ” in front of the name splits — the left stroke stays, the right one writes the
- * name letter by letter and closes it. DOT.: a blinking ■ writes it and lands as the full stop.
- * The strokes hang from the top of the capitals.
+ * INCH”: a ” in front of the name splits — the left stroke stays, the right one glides along
+ * the name, each letter appearing as it passes, and closes it. DOT.: a blinking ■ writes it the
+ * same way and lands as the full stop. The strokes hang from the top of the capitals.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
@@ -32,8 +32,10 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
   const reduced = useReducedMotion()
   const dot = division === 'men'
   const chars = name.split('')
+  const n = chars.length
   const split = dot ? 0 : SPLIT_MS
-  const total = DELAY_MS + split + chars.length * CHAR_MS
+  // INCH”: the split carries the stroke past the first letter, then a letter every CHAR_MS.
+  const total = DELAY_MS + (dot ? n * CHAR_MS : split + Math.max(0, n - 1) * CHAR_MS)
 
   const [t, setT] = useState(0) // ms since mount
   useEffect(() => {
@@ -49,8 +51,11 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
     return () => cancelAnimationFrame(raf)
   }, [reduced, total])
   const done = reduced || t >= total
-  const splitT = done || !split ? 1 : easeOut(Math.min(1, Math.max(0, (t - DELAY_MS) / split)))
-  const shown = done ? chars.length : Math.max(0, Math.min(chars.length, Math.floor((t - DELAY_MS - split) / CHAR_MS) + 1))
+  // Where the moving mark is, in letters: 0 = before the name (INCH”: the ” still closed), k = just after letter k.
+  const e = Math.max(0, t - DELAY_MS)
+  const pos = done ? n : dot ? Math.min(n, e / CHAR_MS) : e < split ? easeOut(e / split) : Math.min(n, 1 + (e - split) / CHAR_MS)
+  // A letter appears as the mark crosses its middle.
+  const shown = done ? n : Math.max(0, Math.min(n, Math.floor(pos + 0.5)))
 
   const wrapRef = useRef<HTMLHeadingElement>(null)
   const leftRef = useRef<HTMLSpanElement>(null)
@@ -89,32 +94,41 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
     const put = (el: HTMLElement, x: number, y: number) => {
       el.style.transform = `translate(${x}px, ${y}px)`
     }
-    const last = shown > 0 ? charRefs.current[shown - 1] : null
-    const lr = last?.getBoundingClientRect()
-    if (dot) {
-      // ■ sits on the baseline after the last letter written, like a full stop.
-      const r = lr ?? fr
-      const size = right.offsetWidth
-      return put(right, lr ? r.right - wr.left + size * 0.3 : r.left - wr.left, r.top - wr.top + baseline - size)
+    // The mark's stops: before the name, then just after each letter. It glides between them.
+    const size = right.offsetWidth
+    const gap = dot ? size * 0.3 : sideGap
+    const yOf = (r: DOMRect) => (dot ? r.top - wr.top + baseline - size : r.top - wr.top + capTop)
+    const stop = (k: number) => {
+      if (k === 0) return { x: dot ? fr.left - wr.left : markW + strokeGap, y: yOf(fr) }
+      const r = charRefs.current[k - 1]!.getBoundingClientRect()
+      return { x: r.right - wr.left + gap, y: yOf(r) }
     }
-    const top = fr.top - wr.top + capTop
-    if (leftRef.current) put(leftRef.current, 0, top)
-    // Closed ” in front of the name → split → the right stroke rides after the last letter written.
-    const x = lr ? lr.right - wr.left + sideGap : lerp(markW + strokeGap, fr.left - wr.left, splitT)
-    put(right, x, lr ? lr.top - wr.top + capTop : top)
+    const k = Math.min(n - 1, Math.floor(pos))
+    let a = stop(k)
+    const b = stop(Math.min(n, k + 1))
+    const f = pos >= n ? 1 : pos - k
+    // A new line: no sweep back across the page; the mark starts again at the head of the line.
+    if (a.y !== b.y) a = { x: charRefs.current[k]!.getBoundingClientRect().left - wr.left, y: b.y }
+    const p = { x: lerp(a.x, b.x, f), y: b.y }
+    if (!dot && leftRef.current) {
+      put(leftRef.current, 0, yOf(fr))
+      leftRef.current.style.visibility = 'visible'
+    }
+    put(right, p.x, p.y)
+    right.style.visibility = 'visible'
   })
 
   return (
     <h1 ref={wrapRef} aria-label={name} className={`relative ${className}`} style={{ paddingLeft: lead }}>
       {!dot && (
-        <span ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 block">
+        <span ref={leftRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 block">
           <QuoteStroke side="left" height={markH} />
         </span>
       )}
       <span
         ref={rightRef}
         aria-hidden
-        className="pointer-events-none absolute left-0 top-0 block"
+        className="pointer-events-none invisible absolute left-0 top-0 block"
         style={dot ? { width: Math.round(font * 0.2), aspectRatio: '1', background: 'currentColor', animation: done ? 'none' : 'dot-cursor 0.9s steps(1) infinite' } : undefined}
       >
         {!dot && <QuoteStroke side="right" height={markH} />}
