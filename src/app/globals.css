@@ -129,7 +129,7 @@ body:has([data-hero="intro"]) [data-site-header],
 body:has([data-hero="open"]) [data-site-header] {
   visibility: hidden;
 }
-/* Over the video at the very top: plain white. Once you scroll: inverse against what's behind. */
+/* Over the video: plain white. Once past it: inverse against what's behind. */
 body:has([data-hero]:not([data-scrolled="1"])) [data-site-header] {
   mix-blend-mode: normal;
 }
@@ -219,8 +219,9 @@ body:has([data-model-sheet], [data-sheet]) > footer {
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
 @keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: no-preference) {
-  /* steps(1, start): on as soon as its moment comes (end would flicker back off at a progress of 0.9999…). */
-  .type-char { animation: type-char 1ms steps(1, start) var(--at, 0ms) both; }
+  /* steps(1, start): on as soon as its moment comes (end would flicker back off at a progress of 0.9999…).
+     The extra 1ms keeps a letter due at 0 hidden while TypeOnView holds it. */
+  .type-char { animation: type-char 1ms steps(1, start) calc(var(--at, 0ms) + 1ms) both; }
   /* TypeOnView: held until in view. */
   [data-type-wait] .type-char { animation-play-state: paused; }
 }

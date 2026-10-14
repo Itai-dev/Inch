@@ -63,7 +63,7 @@ export function PrintPile({ pics, flip = false, className = '' }: { pics: Pic[];
         return (
           <figure
             key={k}
-            className="absolute left-1/2 top-1/2 w-[clamp(110px,13vw,210px)] bg-white p-[5%] pb-[13%] motion-reduce:transition-none"
+            className="absolute left-1/2 top-1/2 w-[clamp(110px,13vw,210px)] bg-white p-[2.5%] motion-reduce:transition-none"
             style={{
               zIndex: k,
               // Jump cut in, then a short, quick drop (accelerating, like gravity). Out: gone at once.
@@ -80,7 +80,7 @@ export function PrintPile({ pics, flip = false, className = '' }: { pics: Pic[];
             <span className="relative block aspect-[4/5] overflow-hidden bg-line">
               <Image src={pic.src} alt={pic.alt} fill sizes="210px" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.08]" />
             </span>
-            {pic.credit && <figcaption className="absolute bottom-[3%] left-[5%] text-[9px] uppercase tracking-wide text-[#6f6f6f]">{pic.credit}</figcaption>}
+            {pic.credit && <figcaption className="absolute left-0 top-full mt-1.5 text-[9px] uppercase tracking-wide text-[#6f6f6f]">{pic.credit}</figcaption>}
           </figure>
         )
       })}

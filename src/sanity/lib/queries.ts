@@ -5,7 +5,7 @@ const cardFields = `_id, name, "slug": slug.current, division, cover`
 export const HOME_QUERY = defineQuery(`*[_id == $id][0]{
   "heroVideos": heroVideos[]{ _type, "src": video.asset->url, poster, asset, hotspot, crop },
   "heroVideo": heroVideo.asset->url, heroPoster, statement, intro, introImages, story[]{ _key, heading, text, images },
-  "featured": featured[]->{ ${cardFields} }
+  "featured": featured[]->{ ${cardFields}, "pics": portfolio[0...6] }
 }`)
 
 export const SITE_SETTINGS_QUERY = defineQuery(`*[_id == $id][0]{ email, phone, address, instagram }`)
@@ -15,7 +15,7 @@ export const CATEGORIES_BY_DIVISION_QUERY = defineQuery(
 )
 
 export const TALENTS_BY_DIVISION_QUERY = defineQuery(
-  `*[_type == "talent" && division == $division] | order(order asc, name asc){ ${cardFields} }`,
+  `*[_type == "talent" && division == $division] | order(order asc, name asc){ ${cardFields}, "pics": portfolio[0...6] }`,
 )
 
 export const CATEGORY_QUERY = defineQuery(`*[_type == "category" && division == $division && slug.current == $category][0]{

@@ -2,8 +2,9 @@
 
 /**
  * INCH” — "Text open" (from Figma Make prototype).
- * Scroll-driven: the ” splits into two strokes; the right stroke writes the
- * statement letter by letter (hard cuts, no fade).
+ * Scroll-driven: the ” starts in the middle of the screen and moves to where the statement
+ * begins, then splits into two strokes; the right stroke writes the statement letter by letter
+ * (hard cuts, no fade).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
@@ -11,13 +12,15 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useScrollProgress } from '@/hooks/useScrollProgress'
 
 const ANIM_END = 0.78
-const DROP_END = 0.18
+const MOVE_END = 0.14 // the ” travels from the middle to the start of the statement
+const DROP_END = 0.3
 const DROP_PX = 48
 const EXIT_UP = 70
-const WIDTH_PER_FONT = 1214 / 81.37 // container width ÷ font size in the prototype
-const MAX_FONT = 72
+const WIDTH_PER_FONT = 12.5 // container width ÷ font size
+const MAX_FONT = 104
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 export function TextOpen({ text }: { text: string }) {
@@ -26,6 +29,7 @@ export function TextOpen({ text }: { text: string }) {
   const progress = reduced ? 1 : rawProgress
 
   const wrapRef = useRef<HTMLDivElement>(null)
+  const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(MAX_FONT)
@@ -33,7 +37,8 @@ export function TextOpen({ text }: { text: string }) {
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setFont(Math.min(MAX_FONT, e.contentRect.width / WIDTH_PER_FONT * 1.0)))
+    // As large as the width allows, but short enough for the whole statement to fit the screen.
+    const ro = new ResizeObserver(([e]) => setFont(Math.min(MAX_FONT, e.contentRect.width / WIDTH_PER_FONT, window.innerHeight / 9)))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -46,7 +51,8 @@ export function TextOpen({ text }: { text: string }) {
 
   const animP = Math.min(1, progress / ANIM_END)
   const exitT = Math.max(0, (progress - ANIM_END) / (1 - ANIM_END))
-  const dropT = Math.min(animP / DROP_END, 1)
+  const moveT = reduced ? 1 : easeInOut(Math.min(animP / MOVE_END, 1))
+  const dropT = Math.min(Math.max(0, (animP - MOVE_END) / (DROP_END - MOVE_END)), 1)
   const splitT = easeOutCubic(dropT)
   const translateY = (1 - splitT) * -DROP_PX - animP * 60 + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
@@ -57,9 +63,18 @@ export function TextOpen({ text }: { text: string }) {
   // Position the travelling stroke imperatively (no re-render per frame).
   useLayoutEffect(() => {
     const wrap = wrapRef.current
+    const left = leftRef.current
     const right = rightRef.current
-    if (!wrap || !right) return
+    if (!wrap || !left || !right) return
     const wr = wrap.getBoundingClientRect()
+    // Until it has arrived, the closed ” is moved from the middle of the screen to its place.
+    const markCx = leftX + markW + strokeGap / 2
+    const markCy = topNudge + markH / 2
+    const vpCx = innerWidth / 2 - wr.left
+    const vpCy = innerHeight / 2 - wr.top
+    const sx = (1 - moveT) * (vpCx - markCx)
+    const sy = (1 - moveT) * (vpCy - markCy)
+    left.style.transform = `translate(${sx}px, ${sy}px)`
     const place = (x: number, y: number, visible: boolean) => {
       right.style.transform = `translate(${x}px, ${y}px)`
       right.style.opacity = visible ? '1' : '0'
@@ -68,7 +83,7 @@ export function TextOpen({ text }: { text: string }) {
     if (splitT < 1 || cursor <= 0) {
       const firstRight = first ? first.getBoundingClientRect().right - wr.left + sideGap : sideGap
       const start = leftX + markW + strokeGap
-      place(lerp(start, firstRight, splitT), topNudge, true)
+      place(lerp(start, firstRight, splitT) + sx, topNudge + sy, true)
       return
     }
     // Fully open: the closing stroke stays put after the last character.
@@ -91,8 +106,8 @@ export function TextOpen({ text }: { text: string }) {
   return (
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : '210vh' }} className="relative">
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
-        <div ref={wrapRef} className="relative w-[min(86vw,1214px)]" style={{ transform: `translateY(${translateY}px)` }}>
-          <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
+        <div ref={wrapRef} className="relative w-[min(88vw,1400px)]" style={{ transform: `translateY(${translateY}px)` }}>
+          <div ref={leftRef} aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
             <QuoteStroke side="left" height={markH} />
           </div>
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 transition-opacity duration-100">

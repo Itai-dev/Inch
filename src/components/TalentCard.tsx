@@ -26,7 +26,7 @@ export function TalentCard({ talent, priority }: { talent: TalentCardType; prior
             />
           )}
         </div>
-        <h3 className="wordmark mt-3 px-1 text-center text-[17px] uppercase leading-none md:text-[22px]">
+        <h3 className="wordmark mt-3 px-1 text-center text-[19px] uppercase leading-none md:text-[26px]">
           {talent.name}
         </h3>
       </Link>

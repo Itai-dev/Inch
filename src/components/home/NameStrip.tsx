@@ -2,17 +2,29 @@
 
 /**
  * The board's names running past in giant type, every other one in outline. Each name opens
- * her page; hovering one (with a mouse) shows her picture beside the pointer, cut in at once.
+ * her page; hovering one (with a mouse) flicks quickly through her pictures beside the pointer.
  */
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-export type StripName = { name: string; href: string; src?: string }
+export type StripName = { name: string; href: string; pics: string[] }
+
+/** How long each picture shows while a name is hovered. */
+const FLICK_MS = 170
 
 export function NameStrip({ names, mark }: { names: StripName[]; mark: React.ReactNode }) {
   const [active, setActive] = useState<number | null>(null)
+  const [flick, setFlick] = useState(0)
   const preview = useRef<HTMLDivElement>(null)
+
+  // Flick through the hovered model's pictures.
+  const count = active === null ? 0 : names[active]?.pics.length ?? 0
+  useEffect(() => {
+    if (count < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setInterval(() => setFlick((f) => f + 1), FLICK_MS)
+    return () => clearInterval(id)
+  }, [active, count])
 
   const follow = (e: React.PointerEvent) => {
     if (e.pointerType !== 'mouse' || !preview.current) return
@@ -33,6 +45,7 @@ export function NameStrip({ names, mark }: { names: StripName[]; mark: React.Rea
             onPointerEnter={(e) => {
               if (e.pointerType !== 'mouse') return
               follow(e)
+              setFlick(0)
               setActive(i)
             }}
             onPointerLeave={() => setActive(null)}
@@ -46,7 +59,8 @@ export function NameStrip({ names, mark }: { names: StripName[]; mark: React.Rea
     </ul>
   )
 
-  const pic = active === null ? undefined : names[active]?.src
+  const pics = active === null ? [] : names[active]?.pics ?? []
+  const shown = pics.length ? flick % pics.length : 0
   return (
     <>
       <div onPointerMove={follow} className="marquee-track flex w-max text-[clamp(56px,9vw,160px)] leading-none">
@@ -56,9 +70,12 @@ export function NameStrip({ names, mark }: { names: StripName[]; mark: React.Rea
       <div
         ref={preview}
         aria-hidden
-        className={`pointer-events-none fixed left-0 top-0 z-50 aspect-[4/5] w-[clamp(160px,14vw,260px)] overflow-hidden bg-line shadow-[0_18px_40px_-16px_rgb(0_0_0/0.45)] ${pic ? '' : 'invisible'}`}
+        className={`pointer-events-none fixed left-0 top-0 z-50 aspect-[4/5] w-[clamp(160px,14vw,260px)] overflow-hidden bg-line shadow-[0_18px_40px_-16px_rgb(0_0_0/0.45)] ${pics.length ? '' : 'invisible'}`}
       >
-        {pic && <Image key={pic} src={pic} alt="" fill sizes="260px" unoptimized={pic.endsWith('.svg')} className="object-cover grayscale" />}
+        {/* All of her pictures load together; one shows at a time (a hard cut, no fade). */}
+        {pics.map((src, k) => (
+          <Image key={src} src={src} alt="" fill sizes="260px" unoptimized={src.endsWith('.svg')} className={`object-cover grayscale ${k === shown ? '' : 'invisible'}`} />
+        ))}
       </div>
     </>
   )

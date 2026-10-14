@@ -246,8 +246,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     const on = () => {
       setStage(window.scrollY > window.innerHeight - 72 ? 'past' : 'over')
       placeLogo(logoRef.current)
-      // The inverse (difference) effect on the header and logo only kicks in once you scroll.
-      if (rootRef.current) rootRef.current.dataset.scrolled = window.scrollY > 2 ? '1' : '0'
+      // The inverse (difference) effect on the header and logo only kicks in once they are past the
+      // video: over moving footage it turns them grey on grey and they disappear.
+      if (rootRef.current) rootRef.current.dataset.scrolled = window.scrollY > window.innerHeight - 72 ? '1' : '0'
       // The ruler fades out over the first quarter screen of scrolling.
       const r = rulerRef.current
       if (r) {

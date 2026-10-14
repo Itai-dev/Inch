@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
+import { TalentCard } from '@/components/TalentCard'
 import { DEFAULT_STORY, STORY_FROM } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
 import { creditLine } from '@/lib/slides'
@@ -15,7 +16,7 @@ import { YearRuler } from './YearRuler'
 
 /**
  * The home page below the statement: the agency's story in chapters, the board's names
- * running past, and a way in for new faces. Most chapters are centred
+ * running past, a row of selected models, and a way in for new faces. Most chapters are centred
  * and stacked: the heading and paragraph type in, then a pile of prints lands below them; one
  * is a magazine whose pages turn as you scroll.
  */
@@ -36,7 +37,7 @@ const SPREADS = 5
 
 /** Story → each chapter's text and three prints (its own pictures, else the board's covers, real ones first); one chapter as a magazine of the board. */
 export function StorySection({ site, chapters, talents }: { site: Site; chapters?: Chapter[] | null; talents: TalentCardType[] }) {
-  const { brand } = SITES[site]
+  const { brand, division } = SITES[site]
   const story: Chapter[] = chapters?.length ? chapters : DEFAULT_STORY
   const board = [...talents.filter((t) => !isPlaceholder(t)), ...talents.filter(isPlaceholder)]
   const covers = board.map(fromTalent).filter((p): p is Pic => !!p)
@@ -57,6 +58,9 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
           return pic ? [{ name: t.name, pic: { ...pic, alt: t.name } }] : []
         }).slice(0, SPREADS)
 
+  // The magazine's cover: the chapter's own first picture, else the board's first (real ones come first).
+  const magCover = ownSpreads[0]?.pic ?? covers[0] ?? spreads[0]?.pic
+
   return (
     <section aria-labelledby="story-title" className="overflow-x-clip py-[clamp(80px,11vw,200px)]">
       <div className="flex items-baseline justify-between px-gutter">
@@ -76,7 +80,7 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
             return (
               // Full width, out of the margins.
               <li key={c._key || i} className="-mx-[var(--gutter)]">
-                <Magazine number={i + 1} heading={c.heading} text={c.text} brand={brand} spreads={spreads} />
+                <Magazine number={i + 1} heading={c.heading} text={c.text} brand={brand} division={division} cover={magCover} spreads={spreads} />
               </li>
             )
           return (
@@ -105,14 +109,46 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
   )
 }
 
-/** The board's names running past in giant type; each opens her page and shows her picture on hover. */
+/** A model's pictures for the name strip: her cover and the start of her book. Placeholder models get a few placeholder looks. */
+function stripPics(t: TalentCardType): string[] {
+  const own = [t.coverSrc ?? (t.cover?.asset ? urlFor(t.cover).width(600).url() : null), ...(t.pics ?? []).filter((i) => i?.asset).map((i) => urlFor(i).width(600).url())]
+  const pics = [...new Set(own.filter((s): s is string => !!s))] // the cover is often the book's first picture too
+  if (pics.length > 1 || !isPlaceholder(t)) return pics
+  const n = Number(t.coverSrc?.match(/look-(\d+)/)?.[1] ?? 1) - 1
+  return [0, 3, 6, 9].map((j) => `/placeholders/look-${String(((n + j) % 10) + 1).padStart(2, '0')}.svg`)
+}
+
+/** The board's names running past in giant type; each opens her page, and hovering one flicks through her pictures. */
 export function NameMarquee({ site, talents }: { site: Site; talents: TalentCardType[] }) {
   const { division } = SITES[site]
-  const names: StripName[] = talents.slice(0, 12).map((t) => ({ name: t.name, href: talentPath(t), src: fromTalent(t)?.src }))
+  const names: StripName[] = talents.slice(0, 12).map((t) => ({ name: t.name, href: talentPath(t), pics: stripPics(t) }))
   if (!names.length) return null
   return (
     <section aria-label="The board" className="overflow-hidden border-y-2 border-fg py-[clamp(16px,2vw,28px)]">
       <NameStrip names={names} mark={<DivisionMark division={division} size={28} />} />
+    </section>
+  )
+}
+
+/** Selected models in one even row, numbered, with the way to the whole board. Phones swipe along it. */
+export function SelectedModels({ site, talents, total }: { site: Site; talents: TalentCardType[]; total: number }) {
+  const picks = talents.slice(0, 6)
+  if (!picks.length) return null
+  const all = sitePath(site, '/models')
+  return (
+    <section aria-labelledby="selected-title" className="py-[clamp(72px,9vw,160px)]">
+      <div className="mx-[var(--gutter)] mb-8 flex items-end justify-between gap-6 border-b-2 border-fg pb-4">
+        <h2 id="selected-title" className="wordmark text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected models</h2>
+        <Link href={all} className="label hover:opacity-60">Show all ({total}) →</Link>
+      </div>
+      <ol className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-6 md:gap-[clamp(16px,1.6vw,28px)] md:overflow-visible">
+        {picks.map((t, i) => (
+          <li key={t._id} className="w-[44vw] shrink-0 snap-start md:w-auto">
+            <p className="mb-2 text-[13px] font-extrabold tabular-nums">{pad(i + 1)}</p>
+            <TalentCard talent={t} priority={false} />
+          </li>
+        ))}
+      </ol>
     </section>
   )
 }
