@@ -12,7 +12,8 @@ import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useScrollProgress } from '@/hooks/useScrollProgress'
 
-const ANIM_END = 0.78
+// Written by 62% of the zone's scroll (as before, about 0.87 screens), then held for about half a screen to be read.
+const ANIM_END = 0.62
 const DROP_END = 0.18
 const DROP_PX = 48
 const EXIT_UP = 40
@@ -138,7 +139,7 @@ export function TextOpen({ text }: { text: string }) {
   })
 
   return (
-    <div ref={zoneRef} style={{ height: reduced ? 'auto' : '210vh' }} className="relative">
+    <div ref={zoneRef} style={{ height: reduced ? 'auto' : '240vh' }} className="relative">
       <div ref={stickyRef} className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>

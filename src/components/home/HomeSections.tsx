@@ -72,8 +72,8 @@ function storyParts({ chapters, talents }: StoryProps) {
 
 /**
  * The story's first chapter as a magazine. With `overlap` (after the INCH” statement) it is
- * pulled up over the statement's last screen, so the closed magazine slides in as soon as the
- * statement has finished writing itself, over its last lines.
+ * pulled up over the statement's last screen, so the closed magazine slides in over the
+ * statement's last lines once it has been written and held long enough to read.
  */
 export function StoryMagazine({ overlap = false, ...props }: StoryProps & { overlap?: boolean }) {
   const { brand, division } = SITES[props.site]
@@ -81,8 +81,9 @@ export function StoryMagazine({ overlap = false, ...props }: StoryProps & { over
   if (!hasMagazine || !cover) return null
   const c = story[MAGAZINE_AT]
   return (
-    // TextOpen is 210vh tall and has written its statement 86vh into its scroll: start pinning there.
-    <div className={overlap ? 'relative z-10 motion-safe:-mt-[124vh]' : ''}>
+    // TextOpen is 240vh tall: it has written its statement 87vh into its scroll and holds it until
+    // 140vh. Pin there, once the statement has been read and starts to leave.
+    <div className={overlap ? 'relative z-10 motion-safe:-mt-[100vh]' : ''}>
       <Magazine number={MAGAZINE_AT + 1} heading={c.heading} text={c.text} brand={brand} division={division} cover={cover} spreads={spreads} />
     </div>
   )
