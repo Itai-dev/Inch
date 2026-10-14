@@ -204,16 +204,25 @@ body:has([data-model-sheet], [data-sheet]) > footer {
 }
 @keyframes marquee { to { transform: translateX(-50%); } }
 @keyframes story-ruler { from { transform: translateX(0); } to { transform: translateX(-35%); } }
-@keyframes story-drift { from { transform: translateY(-7%) scale(1.16); } to { transform: translateY(7%) scale(1.16); } }
-@keyframes story-float { from { transform: translateY(18%); } to { transform: translateY(-18%); } }
+/* A print on the story's pile: at rest where it lands; with motion it drops in from above, turning. */
+.story-print { transform: translate(var(--x), var(--y)) rotate(var(--r)); }
+@keyframes story-print {
+  from { opacity: 0; transform: translate(var(--x), calc(var(--y) - 45%)) rotate(calc(var(--r) * 4)) scale(1.12); }
+  to { opacity: 1; transform: translate(var(--x), var(--y)) rotate(var(--r)); }
+}
 @keyframes story-rise { from { clip-path: inset(100% 0 0 0); transform: translateY(0.3em); } to { clip-path: inset(0 0 0 0); transform: none; } }
 @media (prefers-reduced-motion: no-preference) {
   .marquee-track { animation: marquee 60s linear infinite; }
   .marquee-track:hover, .marquee-track:focus-visible { animation-play-state: paused; }
   @supports (animation-timeline: view()) {
     .story-ruler { animation: story-ruler linear both; animation-timeline: view(); }
-    .story-drift { animation: story-drift linear both; animation-timeline: view(); }
-    .story-float { animation: story-float linear both; animation-timeline: view(); }
+    .story-pile { view-timeline-name: --pile; }
+    /* One after another: each print lands a little further into the scroll. */
+    .story-print {
+      animation: story-print linear both;
+      animation-timeline: --pile;
+      animation-range: entry calc(30% + var(--k) * 25%) cover calc(35% + var(--k) * 12%);
+    }
     .story-rise { animation: story-rise linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
   }
 }

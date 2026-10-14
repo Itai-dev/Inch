@@ -25,7 +25,14 @@ const fromSanity = (img: SanityImage): Pic => ({ src: urlFor(img).width(1400).ur
 const fromTalent = (t: TalentCardType): Pic | null =>
   t.cover?.asset ? { src: urlFor(t.cover).width(1400).url(), alt: t.name } : t.coverSrc ? { src: t.coverSrc, alt: '' } : null
 
-/** Story → each chapter's text and two pictures (its own, else the board's covers, real ones first). */
+/** Where each print lands on the pile: offset (share of its own size) and angle. */
+const PILE = [
+  { x: '-92%', y: '-62%', r: '-4deg' },
+  { x: '-12%', y: '-52%', r: '3deg' },
+  { x: '-52%', y: '-34%', r: '-1.5deg' },
+]
+
+/** Story → each chapter's text and three prints (its own pictures, else the board's covers, real ones first). */
 export function StorySection({ site, chapters, talents }: { site: Site; chapters?: Chapter[] | null; talents: TalentCardType[] }) {
   const { brand } = SITES[site]
   const story: Chapter[] = chapters?.length ? chapters : DEFAULT_STORY
@@ -33,7 +40,7 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
   let next = 0
   const pics = story.map((c) => {
     const own = (c.images ?? []).filter((i) => i?.asset).map(fromSanity)
-    while (own.length < 2 && covers.length) own.push(covers[next++ % covers.length])
+    while (own.length < PILE.length && covers.length) own.push(covers[next++ % covers.length])
     return own
   })
 
@@ -61,7 +68,6 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
       <ol className="mt-[clamp(72px,9vw,160px)] flex flex-col gap-[clamp(120px,15vw,260px)] px-gutter">
         {story.map((c, i) => {
           const flip = i % 2 === 1
-          const [main, small] = pics[i]
           return (
             <li key={c._key || i} className="grid items-center gap-y-14 md:grid-cols-12 md:gap-x-6">
               <div className={`flex flex-col md:col-span-5 ${flip ? 'md:col-start-8' : 'md:col-start-1'} md:row-start-1`}>
@@ -72,18 +78,20 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
                 <h3 className="story-rise wordmark mt-5 text-[clamp(56px,8.5vw,150px)] uppercase leading-[0.82]">{c.heading}</h3>
                 <p className="mt-7 max-w-[38ch] whitespace-pre-line text-[17px] leading-snug md:text-[19px]">{c.text}</p>
               </div>
-              <div className={`relative md:col-span-6 md:row-start-1 ${flip ? 'md:col-start-1' : 'md:col-start-7'}`}>
-                {main && (
-                  <figure className={`relative aspect-[4/5] w-[78%] overflow-hidden bg-line ${flip ? '' : 'ml-auto'}`}>
-                    <Image src={main.src} alt={main.alt} fill sizes="(min-width: 768px) 38vw, 78vw" unoptimized={main.src.endsWith('.svg')} className="story-drift object-cover" />
-                    {main.credit && <figcaption className="absolute bottom-2 left-2 bg-bg px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">{main.credit}</figcaption>}
+              {/* Prints on a wall: small, black and white, landing on the pile one after another as the chapter scrolls in. */}
+              <div className={`story-pile relative h-[clamp(340px,36vw,540px)] md:col-span-6 md:row-start-1 ${flip ? 'md:col-start-1' : 'md:col-start-7'}`}>
+                {pics[i].map((pic, k) => (
+                  <figure
+                    key={k}
+                    className="story-print absolute left-1/2 top-1/2 w-[clamp(150px,15vw,240px)] bg-white p-[5%] pb-[13%] shadow-[0_1px_2px_rgb(0_0_0/0.08),8px_14px_28px_-10px_rgb(0_0_0/0.35)]"
+                    style={{ '--x': PILE[k].x, '--y': PILE[k].y, '--r': flip ? `calc(${PILE[k].r} * -1)` : PILE[k].r, '--k': k, zIndex: k } as React.CSSProperties}
+                  >
+                    <span className="relative block aspect-[4/5] overflow-hidden bg-line">
+                      <Image src={pic.src} alt={pic.alt} fill sizes="240px" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.08]" />
+                    </span>
+                    {pic.credit && <figcaption className="absolute bottom-[3%] left-[5%] text-[9px] uppercase tracking-wide text-[#6f6f6f]">{pic.credit}</figcaption>}
                   </figure>
-                )}
-                {small && (
-                  <figure className={`story-float absolute -bottom-[12%] aspect-[3/4] w-[38%] overflow-hidden border-[6px] border-bg bg-line ${flip ? 'right-0' : 'left-0'}`}>
-                    <Image src={small.src} alt={small.alt} fill sizes="(min-width: 768px) 19vw, 38vw" unoptimized={small.src.endsWith('.svg')} className="object-cover" />
-                  </figure>
-                )}
+                ))}
               </div>
             </li>
           )
