@@ -2,9 +2,9 @@
 
 /**
  * A chapter told as a magazine, full screen, on the page itself (no floor of its own, so it can
- * land over what came before). Like the story's prints, the closed magazine appears at once (a
- * jump cut, no fade) a little to the side and tilted, and drops into place; then it opens
- * from its cover: the chapter on the
+ * land over what came before). The closed magazine appears a little to the side of the middle,
+ * tilted, as soon as it is pinned, and slides into place as you scroll, turning straight; then
+ * it opens from its cover: the chapter on the
  * first left page, a model on every right page and her name on the page facing it. Scrolling
  * turns the pages, and they bend as they turn: each leaf is a row of thin strips, each turned
  * a little further than the one before, so the free edge leads and the page curls over. The
@@ -92,11 +92,10 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
   )
 }
 
-/** Share of the section's scroll the closed magazine rests before its cover opens. */
-const REST = 0.05
-/** Where the magazine appears before it drops into place, and how fast it drops (like the prints, accelerating). */
-const LIFTED = 'translate(9vw, 3%) rotate(6deg) scale(1.05)'
-const DROP = 'transform 0.3s cubic-bezier(0.55, 0, 0.9, 0.4)'
+/** Share of the section's scroll the closed magazine takes to arrive. */
+const ARRIVE = 0.12
+/** Where it starts, beside the middle: across (vw), down (share of its height) and tilt (deg). */
+const FROM = { x: 14, y: 6, r: 8 }
 
 export function Magazine({
   number,
@@ -117,7 +116,6 @@ export function Magazine({
 }) {
   const section = useRef<HTMLElement>(null)
   const book = useRef<HTMLDivElement>(null)
-  const arrival = useRef<HTMLDivElement>(null)
   const shadow = useRef<HTMLSpanElement>(null)
   const spine = useRef<HTMLSpanElement>(null)
   const leaves = useRef<(HTMLDivElement | null)[]>([])
@@ -135,22 +133,18 @@ export function Magazine({
       frame = requestAnimationFrame(() => {
         const r = el.getBoundingClientRect()
         const read = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)))
-        // The closed magazine lands as soon as it is pinned; after a short rest the cover opens and
+        // The closed magazine arrives from beside the middle, then (after a short rest) the cover opens and
         // the pages turn; a short rest on the last spread.
-        const a = arrival.current
-        const landed = reduce || read > 0.002
-        if (a && (a.dataset.landed === '1') !== landed) {
-          a.dataset.landed = landed ? '1' : '0'
-          a.style.transition = landed && !reduce ? DROP : 'none'
-          a.style.opacity = landed ? '1' : '0'
-          a.style.transform = landed ? 'none' : LIFTED
-        }
-        const at = Math.min(1, Math.max(0, (read - REST) / (0.92 - REST))) * turns
+        const arrive = reduce ? 1 : smooth(Math.min(1, read / ARRIVE))
+        const at = Math.min(1, Math.max(0, (read - ARRIVE - 0.04) / (0.92 - ARRIVE - 0.04))) * turns
         const opened = reduce ? Math.round(Math.min(1, Math.max(0, (at - 0.15) / 0.7))) : smooth(Math.min(1, Math.max(0, (at - 0.15) / 0.7)))
         // Closed, the cover sits in the middle; open, the spine does.
         const b = book.current
         if (b) {
-          b.style.transform = `translateX(${(-25 * (1 - opened)).toFixed(2)}%)`
+          const x = -25 * (1 - opened)
+          b.style.transform = `translate(calc(${x.toFixed(2)}% + ${(FROM.x * (1 - arrive)).toFixed(2)}vw), ${(FROM.y * (1 - arrive)).toFixed(2)}%) rotate(${(FROM.r * (1 - arrive)).toFixed(2)}deg)`
+          // Not there until it is pinned (so it doesn't rise with the page over what came before).
+          b.style.opacity = reduce || read > 0 ? '1' : '0'
         }
         if (shadow.current) shadow.current.style.left = `${(50 * (1 - opened) + 1).toFixed(2)}%`
         if (spine.current) spine.current.style.opacity = String(opened)
@@ -211,52 +205,50 @@ export function Magazine({
   return (
     <section ref={section} aria-label={`${pad(number)} ${heading}`} className="relative" style={{ height: `${(turns + 1.4) * 90 + 10}dvh` }}>
       <div className="sticky top-0 flex h-[100dvh] items-center justify-center overflow-hidden">
-        <div ref={arrival} data-landed="0" style={{ opacity: 0, transform: LIFTED }}>
-          <div
-            ref={book}
-            className="relative will-change-transform"
-            style={{ width: 'min(92vw, 104dvh)', aspectRatio: '3 / 2', perspective: '2600px', transform: 'translateX(-25%)' }}
-          >
-            {/* The book's shadow on the floor: under the cover while closed, under both pages once open. */}
-            <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-2xl" style={{ bottom: '-2%' }} />
+        <div
+          ref={book}
+          className="relative will-change-transform"
+          style={{ width: 'min(92vw, 104dvh)', aspectRatio: '3 / 2', perspective: '2600px', transform: `translate(calc(-25% + ${FROM.x}vw), ${FROM.y}%) rotate(${FROM.r}deg)`, opacity: 0 }}
+        >
+          {/* The book's shadow on the floor: under the cover while closed, under both pages once open. */}
+          <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-2xl" style={{ bottom: '-2%' }} />
 
-            {/* Last right page: the last model, under all the leaves. */}
-            <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
-              <PhotoPage pic={spreads[spreads.length - 1].pic} />
-              <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
-            </div>
-
-            {/* The leaves, each cut into strips that bend. */}
-            {faces.map((f, k) => (
-              <div
-                key={k}
-                ref={(n) => {
-                  leaves.current[k] = n
-                }}
-                className="absolute inset-y-0 right-0 w-1/2 [transform-style:preserve-3d]"
-                style={{ zIndex: 20 - k }}
-              >
-                <Strip
-                  k={0}
-                  front={
-                    <>
-                      {f.front}
-                      {k > 0 && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />}
-                    </>
-                  }
-                  back={
-                    <>
-                      {f.back}
-                      <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
-                    </>
-                  }
-                />
-              </div>
-            ))}
-
-            {/* The spine, once open. */}
-            <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
+          {/* Last right page: the last model, under all the leaves. */}
+          <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
+            <PhotoPage pic={spreads[spreads.length - 1].pic} />
+            <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
           </div>
+
+          {/* The leaves, each cut into strips that bend. */}
+          {faces.map((f, k) => (
+            <div
+              key={k}
+              ref={(n) => {
+                leaves.current[k] = n
+              }}
+              className="absolute inset-y-0 right-0 w-1/2 [transform-style:preserve-3d]"
+              style={{ zIndex: 20 - k }}
+            >
+              <Strip
+                k={0}
+                front={
+                  <>
+                    {f.front}
+                    {k > 0 && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />}
+                  </>
+                }
+                back={
+                  <>
+                    {f.back}
+                    <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
+                  </>
+                }
+              />
+            </div>
+          ))}
+
+          {/* The spine, once open. */}
+          <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
         </div>
       </div>
     </section>
