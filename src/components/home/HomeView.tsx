@@ -3,7 +3,7 @@ import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotStatement } from '@/components/motion/DotStatement'
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { ApplyCallout, ModelsTaste, NameMarquee, StorySection, type Chapter } from './HomeSections'
+import { ApplyCallout, NameMarquee, StorySection, type Chapter } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
@@ -67,14 +67,13 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
   )
 }
 
-/** Below the opening, on both sites: the story, the paragraph and images from the Studio, the board's names, a taste of the models, and Apply. */
+/** Below the opening, on both sites: the story, the paragraph and images from the Studio, the board's names, and Apply. */
 function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
   return (
     <>
       <StorySection site={site} chapters={home?.story} talents={talents} />
       <IntroSection text={home?.intro} images={home?.introImages} />
       <NameMarquee site={site} talents={talents} />
-      <ModelsTaste site={site} talents={talents} total={talents.length} />
       <ApplyCallout site={site} />
     </>
   )

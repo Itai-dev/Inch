@@ -2,6 +2,16 @@
 export const DEFAULT_STATEMENT =
   'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image. The perfect fit for your brand.'
 
+/** Contact details shown until the real ones are in the Studio (Site settings). TODO: demo values. */
+export const DEMO_CONTACT = {
+  email: 'hello@inch-mgmt.com',
+  phone: '+972 3 555 0142',
+  address: 'Rothschild Blvd 22\nTel Aviv 6688218',
+  instagram: 'https://instagram.com/inch.mgmt',
+}
+export const HOURS = 'Sunday – Thursday, 10:00 – 18:00'
+export const instagramHandle = (url: string) => url.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')
+
 /** The first year on the story's ruler. TODO: the agency's real founding year. */
 export const STORY_FROM = 2016
 
@@ -15,10 +25,6 @@ export const DEFAULT_STORY = [
   {
     heading: 'The eye',
     text: 'We look for faces that hold a picture and the people behind them. Then we take it slowly: tests, the right first jobs, the right first clients.',
-  },
-  {
-    heading: 'The fit',
-    text: 'Tell us what you’re shooting and we’ll send the few models who fit it. Not a catalogue: the right face, exactly.',
   },
 ]
 

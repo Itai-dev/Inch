@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
+import { DEMO_CONTACT as DEMO, HOURS, instagramHandle } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -10,14 +11,6 @@ import type { SiteSettings, TalentCard } from '@/sanity/lib/types'
 export async function generateMetadata({ params }: PageProps<'/[site]/contact'>): Promise<Metadata> {
   const site = (await params).site as Site
   return { title: 'Contact', alternates: { canonical: sitePath(site, '/contact') } }
-}
-
-// TODO: demo details, shown until the real ones are in the Studio (Site settings).
-const DEMO = {
-  email: 'hello@inch-mgmt.com',
-  phone: '+972 3 555 0142',
-  address: 'Rothschild Blvd 22\nTel Aviv 6688218',
-  instagram: 'https://instagram.com/inch.mgmt',
 }
 
 /** Contact, in one screen: the details on one side, a picture from the board filling the other. */
@@ -39,8 +32,8 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
     ['New faces', <a key="n" href={`mailto:${email}?subject=New%20faces`}>{email}</a>],
     ['Phone', <a key="p" href={`tel:${phone.replace(/\s/g, '')}`}>{phone}</a>],
     ['Studio', <span key="a" className="whitespace-pre-line">{address}</span>],
-    ['Instagram', <a key="i" href={instagram} target="_blank" rel="noreferrer">{instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')}</a>],
-    ['Hours', 'Sunday – Thursday, 10:00 – 18:00'],
+    ['Instagram', <a key="i" href={instagram} target="_blank" rel="noreferrer">{instagramHandle(instagram)}</a>],
+    ['Hours', HOURS],
   ]
 
   return (

@@ -213,7 +213,7 @@ body:has([data-model-sheet], [data-sheet]) > footer {
 @keyframes marquee { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: no-preference) {
   .marquee-track { animation: marquee 60s linear infinite; }
-  .marquee-track:hover, .marquee-track:focus-visible { animation-play-state: paused; }
+  .marquee-track:hover, .marquee-track:focus-within { animation-play-state: paused; }
 }
 
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */

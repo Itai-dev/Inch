@@ -2,17 +2,20 @@
 
 /**
  * The story's ruler, in years: a year an inch, a month a tick. It slides under a fixed needle
- * as the page scrolls past, from the first year to this one.
+ * as the page scrolls past, from the first year to this one; the years either side run on to
+ * the screen's edges so the ruler never ends in view.
  */
 import { useEffect, useRef } from 'react'
 import { rulerTicks } from '@/lib/ruler'
 
 const YEAR_W = 160
+/** Years drawn before the first and after the last: enough to reach the edges of a wide screen. */
+const PAD = 12
 
 export function YearRuler({ from, to }: { from: number; to: number }) {
   const band = useRef<HTMLDivElement>(null)
   const track = useRef<HTMLDivElement>(null)
-  const years = Array.from({ length: to - from + 1 }, (_, i) => from + i)
+  const years = Array.from({ length: to - from + 1 + 2 * PAD }, (_, i) => from - PAD + i)
 
   useEffect(() => {
     const el = band.current
@@ -26,7 +29,7 @@ export function YearRuler({ from, to }: { from: number; to: number }) {
         const r = el.getBoundingClientRect()
         // 0 as the band comes up from the bottom of the screen, 1 as it leaves at the top.
         const p = reduce ? 1 : Math.min(1, Math.max(0, (innerHeight - r.bottom) / (innerHeight - r.height)))
-        t.style.transform = `translateX(${(el.clientWidth / 2 - p * (to - from) * YEAR_W).toFixed(1)}px)`
+        t.style.transform = `translateX(${(el.clientWidth / 2 - (PAD + p * (to - from)) * YEAR_W).toFixed(1)}px)`
       })
     }
     move()
@@ -44,7 +47,7 @@ export function YearRuler({ from, to }: { from: number; to: number }) {
       <div ref={track} className="absolute bottom-0 left-0 flex will-change-transform">
         {years.map((y, i) => (
           <span key={y} className="relative flex h-10 shrink-0 flex-col justify-between" style={{ width: i < years.length - 1 ? YEAR_W : 2 }}>
-            <span className="-translate-x-1/2 text-[12px] font-bold leading-none tabular-nums">{y}</span>
+            <span className="-translate-x-1/2 self-start text-[12px] font-bold leading-none tabular-nums">{y}</span>
             <span className="block h-[18px]" style={i < years.length - 1 ? rulerTicks(18, 11, YEAR_W) : { width: 2, background: 'currentColor' }} />
           </span>
         ))}

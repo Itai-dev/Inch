@@ -1,13 +1,13 @@
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
-import { TalentCard } from '@/components/TalentCard'
 import { DEFAULT_STORY, STORY_FROM } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
 import { creditLine } from '@/lib/slides'
-import { sitePath, SITES, type Site } from '@/lib/sites'
+import { sitePath, SITES, talentPath, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, TalentCard as TalentCardType } from '@/sanity/lib/types'
 import { Magazine, type Spread } from './Magazine'
+import { NameStrip, type StripName } from './NameStrip'
 import { TypeOnView } from '@/components/motion/TypeOnView'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { PrintPile, type Pic } from './PrintPile'
@@ -15,7 +15,7 @@ import { YearRuler } from './YearRuler'
 
 /**
  * The home page below the statement: the agency's story in chapters, the board's names
- * running past, a taste of the models, and a way in for new faces. Most chapters are centred
+ * running past, and a way in for new faces. Most chapters are centred
  * and stacked: the heading and paragraph type in, then a pile of prints lands below them; one
  * is a magazine whose pages turn as you scroll.
  */
@@ -105,54 +105,14 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
   )
 }
 
-/** The board's names running past in giant type, every other one in outline; all of it links to the board. */
+/** The board's names running past in giant type; each opens her page and shows her picture on hover. */
 export function NameMarquee({ site, talents }: { site: Site; talents: TalentCardType[] }) {
   const { division } = SITES[site]
-  const names = talents.slice(0, 12).map((t) => t.name)
+  const names: StripName[] = talents.slice(0, 12).map((t) => ({ name: t.name, href: talentPath(t), src: fromTalent(t)?.src }))
   if (!names.length) return null
-  const row = (copy: number) => (
-    <ul aria-hidden={copy > 0 || undefined} className="flex shrink-0 items-center">
-      {names.map((n, i) => (
-        <li key={n} className="flex items-center gap-[0.3em] pr-[0.3em]">
-          <span className={`wordmark whitespace-nowrap uppercase ${i % 2 ? 'marquee-outline' : ''}`}>{n}</span>
-          <DivisionMark division={division} size={28} />
-        </li>
-      ))}
-    </ul>
-  )
   return (
     <section aria-label="The board" className="overflow-hidden border-y-2 border-fg py-[clamp(16px,2vw,28px)]">
-      <Link href={sitePath(site, '/models')} className="marquee-track flex w-max text-[clamp(56px,9vw,160px)] leading-none">
-        {row(0)}
-        {row(1)}
-      </Link>
-    </section>
-  )
-}
-
-/** Six models, staggered, and the way to the whole board. */
-export function ModelsTaste({ site, talents, total }: { site: Site; talents: TalentCardType[]; total: number }) {
-  const taste = talents.slice(0, 6)
-  if (!taste.length) return null
-  const all = sitePath(site, '/models')
-  return (
-    <section aria-labelledby="taste-title" className="px-gutter py-[clamp(72px,9vw,160px)]">
-      <div className="mb-10 flex items-end justify-between gap-6">
-        <h2 id="taste-title" className="label text-muted">A taste of the board</h2>
-        <Link href={all} className="label hover:opacity-60">Show all ({total}) →</Link>
-      </div>
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-6 xl:grid-cols-6 md:max-xl:[&>li:nth-child(3n+2)]:translate-y-14 xl:[&>li:nth-child(even)]:translate-y-16">
-        {taste.map((t, i) => (
-          <li key={t._id}>
-            <TalentCard talent={t} priority={i < 2} />
-          </li>
-        ))}
-      </ul>
-      <div className="mt-[clamp(80px,9vw,150px)] flex justify-center">
-        <Link href={all} className="flex h-14 items-center bg-fg px-10 text-[15px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85" style={{ fontStretch: '80%' }}>
-          Show all models →
-        </Link>
-      </div>
+      <NameStrip names={names} mark={<DivisionMark division={division} size={28} />} />
     </section>
   )
 }
