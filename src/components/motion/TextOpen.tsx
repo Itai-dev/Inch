@@ -28,10 +28,15 @@ const headerBottom = () => (document.querySelector('[data-site-header] > a')?.ge
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-export function TextOpen({ text }: { text: string }) {
+/** The zone's own length (vh) before any `holdVh`: written, then held, over its scroll of 140vh. */
+const ZONE_VH = 240
+
+/** `holdVh` keeps the written statement pinned for that much more scroll (something can play over it). */
+export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }) {
   const reduced = useReducedMotion()
   const { ref: zoneRef, progress: rawProgress } = useScrollProgress<HTMLDivElement>()
-  const progress = reduced ? 1 : rawProgress
+  // The timeline runs over the zone's own scroll; any hold comes after it.
+  const progress = reduced ? 1 : Math.min(1, (rawProgress * (ZONE_VH - 100 + holdVh)) / (ZONE_VH - 100))
 
   const stickyRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -139,7 +144,7 @@ export function TextOpen({ text }: { text: string }) {
   })
 
   return (
-    <div ref={zoneRef} style={{ height: reduced ? 'auto' : '240vh' }} className="relative">
+    <div ref={zoneRef} style={{ height: reduced ? 'auto' : `${ZONE_VH + holdVh}vh` }} className="relative">
       <div ref={stickyRef} className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>

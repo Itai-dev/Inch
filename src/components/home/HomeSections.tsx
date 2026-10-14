@@ -7,6 +7,7 @@ import { creditLine } from '@/lib/slides'
 import { sitePath, SITES, talentPath, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, TalentCard as TalentCardType } from '@/sanity/lib/types'
+import { magazineVh } from '@/lib/magazine'
 import { Magazine, type Spread } from './Magazine'
 import { NameStrip, type StripName } from './NameStrip'
 import { TypeOnView } from '@/components/motion/TypeOnView'
@@ -70,20 +71,30 @@ function storyParts({ chapters, talents }: StoryProps) {
   return { story, pics, spreads, cover, hasMagazine: !!story[MAGAZINE_AT] && spreads.length > 1 }
 }
 
+/** How tall the story's magazine is (vh), or 0 when there isn't one: for laying the statement under it. */
+export function storyMagazineVh(props: StoryProps) {
+  const { spreads, hasMagazine } = storyParts(props)
+  return hasMagazine ? magazineVh(spreads.length) : 0
+}
+
 /**
- * The story's first chapter as a magazine. With `overlap` (after the INCH” statement) it is
- * pulled up over the statement's last screen, so the closed magazine slides in over the
- * statement's last lines once it has been written and held long enough to read.
+ * The story's first chapter as a magazine. After the INCH” statement it is pulled up over it
+ * (`overlap`), so the closed magazine slides in over the statement once it has been written
+ * and held long enough to read:
+ * - 'after': it pins as the statement starts to leave, over its last lines;
+ * - 'together': it lands on the statement, which stays pinned under it while the pages turn,
+ *   and they scroll away together (TextOpen gets `holdVh` = magazine − 100).
  */
-export function StoryMagazine({ overlap = false, ...props }: StoryProps & { overlap?: boolean }) {
+export function StoryMagazine({ overlap = false, ...props }: StoryProps & { overlap?: false | 'after' | 'together' }) {
   const { brand, division } = SITES[props.site]
   const { story, spreads, cover, hasMagazine } = storyParts(props)
   if (!hasMagazine || !cover) return null
   const c = story[MAGAZINE_AT]
+  // TextOpen is 240vh tall (plus any hold): it has written its statement 87vh into its scroll and
+  // holds it until 140vh. The magazine pins there; 'together' also ends where the statement does.
+  const pull = overlap === 'together' ? magazineVh(spreads.length) : 100
   return (
-    // TextOpen is 240vh tall: it has written its statement 87vh into its scroll and holds it until
-    // 140vh. Pin there, once the statement has been read and starts to leave.
-    <div className={overlap ? 'relative z-10 motion-safe:-mt-[100vh]' : ''}>
+    <div className={overlap ? 'relative z-10 motion-safe:-mt-[var(--pull)]' : ''} style={overlap ? ({ '--pull': `${pull}vh` } as React.CSSProperties) : undefined}>
       <Magazine number={MAGAZINE_AT + 1} heading={c.heading} text={c.text} brand={brand} division={division} cover={cover} spreads={spreads} />
     </div>
   )

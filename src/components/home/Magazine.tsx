@@ -14,6 +14,7 @@
 import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import { Logo } from '@/components/brand/Logo'
+import { magazineVh } from '@/lib/magazine'
 import type { Division } from '@/sanity/lib/types'
 import type { Pic } from './PrintPile'
 
@@ -203,7 +204,7 @@ export function Magazine({
     })),
   ]
   return (
-    <section ref={section} aria-label={`${pad(number)} ${heading}`} className="relative" style={{ height: `${(turns + 1.4) * 90 + 10}dvh` }}>
+    <section ref={section} aria-label={`${pad(number)} ${heading}`} className="relative" style={{ height: `${magazineVh(turns)}vh` }}>
       <div className="sticky top-0 flex h-[100dvh] items-center justify-center overflow-hidden">
         <div
           ref={book}
