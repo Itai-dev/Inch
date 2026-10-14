@@ -81,9 +81,9 @@ export function storyMagazineVh(props: StoryProps) {
  * The story's first chapter as a magazine. After the INCH” statement it is pulled up over it
  * (`overlap`), so the closed magazine slides in over the statement once it has been written
  * and held long enough to read:
- * - 'together' (the home page): it lands on the statement, which stays pinned under it while
- *   the pages turn, and they scroll away together (TextOpen gets `holdVh` = magazine − 100);
- * - 'after': it pins as the statement starts to leave, over its last lines.
+ * - 'after' (the home page): it pins as the statement starts to leave, over its last lines;
+ * - 'together': it lands on the statement, which stays pinned under it while the pages turn,
+ *   and they scroll away together (TextOpen gets `holdVh` = magazine − 100).
  */
 export function StoryMagazine({ overlap = false, ...props }: StoryProps & { overlap?: false | 'after' | 'together' }) {
   const { brand, division } = SITES[props.site]
