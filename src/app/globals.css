@@ -51,6 +51,9 @@
 html {
   background: var(--bg);
   transition: background-color 0.4s var(--ease-out);
+  /* Keep room for the scrollbar from the first paint, so nothing centred jumps sideways
+     when it appears (or when a sheet locks the scroll). */
+  scrollbar-gutter: stable;
 }
 
 body {

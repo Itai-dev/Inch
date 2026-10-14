@@ -174,8 +174,10 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
   const layoutGrow = (p: number) => {
     const win = winRef.current
     if (!win) return
-    const W = window.innerWidth
-    const H = window.innerHeight
+    // The stage's own size (not the window's, which counts a scrollbar), so the ” starts
+    // exactly where the blinking one was centred.
+    const W = win.clientWidth
+    const H = win.clientHeight
     const mh0 = H * MARK_VH
     const mw0 = (mh0 * 64) / 72
     const sEnd = Math.max((W * 1.15) / (mw0 * GROW_SQUARE[0]), (H * 1.15) / (mh0 * GROW_SQUARE[1]))
