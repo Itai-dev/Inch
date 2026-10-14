@@ -4,8 +4,8 @@
  * INCH” — "Text open" (from Figma Make prototype).
  * Scroll-driven: the ” splits into two strokes; the right stroke writes the
  * statement letter by letter (hard cuts, no fade). The statement is set as large as it can be
- * while staying clear of the header, and its lines vanish at the header's edge as it scrolls
- * away, so the header logo never sinks into the big type.
+ * while staying clear of the header, so the header logo doesn't sink into the big type while
+ * it is held.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
@@ -38,7 +38,6 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
   // The timeline runs over the zone's own scroll; any hold comes after it.
   const progress = reduced ? 1 : Math.min(1, (rawProgress * (ZONE_VH - 100 + holdVh)) / (ZONE_VH - 100))
 
-  const stickyRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLParagraphElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
@@ -69,29 +68,6 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
     return () => ro.disconnect()
   }, [])
 
-  // Once the statement scrolls away, its lines vanish at the header's edge instead of passing under the logo.
-  useEffect(() => {
-    const el = stickyRef.current
-    if (!el || reduced) return
-    let frame = 0
-    const clip = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        const top = el.getBoundingClientRect().top
-        const mask = top < -1 ? `linear-gradient(to bottom, transparent ${headerBottom() - top}px, #000 ${headerBottom() - top + 48}px)` : ''
-        el.style.maskImage = mask
-        el.style.webkitMaskImage = mask
-      })
-    }
-    clip()
-    addEventListener('scroll', clip, { passive: true })
-    addEventListener('resize', clip)
-    return () => {
-      cancelAnimationFrame(frame)
-      removeEventListener('scroll', clip)
-      removeEventListener('resize', clip)
-    }
-  }, [reduced])
 
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
@@ -145,7 +121,7 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
 
   return (
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : `${ZONE_VH + holdVh}vh` }} className="relative">
-      <div ref={stickyRef} className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
+      <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
             <QuoteStroke side="left" height={markH} />
