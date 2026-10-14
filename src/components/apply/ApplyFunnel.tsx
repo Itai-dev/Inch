@@ -66,8 +66,8 @@ const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A pa
 
 const narrow = { fontStretch: '80%' } as const
 const big =
-  'w-full border-b-2 border-fg bg-transparent pb-2 text-[clamp(22px,2.3vw,32px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
-const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.8vw,26px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
+  'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.9vw,26px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
+const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(18px,1.5vw,22px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
@@ -279,14 +279,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
       </div>
     )
 
-  const heading = (
-    <div className="flex flex-col gap-3">
-      <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">{TITLE[step]}</h1>
-    </div>
-  )
   const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
-    <div className="flex flex-wrap items-center gap-x-7 gap-y-3 pt-2">
-      <button type="submit" disabled={disabled} className="h-14 bg-fg px-8 text-[15px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
+      <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
       </button>
       <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
@@ -297,10 +292,19 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   )
 
   if (!body) body = (
-    <div className="flex flex-col">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-gutter pb-12 pt-4 md:gap-10 md:pt-6">
       {trap}
+      {/* Progress on top, over the form and the card; the step names are the only titles. */}
+      <StepRuler
+        steps={STEP_NAMES}
+        current={number - 1}
+        reached={furthest - 1}
+        onSelect={(i) => go(flow.find((s) => NUMBER[s] === i + 1) ?? step)}
+      />
+      <h1 className="sr-only">{TITLE[step]}</h1>
+
       {/* Phones: the comp card folds into a strip above the form. */}
-      <details className="mx-gutter mt-4 bg-surface md:hidden">
+      <details className="border border-line bg-surface md:hidden">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">
           <span className="flex shrink-0 gap-0.5">
             {SLOTS.slice(0, 3).map((s) => (
@@ -318,21 +322,13 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           </span>
           <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
         </summary>
-        <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent!', true)}</div>
+        <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
       </details>
 
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,640px)_minmax(0,480px)] md:items-start md:justify-center">
-        <div className="flex flex-col gap-8">
-          <StepRuler
-            steps={STEP_NAMES}
-            current={number - 1}
-            reached={furthest - 1}
-            onSelect={(i) => go(flow.find((s) => NUMBER[s] === i + 1) ?? step)}
-          />
-          {heading}
-
+      <div className="grid gap-10 md:grid-cols-[minmax(0,600px)_minmax(0,420px)] md:items-start md:justify-between">
+        <div className="flex flex-col gap-7">
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
               <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
@@ -347,7 +343,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'guardian' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {GUARDIAN_AGE}, so we’ll speak to a parent or guardian first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
@@ -357,7 +353,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
           {step === 'measure' && (
             <form
-              className="flex flex-col gap-8"
+              className="flex flex-col gap-7"
               onSubmit={(e) => {
                 e.preventDefault()
                 if (gaps.length) setTried(true)
@@ -383,10 +379,10 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                   </div>
                 </div>
                 <div className="flex items-baseline gap-2.5">
-                  <span className={`wordmark text-[clamp(64px,7vw,96px)] tabular-nums ${d.height ? '' : 'text-muted/40'}`}>
+                  <span className={`wordmark text-[clamp(52px,5.5vw,76px)] tabular-nums ${d.height ? '' : 'text-muted/40'}`}>
                     {unit === 'in' ? cmToFeet(d.height ?? 175) : (d.height ?? 175)}
                   </span>
-                  {unit === 'cm' && <span className="text-[22px] font-bold">cm</span>}
+                  {unit === 'cm' && <span className="text-[18px] font-bold">cm</span>}
                   {d.height && <span className="ml-2 text-[14px] text-muted">{unit === 'in' ? `${d.height} cm` : cmToFeet(d.height)}</span>}
                 </div>
                 <HeightTape value={d.height} unit={unit} onChange={(cm) => set('height', cm)} />
@@ -394,7 +390,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               </div>
               {/* Each size is a closed field; tap one and its tape opens below, full width. */}
               <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
                   {SIZE_KEYS.map((k) => {
                     const shown = sizeShown(k)
                     const open = openSize === k
@@ -412,7 +408,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                             if (!shown.value) setSize(k, shown.start)
                             setOpenSize(k)
                           }}
-                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.8vw,26px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
+                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(18px,1.5vw,22px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
                         >
                           <span className={`min-w-0 flex-1 truncate ${shown.value ? '' : 'text-muted/40'}`}>{half(shown.value ?? shown.start)}</span>
                           <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
@@ -446,7 +442,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
@@ -503,7 +499,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'send' && (
-            <form className="grid grid-cols-1 gap-x-7 gap-y-7 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
+            <form className="grid grid-cols-1 gap-x-7 gap-y-6 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
               <Field label="Instagram"><input className={big} placeholder="@handle" value={d.instagram} onChange={(e) => set('instagram', e.target.value)} /></Field>
               <Field label="TikTok"><input className={big} placeholder="@handle" value={d.tiktok} onChange={(e) => set('tiktok', e.target.value)} /></Field>
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">
@@ -525,7 +521,6 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
         <aside aria-label="Your comp card" className="hidden self-start md:block">{card()}</aside>
       </div>
-
     </div>
   )
 

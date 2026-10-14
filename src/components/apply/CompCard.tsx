@@ -1,14 +1,14 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { DivisionMark } from '@/components/brand/Marks'
 import type { Division } from '@/sanity/lib/types'
 
 export type CardStat = [label: string, value: string | number | undefined]
 
 /**
- * The application as a comp card: white, lifted off the page, tilting a little after the
- * mouse. It fills in while the form is filled in: the name, the stats, then the photos. The
+ * The application as a comp card: light grey with a fine outline, lifted off the page, and
+ * turned a little toward the mouse wherever it is (also while filling in the form). It fills in while the form is filled in: the name, the stats, then the photos. The
  * name isn't set between the ’ ’ marks (those are for INCH” models); the card carries the
  * ” logo instead (DOT.: the ■).
  */
@@ -34,33 +34,44 @@ export function CompCard({
 }) {
   const card = useRef<HTMLDivElement>(null)
 
-  // Tilt toward the pointer, a few degrees at most; the shadow falls away from it.
-  const tilt = (e: React.PointerEvent) => {
+  // Face the pointer, a few degrees at most, wherever it is on the page; the shadow falls
+  // away from it. Mouse only, and not with reduced motion.
+  useEffect(() => {
     const el = card.current
-    if (!el || e.pointerType !== 'mouse' || matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const r = el.getBoundingClientRect()
-    const x = (e.clientX - r.left) / r.width - 0.5
-    const y = (e.clientY - r.top) / r.height - 0.5
-    el.style.transition = 'transform 0.15s ease-out, box-shadow 0.15s ease-out'
-    el.style.transform = `perspective(1100px) rotateX(${(-y * 7).toFixed(2)}deg) rotateY(${(x * 7).toFixed(2)}deg) translateY(-4px)`
-    el.style.boxShadow = `${(-x * 22).toFixed(1)}px ${(30 - y * 16).toFixed(1)}px 60px -24px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.06)`
-  }
-  const rest = () => {
-    const el = card.current
-    if (!el) return
-    el.style.transition = 'transform 0.7s var(--ease-out), box-shadow 0.7s var(--ease-out)'
-    el.style.transform = ''
-    el.style.boxShadow = ''
-  }
+    if (flat || !el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let frame = 0
+    const face = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect()
+        const clamp = (v: number) => Math.max(-1, Math.min(1, v))
+        const x = clamp((e.clientX - (r.left + r.width / 2)) / (innerWidth / 2))
+        const y = clamp((e.clientY - (r.top + r.height / 2)) / (innerHeight / 2))
+        el.style.transform = `perspective(1100px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) translateY(-4px)`
+        el.style.boxShadow = `${(-x * 22).toFixed(1)}px ${(30 - y * 14).toFixed(1)}px 60px -24px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.05)`
+      })
+    }
+    const rest = () => {
+      cancelAnimationFrame(frame)
+      el.style.transform = ''
+      el.style.boxShadow = ''
+    }
+    window.addEventListener('pointermove', face)
+    document.documentElement.addEventListener('pointerleave', rest)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('pointermove', face)
+      document.documentElement.removeEventListener('pointerleave', rest)
+    }
+  }, [flat])
 
   return (
     <div
       ref={card}
-      onPointerMove={flat ? undefined : tilt}
-      onPointerLeave={flat ? undefined : rest}
-      // A white card, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
-      style={flat ? undefined : ({ '--bg': '#fff', '--fg': '#0a0a0a', '--muted': '#6f6f6f', '--line': '#e6e6e6' } as React.CSSProperties)}
-      className={`flex flex-col gap-5 bg-bg p-[clamp(20px,2.4vw,36px)] text-fg ${flat ? '' : 'shadow-[0_24px_56px_-24px_rgb(0_0_0/0.28),0_2px_8px_rgb(0_0_0/0.06)] will-change-transform'} ${className}`}
+      // A light card, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
+      style={flat ? undefined : ({ '--bg': '#f9f9f9', '--fg': '#0a0a0a', '--muted': '#6f6f6f', '--line': '#e6e6e6' } as React.CSSProperties)}
+      className={`flex flex-col gap-5 bg-bg p-[clamp(20px,2.2vw,32px)] text-fg ${flat ? '' : 'border border-[#bcbcbc] shadow-[0_24px_56px_-24px_rgb(0_0_0/0.28),0_2px_8px_rgb(0_0_0/0.05)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] will-change-transform'} ${className}`}
     >
       <div className="label flex items-start justify-between text-[11px] text-muted">
         <span>{brand} — Application</span>
@@ -69,7 +80,7 @@ export function CompCard({
         </span>
       </div>
 
-      <p className={`wordmark text-[clamp(34px,3.4vw,52px)] uppercase ${name ? '' : 'text-muted/50'}`}>{name || 'Your name'}</p>
+      <p className={`wordmark text-[clamp(32px,3vw,46px)] uppercase ${name ? '' : 'text-muted/50'}`}>{name || 'Your name'}</p>
 
       <dl className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] uppercase">
         {stats.map(([k, v]) => (

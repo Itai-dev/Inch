@@ -140,9 +140,9 @@ export function ColorSelect({
             show()
           }
         }}
-        className={`flex w-full items-center gap-3 border-b-2 pb-1.5 text-left text-[clamp(20px,1.8vw,26px)] font-semibold outline-none ${chosen ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
+        className={`flex w-full items-center gap-3 border-b-2 pb-1.5 text-left text-[clamp(18px,1.5vw,22px)] font-semibold outline-none ${chosen ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
       >
-        {chosen ? <Dot color={swatch?.color} iris={iris} size={22} /> : null}
+        {chosen ? <Dot color={swatch?.color} iris={iris} size={20} /> : null}
         <span id={`${id}-value`} className={`min-w-0 flex-1 truncate ${chosen ? '' : 'text-muted/40'}`}>
           {chosen || 'Choose'}
         </span>
