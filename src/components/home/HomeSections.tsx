@@ -1,20 +1,23 @@
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
-import { rulerTicks } from '@/lib/ruler'
 import { TalentCard } from '@/components/TalentCard'
-import { DEFAULT_STORY } from '@/lib/copy'
+import { DEFAULT_STORY, STORY_FROM } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
 import { creditLine } from '@/lib/slides'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, TalentCard as TalentCardType } from '@/sanity/lib/types'
 import { Magazine, type Spread } from './Magazine'
+import { TypeOnView } from '@/components/motion/TypeOnView'
+import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { PrintPile, type Pic } from './PrintPile'
+import { YearRuler } from './YearRuler'
 
 /**
  * The home page below the statement: the agency's story in chapters, the board's names
- * running past, a taste of the models, and a way in for new faces. Most chapters are a
- * paragraph beside a pile of prints; one is a magazine whose pages turn as you scroll.
+ * running past, a taste of the models, and a way in for new faces. Most chapters are centred
+ * and stacked: the heading and paragraph type in, then a pile of prints lands below them; one
+ * is a magazine whose pages turn as you scroll.
  */
 
 export type Chapter = { _key?: string; heading: string; text: string; images?: SanityImage[] | null }
@@ -27,7 +30,8 @@ const fromTalent = (t: TalentCardType): Pic | null =>
 
 /** The chapter told as a magazine instead of a pile (the second, when there are two or more). */
 const MAGAZINE_AT = 1
-const PRINTS = 3
+/** Prints per pile (PrintPile places up to ten). */
+const PRINTS = 10
 const SPREADS = 5
 
 /** Story → each chapter's text and three prints (its own pictures, else the board's covers, real ones first); one chapter as a magazine of the board. */
@@ -59,21 +63,15 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
         <h2 id="story-title" className="label text-muted">The story of {brand}</h2>
         <span className="label text-muted">{pad(story.length)} chapters</span>
       </div>
-      {/* A long ruler that slides sideways as the story scrolls past. */}
-      <div aria-hidden className="mt-4 overflow-hidden">
-        <div className="story-ruler flex w-max">
-          {Array.from({ length: 60 }, (_, i) => (
-            <span key={i} className="flex h-10 w-16 shrink-0 flex-col justify-between">
-              <span className="text-center text-[12px] font-bold leading-none tabular-nums">{String(i).padStart(2, '0')}</span>
-              <span className="block h-[18px]" style={rulerTicks(18, 9, 64)} />
-            </span>
-          ))}
-        </div>
+      {/* The years, sliding under a needle as the story scrolls up. */}
+      <div className="mt-4">
+        <YearRuler from={STORY_FROM} to={new Date().getFullYear()} />
       </div>
 
       <ol className="mt-[clamp(72px,9vw,160px)] flex flex-col gap-[clamp(120px,15vw,260px)] px-gutter">
         {story.map((c, i) => {
           const flip = i % 2 === 1
+          const textAt = typeEnd(c.heading, 0, 45) + 150
           if (i === MAGAZINE_AT && spreads.length > 1)
             return (
               // Full width, out of the margins.
@@ -82,17 +80,23 @@ export function StorySection({ site, chapters, talents }: { site: Site; chapters
               </li>
             )
           return (
-            <li key={c._key || i} className="grid items-center gap-y-14 md:grid-cols-12 md:gap-x-6">
-              <div className={`flex flex-col md:col-span-5 ${flip ? 'md:col-start-8' : 'md:col-start-1'} md:row-start-1`}>
+            <li key={c._key || i} className="flex flex-col items-center text-center">
+              {/* The heading types in when it comes into view, then the paragraph. */}
+              <TypeOnView className="flex flex-col items-center">
                 <p className="flex items-center gap-3 text-[13px] font-extrabold tabular-nums">
+                  <span aria-hidden className="h-[2px] w-10 bg-current" />
                   {pad(i + 1)}
-                  <span aria-hidden className="h-[2px] w-14 bg-current" />
+                  <span aria-hidden className="h-[2px] w-10 bg-current" />
                 </p>
-                <h3 className="story-rise wordmark mt-5 text-[clamp(56px,8.5vw,150px)] uppercase leading-[0.82]">{c.heading}</h3>
-                <p className="mt-7 max-w-[38ch] whitespace-pre-line text-[17px] leading-snug md:text-[19px]">{c.text}</p>
-              </div>
+                <h3 className="wordmark mt-5 text-[clamp(56px,8.5vw,150px)] uppercase leading-[0.82]">
+                  <TypeText text={c.heading} ms={45} />
+                </h3>
+                <p className="mt-7 max-w-[44ch] whitespace-pre-line text-[17px] leading-snug md:text-[19px]">
+                  <TypeText text={c.text} at={textAt} ms={10} />
+                </p>
+              </TypeOnView>
               {/* Prints on a wall, landing on the pile one after another. */}
-              <PrintPile pics={pics[i]} flip={flip} className={`md:col-span-6 md:row-start-1 ${flip ? 'md:col-start-1' : 'md:col-start-7'}`} />
+              <PrintPile pics={pics[i]} flip={flip} className="mt-[clamp(40px,5vw,88px)] w-full max-w-[960px]" />
             </li>
           )
         })}

@@ -205,26 +205,22 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   display: none;
 }
 
-/* Home: the story and the board's names. Scroll-driven where the browser has view timelines;
-   still otherwise, and with reduced motion. */
+/* Home: the board's names running past; still with reduced motion. */
 .marquee-outline {
   color: transparent;
   -webkit-text-stroke: 1.5px var(--fg);
 }
 @keyframes marquee { to { transform: translateX(-50%); } }
-@keyframes story-ruler { from { transform: translateX(0); } to { transform: translateX(-35%); } }
-@keyframes story-rise { from { clip-path: inset(100% 0 0 0); transform: translateY(0.3em); } to { clip-path: inset(0 0 0 0); transform: none; } }
 @media (prefers-reduced-motion: no-preference) {
   .marquee-track { animation: marquee 60s linear infinite; }
   .marquee-track:hover, .marquee-track:focus-visible { animation-play-state: paused; }
-  @supports (animation-timeline: view()) {
-    .story-ruler { animation: story-ruler linear both; animation-timeline: view(); }
-    .story-rise { animation: story-rise linear both; animation-timeline: view(); animation-range: entry 10% cover 35%; }
-  }
 }
 
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
 @keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: no-preference) {
-  .type-char { animation: type-char 1ms steps(1, end) var(--at, 0ms) both; }
+  /* steps(1, start): on as soon as its moment comes (end would flicker back off at a progress of 0.9999…). */
+  .type-char { animation: type-char 1ms steps(1, start) var(--at, 0ms) both; }
+  /* TypeOnView: held until in view. */
+  [data-type-wait] .type-char { animation-play-state: paused; }
 }

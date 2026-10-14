@@ -2,6 +2,9 @@
 export const DEFAULT_STATEMENT =
   'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image. The perfect fit for your brand.'
 
+/** The first year on the story's ruler. TODO: the agency's real founding year. */
+export const STORY_FROM = 2016
+
 /** Placeholder story for the home page until it's written in the Studio (Home page › Story). */
 // TODO: the real story from INCH”.
 export const DEFAULT_STORY = [
