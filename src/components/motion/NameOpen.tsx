@@ -14,6 +14,8 @@ import type { Division } from '@/sanity/lib/types'
 const DELAY_MS = 0 // starts the moment the page opens
 const SPLIT_MS = 120 // INCH”: the ” opens before the first letter
 const CHAR_MS = 45
+/** The marks' distance from the name, in em: about the space between two of its letters. */
+const LETTER_GAP = 0.03
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -48,7 +50,8 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
   const strokeGap = Math.round(markH * STROKE_GAP_RATIO)
-  const sideGap = Math.round(font * 0.12)
+  // As far from the name as one letter is from the next.
+  const sideGap = Math.round(font * LETTER_GAP)
   // The ” sits inside the margin, in front of the name (the name is padded to make room).
   const lead = dot ? 0 : markW + sideGap
 

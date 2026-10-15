@@ -25,6 +25,8 @@ const LINE_HEIGHT = 1.28
 /** Set a little tight, letters and words both. */
 const TRACKING = '-0.025em'
 const WORD_SPACING = '-0.04em'
+/** The marks' distance from the text, in em: about the space between two of its letters. */
+const LETTER_GAP = 0.03
 
 /** The bottom of the header logo, with a little air under it. */
 const headerBottom = () => (document.querySelector('[data-site-header] > a')?.getBoundingClientRect().bottom ?? 90) + 16
@@ -78,7 +80,8 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
   const strokeGap = Math.round(markH * STROKE_GAP_RATIO)
   // The marks hang from the top of the capitals: 0.18em at line-height 1.1, plus half of the extra leading.
   const topNudge = Math.round(font * (0.18 + (LINE_HEIGHT - 1.1) / 2))
-  const sideGap = Math.round(font * 0.13)
+  // As far from the text as one letter is from the next.
+  const sideGap = Math.round(font * LETTER_GAP)
 
   const animP = Math.min(1, progress / ANIM_END)
   const exitT = Math.max(0, (progress - ANIM_END) / (1 - ANIM_END))

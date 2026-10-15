@@ -35,13 +35,32 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
           </div>
         ))}
       </dl>
-      <div className="label flex gap-3" role="group" aria-label="Units">
-        {(['in', 'cm'] as Unit[]).map((u) => (
-          <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
-            {u.toUpperCase()}
-          </button>
-        ))}
-      </div>
+      <UnitToggle unit={unit} onChange={setUnit} className="label w-fit" />
+    </div>
+  )
+}
+
+/** IN / CM as a switch: a black thumb slides under the chosen unit. */
+export function UnitToggle({ unit, onChange, className = '' }: { unit: Unit; onChange: (u: Unit) => void; className?: string }) {
+  return (
+    <div role="radiogroup" aria-label="Units" className={`relative inline-grid grid-cols-2 border border-fg ${className}`}>
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1/2 bg-fg transition-transform duration-300 ease-[var(--ease-out)]"
+        style={{ transform: unit === 'cm' ? 'translateX(100%)' : 'none' }}
+      />
+      {(['in', 'cm'] as Unit[]).map((u) => (
+        <button
+          key={u}
+          type="button"
+          role="radio"
+          aria-checked={unit === u}
+          onClick={() => onChange(u)}
+          className={`relative px-[0.5em] py-[0.2em] leading-none transition-colors duration-300 ${unit === u ? 'text-bg' : 'text-fg hover:opacity-60'}`}
+        >
+          {u.toUpperCase()}
+        </button>
+      ))}
     </div>
   )
 }

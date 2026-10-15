@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
-import { measurementRows, type Unit } from './Measurements'
+import { measurementRows, UnitToggle, type Unit } from './Measurements'
 import { NameOpen } from './motion/NameOpen'
 import { Ruler } from './motion/Ruler'
 import type { Slide } from './motion/types'
@@ -221,12 +221,8 @@ export function ModelSheet({
             </div>
           ))}
         </dl>
-        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write('IN CM')}>
-          {(['in', 'cm'] as Unit[]).map((u) => (
-            <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
-              {u.toUpperCase()}
-            </button>
-          ))}
+        <div className="intro-write" style={write('IN CM')}>
+          <UnitToggle unit={unit} onChange={setUnit} className="text-[12px] font-bold md:text-[13px]" />
         </div>
       </div>
     ) : null
