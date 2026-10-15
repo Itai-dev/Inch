@@ -19,7 +19,6 @@ import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
 import { NameOpen } from './motion/NameOpen'
 import { Ruler } from './motion/Ruler'
-import { ThemeToggle, useTheme } from './ThemeToggle'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
 import { useSelection } from './selection/SelectionProvider'
@@ -200,7 +199,6 @@ export function ModelSheet({
   const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
   const statsCm = measurements ? measurementRows(measurements, division, 'cm') : []
   const stats = unit === 'in' ? statsIn : statsCm
-  const [theme, setTheme] = useTheme(division === 'men' ? 'dark' : 'light')
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
@@ -234,7 +232,7 @@ export function ModelSheet({
           ))}
         </dl>
         <div className="intro-write" style={write('IN CM')}>
-          <UnitToggle unit={unit} onChange={setUnit} className="text-[12px] font-bold md:text-[13px]" />
+          <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
     ) : null
@@ -246,14 +244,12 @@ export function ModelSheet({
       role="dialog"
       aria-modal="true"
       aria-label={name}
-      data-theme={theme === 'dark' ? 'dot' : 'light'}
       className="model-sheet fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg"
     >
       {/* Top rail: name | stats in one line | close */}
       <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-8 md:py-0">
         <div className="flex items-start justify-between gap-4">
           <NameOpen name={name} division={division} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap" />
-          <ThemeToggle theme={theme} onChange={setTheme} className="ml-auto md:hidden" />
           <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
             <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
               <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
@@ -262,7 +258,6 @@ export function ModelSheet({
         </div>
         {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)] md:text-[15px]')}
         <div className="hidden items-center justify-end gap-6 md:flex">
-          <ThemeToggle theme={theme} onChange={setTheme} />
           <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
             <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
               <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
@@ -315,7 +310,7 @@ export function ModelSheet({
                         <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                       </div>
                       {o === 0 && s.caption && (
-                        <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-wide text-muted">{s.caption}</figcaption>
+                        <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
                       )}
                     </figure>
                   )

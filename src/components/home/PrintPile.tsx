@@ -80,7 +80,7 @@ export function PrintPile({ pics, flip = false, className = '' }: { pics: Pic[];
             <span className="relative block aspect-[4/5] overflow-hidden bg-line">
               <Image src={pic.src} alt={pic.alt} fill sizes="(min-width: 768px) 20vw, 130px" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.08]" />
             </span>
-            {pic.credit && <figcaption className="absolute left-0 top-full mt-1.5 text-[9px] uppercase tracking-wide text-[#6f6f6f]">{pic.credit}</figcaption>}
+            {pic.credit && <figcaption className="absolute left-0 top-full mt-1.5 text-[9px] uppercase tracking-[0.2em] text-[#6f6f6f]">{pic.credit}</figcaption>}
           </figure>
         )
       })}

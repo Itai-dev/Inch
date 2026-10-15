@@ -30,10 +30,11 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
     const text = <TypeText text={r.text} at={textAt} ms={12} />
     return (
       <div key={r.label} className="flex flex-col gap-1">
-        <dt className="label text-muted">
+        {/* As the model stats: the label in regular capitals, the value bold. */}
+        <dt className="uppercase" style={{ fontStretch: '80%' }}>
           <TypeText text={r.label} at={labelAt} />
         </dt>
-        <dd className="whitespace-pre-line leading-snug">
+        <dd className="whitespace-pre-line font-bold leading-snug">
           {r.href ? (
             <a href={r.href} target={r.external ? '_blank' : undefined} rel={r.external ? 'noreferrer' : undefined} className="underline-offset-4 hover:underline">
               {text}
@@ -48,11 +49,23 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
   return <dl className={`flex flex-col gap-[clamp(18px,3vh,32px)] text-[clamp(16px,1.25vw,20px)] ${align === 'right' ? 'md:items-end md:text-right' : ''}`}>{items}</dl>
 }
 
-/** A paper clip, drawn in one wire. */
-function Clip({ className }: { className?: string }) {
+/** When a piece of the sheet comes in (ms), and for a print, the angle it lands from. */
+const at = (ms: number, turn?: string) => ({ '--at': `${ms}ms`, ...(turn ? { '--turn': turn } : {}) }) as React.CSSProperties
+
+/** A pencilled line, written left to right from `at`. */
+function Hand({ at: ms, children }: { at: number; children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 24 64" fill="none" aria-hidden className={className}>
-      <path d="M8 22V50a6 6 0 0 0 12 0V12a9 9 0 0 0-18 0v40a11 11 0 0 0 22 0V24" stroke="#7e7e7a" strokeWidth="1.8" strokeLinecap="round" />
+    <span className="hand-line block" style={at(ms)}>
+      {children}
+    </span>
+  )
+}
+
+/** A paper clip, drawn in one wire (and drawing itself in). */
+function Clip({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 24 64" fill="none" aria-hidden className={className} style={style}>
+      <path d="M8 22V50a6 6 0 0 0 12 0V12a9 9 0 0 0-18 0v40a11 11 0 0 0 22 0V24" stroke="#7e7e7a" strokeWidth="1.8" strokeLinecap="round" pathLength={1} />
     </svg>
   )
 }
@@ -103,28 +116,26 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
         {/* The contact sheet. */}
         <figure className={`relative order-1 mx-auto aspect-[600/720] w-[min(86vw,420px)] md:order-2 md:w-[min(34vw,58vh)] ${hand.className}`}>
           <figcaption className="absolute left-[3%] top-[-5%] z-20 -rotate-2 text-[clamp(18px,1.7vw,26px)] leading-[1.05] text-[#4a4a47]">
-            {brand} Studio
-            <br />
-            Bookings 001/004
+            <Hand at={1250}>{brand} Studio</Hand>
+            <Hand at={1700}>Bookings 001/004</Hand>
           </figcaption>
           {/* The larger print behind. */}
-          <div className="absolute bottom-[6%] left-[22%] right-[2%] top-[13%] border border-[#e4e4df] bg-[#f6f6f2] p-[3.5%] shadow-[0_18px_40px_-24px_rgb(0_0_0/0.35)]">
+          <div className="sheet-print absolute bottom-[6%] left-[22%] right-[2%] top-[13%] border border-[#e4e4df] bg-[#f6f6f2] p-[3.5%] shadow-[0_18px_40px_-24px_rgb(0_0_0/0.35)]" style={at(100, '2deg')}>
             <div className="relative h-full overflow-hidden bg-line">
               <Image src={big} alt={model ? model.name : ''} fill priority sizes="(min-width: 768px) 30vw, 80vw" unoptimized={big.endsWith('.svg')} className="object-cover object-[50%_20%] grayscale" />
             </div>
           </div>
           {/* The print clipped over it. */}
-          <div className="absolute left-[1%] top-[11%] z-10 w-[52%] bg-[#fbfbf9] p-[3%] pb-[12%] shadow-[0_14px_30px_-14px_rgb(0_0_0/0.4)]">
+          <div className="sheet-print absolute left-[1%] top-[11%] z-10 w-[52%] bg-[#fbfbf9] p-[3%] pb-[12%] shadow-[0_14px_30px_-14px_rgb(0_0_0/0.4)]" style={at(520, '-4deg')}>
             <div className="relative aspect-[4/4.6] overflow-hidden bg-line">
               {/* Without a second picture, a close crop of the same one. */}
               <Image src={small} alt="" fill sizes="(min-width: 768px) 18vw, 45vw" unoptimized={small.endsWith('.svg')} className={`object-cover object-top grayscale ${bookPic ? '' : 'origin-[50%_12%] scale-[1.9]'}`} />
             </div>
           </div>
-          <Clip className="absolute left-[8%] top-[7%] z-20 h-[14%] w-auto" />
+          <Clip className="clip-draw absolute left-[8%] top-[7%] z-20 h-[14%] w-auto" style={at(950)} />
           <p aria-hidden className="absolute bottom-[-1%] right-[3%] z-20 -rotate-1 text-right text-[clamp(17px,1.5vw,24px)] leading-[1.05] text-[#4a4a47]">
-            Fig. 001 {model?.name ?? 'The board'}
-            <br />
-            in {city}
+            <Hand at={2150}>Fig. 001 {model?.name ?? 'The board'}</Hand>
+            <Hand at={2650}>in {city}</Hand>
           </p>
         </figure>
 

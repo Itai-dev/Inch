@@ -21,7 +21,7 @@ export function IntroSection({ text, images }: { text?: string | null; images?: 
                   <span className="relative block aspect-[3/4] bg-line">
                     <Image src={urlFor(img).width(1000).url()} alt={img.alt || ''} fill sizes="(min-width: 768px) 33vw, 50vw" className="object-cover" />
                   </span>
-                  {credit && <figcaption className="mt-2 text-[10px] uppercase tracking-wide text-muted">{credit}</figcaption>}
+                  {credit && <figcaption className="mt-2 text-[10px] uppercase tracking-[0.2em] text-muted">{credit}</figcaption>}
                 </figure>
               </li>
             )

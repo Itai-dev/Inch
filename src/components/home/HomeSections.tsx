@@ -10,6 +10,7 @@ import type { SanityImage, TalentCard as TalentCardType } from '@/sanity/lib/typ
 import { magazineVh } from '@/lib/magazine'
 import { Magazine, type Spread } from './Magazine'
 import { NameStrip, type StripName } from './NameStrip'
+import { TypeOnScroll } from '@/components/motion/TypeOnScroll'
 import { TypeOnView } from '@/components/motion/TypeOnView'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { PrintPile, type Pic } from './PrintPile'
@@ -122,8 +123,8 @@ export function StorySection(props: StoryProps) {
           const textAt = typeEnd(c.heading, 0, 45) + 150
           return (
             <li key={c._key || i} className="flex flex-col items-center text-center">
-              {/* The heading types in when it comes into view, then the paragraph. */}
-              <TypeOnView className="flex flex-col items-center">
+              {/* The heading types in with the scroll, then the paragraph; scrolling back takes them away. */}
+              <TypeOnScroll className="flex flex-col items-center">
                 <p className="flex items-center gap-3 text-[13px] font-extrabold tabular-nums">
                   <span aria-hidden className="h-[2px] w-10 bg-current" />
                   {pad(i + 1)}
@@ -135,7 +136,7 @@ export function StorySection(props: StoryProps) {
                 <p className="mt-7 max-w-[44ch] whitespace-pre-line text-[17px] leading-snug md:text-[19px]">
                   <TypeText text={c.text} at={textAt} ms={10} />
                 </p>
-              </TypeOnView>
+              </TypeOnScroll>
               {/* Prints on a wall, landing on the pile one after another. */}
               <PrintPile pics={pics[i]} flip={i % 2 === 1} className="mt-[clamp(40px,5vw,88px)] w-full max-w-[960px]" />
             </li>
@@ -258,8 +259,8 @@ export function SelectedWork({ talents }: { talents: TalentCardType[] }) {
 /** The last word: a way in for new faces. */
 export function ApplyCallout({ site }: { site: Site }) {
   return (
-    <section className="px-gutter pb-[clamp(80px,10vw,180px)]">
-      <Link href={sitePath(site, '/apply')} className="group block w-fit">
+    <section className="mx-[var(--gutter)] flex justify-end border-t-2 border-fg pb-[clamp(80px,10vw,180px)] pt-6">
+      <Link href={sitePath(site, '/apply')} className="group block w-fit text-right">
         <span className="wordmark text-[clamp(64px,12vw,220px)] uppercase leading-[0.8] transition-[letter-spacing] duration-500 ease-[var(--ease-out)] group-hover:tracking-[0.02em]">
           Get scouted →
         </span>

@@ -124,7 +124,7 @@ export function ColorSelect({
   const swatch = options.find((o) => o.name === chosen)
   return (
     <div ref={root} className="relative flex min-w-0 flex-col gap-1.5">
-      <span id={`${id}-label`} className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
+      <span id={`${id}-label`} className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
         {label}
       </span>
       <button

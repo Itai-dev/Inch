@@ -24,7 +24,7 @@ export default async function SharedSelectionPage({ params }: PageProps<'/[site]
 
   return (
     <div className="px-gutter py-10">
-      <p className="text-sm uppercase tracking-wide text-muted">Selection by {brand}</p>
+      <p className="label text-muted">Selection by {brand}</p>
       <h1 className="mt-2 text-5xl font-bold tracking-tight">{sel.title}</h1>
       {sel.note && <p className="mt-4 max-w-2xl whitespace-pre-line text-lg">{sel.note}</p>}
       <div className="mt-12 grid gap-10 md:grid-cols-3">
@@ -33,12 +33,12 @@ export default async function SharedSelectionPage({ params }: PageProps<'/[site]
             <Link href={talentPath(t)} className="relative block aspect-[3/4] bg-line">
               {t.cover?.asset && <Image src={urlFor(t.cover).width(900).url()} alt={t.name} fill sizes="33vw" className="object-cover" />}
             </Link>
-            <h2 className="uppercase tracking-wide">{t.name}</h2>
+            <h2 className="wordmark text-[22px] uppercase">{t.name}</h2>
             <Measurements m={t.measurements} division={t.division} />
           </article>
         ))}
       </div>
-      <Link href={sitePath(owner, '/contact')} className="mt-16 inline-block bg-fg px-6 py-3 text-sm uppercase tracking-wide text-bg">Contact {brand} about this selection</Link>
+      <Link href={sitePath(owner, '/contact')} className="mt-16 inline-flex h-12 items-center bg-fg px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-bg">Contact {brand} about this selection</Link>
     </div>
   )
 }

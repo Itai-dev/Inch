@@ -27,40 +27,35 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
   if (!m) return null
   return (
     <div className="flex flex-col gap-3">
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm uppercase tracking-wide">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm uppercase">
         {measurementRows(m, division, unit).map(([k, v]) => (
           <div key={k} className="contents">
-            <dt className="text-muted">{k}</dt>
+            <dt>{k}</dt>
             <dd className="font-bold">{v}</dd>
           </div>
         ))}
       </dl>
-      <UnitToggle unit={unit} onChange={setUnit} className="label w-fit" />
+      <UnitToggle unit={unit} onChange={setUnit} className="w-fit text-sm" />
     </div>
   )
 }
 
-/** IN / CM as a switch: a quiet grey thumb slides under the chosen unit. */
+/**
+ * IN / CM, written as such: the chosen unit bold, the other light. Each keeps room for its bold
+ * self, so nothing shifts when switching.
+ */
 export function UnitToggle({ unit, onChange, className = '' }: { unit: Unit; onChange: (u: Unit) => void; className?: string }) {
+  const option = (u: Unit) => (
+    <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onChange(u)} className="inline-grid uppercase hover:opacity-60">
+      <span aria-hidden className="invisible font-bold [grid-area:1/1]">{u}</span>
+      <span className={`[grid-area:1/1] ${unit === u ? 'font-bold' : 'font-light'}`}>{u}</span>
+    </button>
+  )
   return (
-    <div role="radiogroup" aria-label="Units" className={`relative inline-grid grid-cols-2 bg-surface p-[2px] ${className}`}>
-      <span
-        aria-hidden
-        className="absolute inset-y-[2px] left-[2px] w-[calc(50%-2px)] bg-bg shadow-[0_1px_3px_rgb(0_0_0/0.18)] transition-transform duration-300 ease-[var(--ease-out)]"
-        style={{ transform: unit === 'cm' ? 'translateX(100%)' : 'none' }}
-      />
-      {(['in', 'cm'] as Unit[]).map((u) => (
-        <button
-          key={u}
-          type="button"
-          role="radio"
-          aria-checked={unit === u}
-          onClick={() => onChange(u)}
-          className={`relative px-[0.7em] py-[0.3em] leading-none transition-colors duration-300 ${unit === u ? 'text-fg' : 'text-muted hover:text-fg'}`}
-        >
-          {u.toUpperCase()}
-        </button>
-      ))}
+    <div role="radiogroup" aria-label="Units" className={`inline-flex items-baseline gap-[0.3em] ${className}`}>
+      {option('in')}
+      <span aria-hidden className="font-light">/</span>
+      {option('cm')}
     </div>
   )
 }

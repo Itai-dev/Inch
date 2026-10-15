@@ -85,7 +85,7 @@ export function CompCard({
       <dl className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] uppercase">
         {stats.map(([k, v]) => (
           <div key={k} className={v === undefined || v === '' ? 'text-muted/60' : ''}>
-            <dt className="inline font-bold" style={{ fontStretch: '80%' }}>{k}</dt> <dd className="inline normal-case">{v === undefined || v === '' ? '—' : v}</dd>
+            <dt className="inline" style={{ fontStretch: '80%' }}>{k}</dt> <dd className="inline font-bold normal-case">{v === undefined || v === '' ? '—' : v}</dd>
           </div>
         ))}
       </dl>

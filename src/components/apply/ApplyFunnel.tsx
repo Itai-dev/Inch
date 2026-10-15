@@ -16,6 +16,7 @@ import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet, cmToInches } from '@/lib/units'
+import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
@@ -73,7 +74,7 @@ const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
     <label className={`flex min-w-0 flex-col gap-2 ${className}`}>
-      <span className="text-[13px] font-bold uppercase tracking-[0.04em]" style={narrow}>{label}</span>
+      <span className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
     </label>
@@ -378,21 +379,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
             >
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>Height</span>
+                  <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
                   {/* Inches or centimetres, for every size on this step. */}
-                  <div role="group" aria-label="Units" className="flex border-2 border-fg text-[12px] font-bold uppercase" style={narrow}>
-                    {(['in', 'cm'] as Unit[]).map((u) => (
-                      <button
-                        key={u}
-                        type="button"
-                        aria-pressed={unit === u}
-                        onClick={() => setUnit(u)}
-                        className={`min-w-11 px-3 py-1.5 ${unit === u ? 'bg-fg text-bg' : 'hover:bg-surface'}`}
-                      >
-                        {u.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
+                  <UnitToggle unit={unit} onChange={setUnit} className="text-[15px]" />
                 </div>
                 <div className="flex items-baseline gap-2.5">
                   <span className={`wordmark text-[clamp(52px,5.5vw,76px)] tabular-nums ${d.height ? '' : 'text-muted/40'}`}>
@@ -412,7 +401,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                     const open = openSize === k
                     return (
                       <div key={k} className="flex min-w-0 flex-col gap-1.5">
-                        <span className="truncate text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
+                        <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                           {sizeName(k)} <span className="text-muted">{k === 'shoes' ? 'EU' : unit}</span>
                         </span>
                         <button
@@ -438,7 +427,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 {openSize && (
                   <div ref={tapeRef} className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-4">
-                      <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>
+                      <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                         {sizeName(openSize)} <span className="text-muted">{openSize === 'shoes' ? 'EU' : unit}</span>
                       </span>
                       <button type="button" onClick={() => setOpenSize(null)} className="text-[12px] font-bold uppercase underline" style={narrow}>
