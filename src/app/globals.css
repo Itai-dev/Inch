@@ -252,18 +252,6 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   .sheet-clip { animation: clip-on 0.45s cubic-bezier(0.3, 0.9, 0.3, 1.2) var(--at, 0ms) both; }
 }
 
-/* The selection's glass. Refracting: the page behind seen through the fisheye #tray-glass
-   (SelectionTray), then blurred, the lens's rim catching a little light. Else a frosted blur. */
-.glass-blur {
-  background-color: rgb(255 255 255 / 0.2);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
-}
-.glass-refract {
-  background: radial-gradient(ellipse at 50% 50%, rgb(255 255 255 / 0) 55%, rgb(255 255 255 / 0.22) 100%);
-  backdrop-filter: url(#tray-glass) blur(6px) saturate(1.2);
-}
-
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
 @keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }

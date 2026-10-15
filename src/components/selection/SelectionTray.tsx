@@ -1,40 +1,14 @@
 'use client'
 
 import Image from 'next/image'
-import { Fragment, useState, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import { isPlaceholder } from '@/lib/placeholders'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
-/**
- * The fisheye's displacement map: red falls left to right and green top to bottom (so each pixel
- * reads from nearer the centre), fading to neutral grey toward the edges.
- */
-const LENS_MAP =
-  'data:image/svg+xml,' +
-  encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><defs>` +
-      `<linearGradient id='x'><stop offset='0' stop-color='#f00'/><stop offset='1' stop-color='#000'/></linearGradient>` +
-      `<linearGradient id='y' x2='0' y2='1'><stop offset='0' stop-color='#0f0'/><stop offset='1' stop-color='#000'/></linearGradient>` +
-      `<radialGradient id='e' r='0.75'><stop offset='0.2' stop-color='#808000' stop-opacity='0'/><stop offset='1' stop-color='#808000'/></radialGradient>` +
-      `</defs><rect width='256' height='256' fill='url(#x)'/><rect width='256' height='256' fill='url(#y)' style='mix-blend-mode:screen'/>` +
-      `<rect width='256' height='256' fill='url(#e)'/></svg>`,
-  )
-/** Red, green and blue each bent a little differently (scale as a share of the panel), then put back together. */
-const LENS_CHANNELS: [number, string][] = [
-  [0.2, '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'],
-  [0.185, '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0'],
-  [0.17, '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0'],
-]
-
-/** Chromium can run an SVG filter on what's behind an element (refraction); others can only blur it. */
-const refractSnapshot = () => /Chrome\//.test(navigator.userAgent)
-const noSubscribe = () => () => {}
-
 export function SelectionTray({ site }: { site: Site }) {
   const { items, remove, clear, open, setOpen } = useSelection()
-  const refracts = useSyncExternalStore(noSubscribe, refractSnapshot, () => false)
   // The selection as comp cards: one PDF, a page a model, each linking to her page on the site.
   const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}`
   const real = items.filter((t) => !isPlaceholder(t)).length
@@ -65,8 +39,8 @@ export function SelectionTray({ site }: { site: Site }) {
     }
   }
 
-  // Always there, so it can slide: in from the right as it opens, back out as it closes (with the
-  // shade fading behind it). Hidden from clicks, focus and screen readers while shut.
+  // Always there, so it can slide: in from the right as it opens, back out as it closes. The page
+  // behind stays as it is (a click on it closes the tray). Hidden from clicks, focus and screen readers while shut.
   return (
     <div
       inert={!open}
@@ -74,24 +48,6 @@ export function SelectionTray({ site }: { site: Site }) {
       className={`fixed inset-0 z-50 flex justify-end transition-[visibility] duration-500 ${open ? 'visible' : 'invisible'}`}
       onClick={() => setOpen(false)}
     >
-      {/* The page behind, through a fisheye lens: it bulges from the middle (each pixel drawn from
-          nearer the centre, the pull fading out toward the edges), with red, green and blue bent by
-          slightly different amounts (chromatic aberration), then blurred. Where the browser can refract
-          what's behind an element (Chromium); elsewhere, a plain blur. */}
-      <svg aria-hidden className="absolute size-0">
-        <filter id="tray-glass" x="0" y="0" width="1" height="1" primitiveUnits="objectBoundingBox" colorInterpolationFilters="sRGB">
-          <feImage href={LENS_MAP} x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="lens" />
-          {LENS_CHANNELS.map(([scale, matrix], i) => (
-            <Fragment key={i}>
-              <feDisplacementMap in="SourceGraphic" in2="lens" scale={scale} xChannelSelector="R" yChannelSelector="G" result={`d${i}`} />
-              <feColorMatrix in={`d${i}`} type="matrix" values={matrix} result={`c${i}`} />
-            </Fragment>
-          ))}
-          <feBlend in="c0" in2="c1" mode="screen" result="rg" />
-          <feBlend in="rg" in2="c2" mode="screen" />
-        </filter>
-      </svg>
-      <span aria-hidden className={`${refracts ? 'glass-refract' : 'glass-blur'} absolute inset-0 transition-opacity duration-500 ${open ? 'opacity-100' : 'opacity-0'}`} />
       <aside
         className={`relative flex h-full w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={(e) => e.stopPropagation()}
