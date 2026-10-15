@@ -7,18 +7,38 @@
  */
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
-import { rulerTicksPitch, SEG_OVERLAP } from '@/lib/ruler'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
 
 export type StripName = { name: string; href: string; pics: string[] }
 
 /** How long each picture shows while a name is hovered. */
 const FLICK_MS = 170
+/** Roughly how far apart the short ticks are; each stretch is divided evenly. */
+const PITCH = 10
+
+/** An inch of the ruler `w` px wide: short ticks about every PITCH px, an odd count so one lands mid-inch. */
+function ticks(w?: number) {
+  if (!w) return rulerTicks(12, 9)
+  const n = Math.max(1, Math.round(w / PITCH) - 1)
+  return rulerTicks(12, n % 2 ? n : n + 1, w)
+}
 
 export function NameStrip({ names, mark }: { names: StripName[]; mark: React.ReactNode }) {
   const [active, setActive] = useState<number | null>(null)
   const [flick, setFlick] = useState(0)
   const preview = useRef<HTMLDivElement>(null)
+  const first = useRef<HTMLUListElement>(null)
+  // Each name's stretch, measured, so its ticks divide it evenly and land on both ends.
+  const [widths, setWidths] = useState<number[]>([])
+  useLayoutEffect(() => {
+    const ul = first.current
+    if (!ul) return
+    const measure = () => setWidths([...ul.children].map((li) => li.getBoundingClientRect().width))
+    const ro = new ResizeObserver(measure)
+    ro.observe(ul)
+    return () => ro.disconnect()
+  }, [])
 
   // Flick through the hovered model's pictures.
   const count = active === null ? 0 : names[active]?.pics.length ?? 0
@@ -38,7 +58,7 @@ export function NameStrip({ names, mark }: { names: StripName[]; mark: React.Rea
   }
 
   const row = (copy: number) => (
-    <ul aria-hidden={copy > 0 || undefined} className="flex shrink-0 items-end">
+    <ul ref={copy ? undefined : first} aria-hidden={copy > 0 || undefined} className="flex shrink-0 items-end">
       {names.map((n, i) => (
         <li key={n.href} className="ruler-cell flex flex-col">
           <span className="flex items-center gap-[0.3em] pr-[0.3em]">
@@ -59,9 +79,9 @@ export function NameStrip({ names, mark }: { names: StripName[]; mark: React.Rea
             {mark}
           </span>
           {/* Her stretch of the ruler, reaching to the next name. */}
-          <span aria-hidden className="ruler-seg relative mt-[clamp(10px,1.2vw,18px)] block h-[30px]" style={{ width: `calc(100% + ${SEG_OVERLAP})` }}>
-            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
-            <span className="ruler-draw absolute inset-x-0 bottom-0 block h-4" style={rulerTicksPitch(16, 12)} />
+          <span aria-hidden className="ruler-seg relative mt-[clamp(8px,0.9vw,14px)] block h-[24px]" style={{ width: `calc(100% + ${SEG_OVERLAP})` }}>
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[10px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
+            <span className="ruler-draw absolute inset-x-0 bottom-0 block h-3" style={ticks(widths[i])} />
           </span>
         </li>
       ))}
