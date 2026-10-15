@@ -61,15 +61,6 @@ function Hand({ at: ms, children }: { at: number; children: React.ReactNode }) {
   )
 }
 
-/** A paper clip, in one wire. (Stand-in until the photographed clip arrives.) */
-function Clip({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg viewBox="0 0 24 64" fill="none" aria-hidden className={className} style={style}>
-      <path d="M8 22V50a6 6 0 0 0 12 0V12a9 9 0 0 0-18 0v40a11 11 0 0 0 22 0V24" stroke="#7e7e7a" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 /**
  * Contact, in one screen: a contact sheet in the middle of the page (a print clipped over a
  * larger one, with pencilled notes) and the details either side, typing themselves in.
@@ -133,7 +124,9 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
             </div>
           </div>
           {/* The clip holding the two prints together, where the small one lies over the large one; it lands with them. */}
-          <Clip className="sheet-clip absolute left-[40%] top-[6%] z-20 h-[15%] w-auto" style={at(1350)} />
+          <span className="sheet-clip absolute left-[37%] top-[3%] z-20 block aspect-[386/640] h-[21%]" style={at(1350)}>
+            <Image src="/contact/paperclip.png" alt="" fill sizes="80px" className="-rotate-[12deg] object-contain drop-shadow-[0_3px_3px_rgb(0_0_0/0.28)]" />
+          </span>
           <p aria-hidden className="absolute bottom-[-1%] right-[3%] z-20 -rotate-1 text-right text-[clamp(17px,1.5vw,24px)] leading-[1.05] text-[#4a4a47]">
             <Hand at={2150}>Fig. 001 {model?.name ?? 'The board'}</Hand>
             <Hand at={2650}>in {city}</Hand>

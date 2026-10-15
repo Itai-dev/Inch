@@ -35,8 +35,8 @@ export const DEFAULT_STORY = [
     text: 'An inch is the smallest measure that still changes a fit. INCH” is built around that idea: a small board, chosen closely, and the time to get every detail right.',
   },
   {
-    heading: 'The fit',
-    text: 'So the board stays small, and every name on it is there for a reason. We match each face to the work by hand, the right model for the right client at the right moment, and stay with it until the picture is made.',
+    heading: 'The standard',
+    text: 'INCH” represents a select board of women and men for the houses, magazines and brands that set the pace in fashion. Every career is managed by hand, from the first test to the campaign, with the discretion and attention that work at this level asks for.',
   },
 ]
 
