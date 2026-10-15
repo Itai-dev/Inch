@@ -389,7 +389,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                         onClick={() => setUnit(u)}
                         className={`min-w-11 px-3 py-1.5 ${unit === u ? 'bg-fg text-bg' : 'hover:bg-surface'}`}
                       >
-                        {u === 'in' ? 'Inches' : 'cm'}
+                        {u.toUpperCase()}
                       </button>
                     ))}
                   </div>

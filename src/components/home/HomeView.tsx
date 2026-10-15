@@ -3,7 +3,7 @@ import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotStatement } from '@/components/motion/DotStatement'
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { ApplyCallout, NameMarquee, SelectedModels, StoryMagazine, storyMagazineVh, StorySection, type Chapter } from './HomeSections'
+import { ApplyCallout, NameMarquee, SelectedWork, StoryMagazine, storyMagazineVh, StorySection, type Chapter } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
@@ -72,7 +72,7 @@ export async function HomeView({ site, hero = 'split', magazine = 'after' }: { s
   )
 }
 
-/** Below the opening, on both sites: the magazine (over the statement's end, with `overlap`), the rest of the story, the paragraph and images from the Studio, the board's names, a row of selected models, and Apply. */
+/** Below the opening, on both sites: the magazine (over the statement's end, with `overlap`), the rest of the story, the paragraph and images from the Studio, the board's names, selected work, and Apply. */
 function Story({ site, home, talents, overlap = false }: { site: Site; home: Home; talents: TalentCard[]; overlap?: false | 'after' | 'together' }) {
   return (
     <>
@@ -80,7 +80,7 @@ function Story({ site, home, talents, overlap = false }: { site: Site; home: Hom
       <StorySection site={site} chapters={home?.story} talents={talents} />
       <IntroSection text={home?.intro} images={home?.introImages} />
       <NameMarquee site={site} talents={talents} />
-      <SelectedModels site={site} talents={talents} total={talents.length} />
+      <SelectedWork site={site} talents={talents} />
       <ApplyCallout site={site} />
     </>
   )

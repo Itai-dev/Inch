@@ -22,6 +22,9 @@ const WIDTH_PER_FONT = 12.5 // container width ÷ font size
 const MAX_FONT = 104
 const MIN_FONT = 26
 const LINE_HEIGHT = 1.28
+/** Set a little tight, letters and words both. */
+const TRACKING = '-0.025em'
+const WORD_SPACING = '-0.04em'
 
 /** The bottom of the header logo, with a little air under it. */
 const headerBottom = () => (document.querySelector('[data-site-header] > a')?.getBoundingClientRect().bottom ?? 90) + 16
@@ -131,7 +134,7 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT }} aria-label={text}>
+          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text}>
             {text.split('').map((c, i) => (
               <span
                 key={i}

@@ -56,12 +56,14 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
   const height = labelH + Math.round(fontPx * 0.15) + tickH
   const tickBg = rulerTicks(tickH, minors, segW)
 
-  // Faded tape (Figma Make carousel): only the centre is at full strength, falling away to the sides.
-  const half = segW * (0.53 + (Math.max(1, active.length) - 1) * 0.5)
-  const mask = [
-    `linear-gradient(to right, transparent, rgba(0,0,0,0.12) calc(50% - ${half + segW * 2.6}px), rgba(0,0,0,0.38) calc(50% - ${half + segW * 0.6}px), black calc(50% - ${half}px), black calc(50% + ${half}px), rgba(0,0,0,0.38) calc(50% + ${half + segW * 0.6}px), rgba(0,0,0,0.12) calc(50% + ${half + segW * 2.6}px), transparent)`,
-    `radial-gradient(ellipse ${Math.round(segW * 7)}px 100% at 50% 50%, rgba(0,0,0,0.5) 0%, transparent 100%)`,
-  ].join(', ')
+  // Faded tape: the selected inches at full strength, each inch further out a step fainter, every
+  // tick of an inch alike (an inch is lit whole); only the far ends fade into the edges.
+  const lit = (Math.max(1, active.length) - 1) / 2
+  const strength = (k: number) => {
+    const d = Math.round(Math.max(0, Math.abs(k - pos) - lit))
+    return d === 0 ? 1 : Math.max(0.1, 0.4 - (d - 1) * 0.1)
+  }
+  const mask = 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)'
 
   // Click a number to go to it (no dragging).
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -87,12 +89,11 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
       >
         {ks.map((k) => {
           // Only the copy under the centre counts as selected (numbers repeat along the tape).
-          const on = Math.abs(k - pos) <= (Math.max(1, active.length) - 1) / 2 + 0.01
           return (
-            <div key={k}>
+            <div key={k} className="transition-opacity duration-500" style={{ opacity: strength(k) }}>
               <span
-                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums transition-opacity duration-500"
-                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx, opacity: on ? 1 : 0.4 }}
+                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums"
+                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx }}
               >
                 {pad2(mod(k, N) + 1)}
               </span>

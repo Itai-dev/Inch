@@ -223,6 +223,16 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   .marquee-track:hover, .marquee-track:focus-within { animation-play-state: paused; }
 }
 
+/* Home, selected work: each piece unveils from the bottom as it comes into view (TypeOnView),
+   the picture settling from a closer crop as it opens. */
+@keyframes work-unveil { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes work-settle { from { transform: scale(1.3) translateY(6%); } to { transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .work-frame { animation: work-unveil 1.1s cubic-bezier(0.76, 0, 0.24, 1) var(--at, 0ms) both; }
+  .work-pic { animation: work-settle 1.6s cubic-bezier(0.22, 0.8, 0.25, 1) var(--at, 0ms) both; }
+  [data-type-wait] .work-frame, [data-type-wait] .work-pic { animation-play-state: paused; }
+}
+
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
 @keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }

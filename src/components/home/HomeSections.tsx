@@ -1,6 +1,6 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { DivisionMark } from '@/components/brand/Marks'
-import { BOARD_GAP, TalentCard } from '@/components/TalentCard'
 import { DEFAULT_STORY, STORY_FROM } from '@/lib/copy'
 import { isPlaceholder } from '@/lib/placeholders'
 import { creditLine } from '@/lib/slides'
@@ -17,7 +17,7 @@ import { YearRuler } from './YearRuler'
 
 /**
  * The home page below the statement: the agency's story in chapters, the board's names
- * running past, a row of selected models, and a way in for new faces. The first chapter is a
+ * running past, a few pieces of selected work, and a way in for new faces. The first chapter is a
  * magazine whose pages turn as you scroll; the others are centred and stacked: the heading and
  * paragraph type in, then a pile of prints lands below them.
  */
@@ -168,24 +168,93 @@ export function NameMarquee({ site, talents }: { site: Site; talents: TalentCard
   )
 }
 
-/** Selected models in one even row on the ruler, with the way to the whole board. Phones swipe along it. */
-export function SelectedModels({ site, talents, total }: { site: Site; talents: TalentCardType[]; total: number }) {
-  const picks = talents.slice(0, 6)
-  if (!picks.length) return null
-  const all = sitePath(site, '/models')
+type Work = { src: string; alt: string; name: string; kind: string; credit?: string; href: string }
+
+/** How many pieces of work the home page shows. */
+const WORK = 4
+/** Where each piece sits on the 12 columns (tablet up): two loose columns, staggered. */
+const WORK_SPOTS = [
+  'md:col-span-5 md:col-start-1',
+  'md:col-span-4 md:col-start-8 md:mt-[16vw]',
+  'md:col-span-4 md:col-start-2 md:-mt-[6vw]',
+  'md:col-span-5 md:col-start-7 md:mt-[8vw]',
+]
+const WORK_RATIOS = ['aspect-[4/5]', 'aspect-[3/4]', 'aspect-[3/4]', 'aspect-[4/5]']
+
+/**
+ * The board's work: covers and ads first, a model at a time; until there are enough, pictures
+ * from the models' books; until there are any, the board's covers. Each opens the model's page at
+ * that picture (`?p=`), in the book it's from.
+ */
+function selectedWork(talents: TalentCardType[]): Work[] {
+  const real = talents.filter((t) => !isPlaceholder(t))
+  // A model at a time, so one model doesn't fill the row while others have work.
+  const interleave = (lists: Work[][]) => Array.from({ length: Math.max(0, ...lists.map((l) => l.length)) }, (_, i) => lists.flatMap((l) => (l[i] ? [l[i]] : []))).flat()
+  const fromBook = (t: TalentCardType, imgs: SanityImage[] | null | undefined, segment: string, kind: string) =>
+    (imgs ?? [])
+      .filter((img) => img?.asset)
+      .map((img, i) => ({ img, i }))
+      // The board already shows her cover.
+      .filter(({ img }) => segment || img.asset?._ref !== t.cover?.asset?._ref)
+      .map(({ img, i }) => ({
+        src: urlFor(img).width(1200).url(),
+        alt: img.alt || t.name,
+        name: t.name,
+        kind: img.publication || kind,
+        credit: img.photographer ? `Photo ${img.photographer}` : undefined,
+        href: `${talentPath(t)}${segment ? `/${segment}` : ''}?p=${i + 1}`,
+      }))
+  const covers = interleave(real.map((t) => fromBook(t, t.work, 'covers', 'Covers + Ads')))
+  const book = interleave(real.map((t) => fromBook(t, t.pics, '', 'Modelbook')))
+  const boards = talents.flatMap((t) => {
+    const c = fromTalent(t)
+    return c ? [{ src: c.src, alt: t.name, name: t.name, kind: 'Modelbook', href: talentPath(t) }] : []
+  })
+  return [...covers, ...book, ...boards].slice(0, WORK)
+}
+
+/**
+ * Selected work: a few of the board's covers and campaigns, loose on the page. Each unveils from
+ * the bottom as it comes into view, settling from a closer crop, and its caption types in.
+ */
+export function SelectedWork({ site, talents }: { site: Site; talents: TalentCardType[] }) {
+  const work = selectedWork(talents)
+  if (!work.length) return null
   return (
-    <section aria-labelledby="selected-title" className="py-[clamp(72px,9vw,160px)]">
-      <div className="mx-[var(--gutter)] mb-8 flex items-end justify-between gap-6 border-b-2 border-fg pb-4">
-        <h2 id="selected-title" className="wordmark text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected models</h2>
-        <Link href={all} className="label hover:opacity-60">Show all ({total}) →</Link>
+    <section aria-labelledby="work-title" className="px-gutter py-[clamp(72px,9vw,160px)]">
+      <div className="mb-[clamp(32px,4vw,64px)] flex items-end justify-between gap-6 border-b-2 border-fg pb-4">
+        <h2 id="work-title" className="wordmark text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected work</h2>
+        <Link href={sitePath(site, '/models')} className="label hover:opacity-60">All models →</Link>
       </div>
-      {/* As on the board: the cards almost touching, each on her numbered stretch of ruler. */}
-      <ol className="ruler-board flex snap-x snap-mandatory overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-6 md:overflow-visible" style={{ columnGap: BOARD_GAP }}>
-        {picks.map((t, i) => (
-          <li key={t._id} className="w-[44vw] shrink-0 snap-start md:w-auto">
-            <TalentCard talent={t} priority={false} n={i + 1} />
-          </li>
-        ))}
+      <ol className="flex flex-col gap-14 md:grid md:grid-cols-12 md:gap-x-6 md:gap-y-[clamp(48px,6vw,96px)]">
+        {work.map((w, i) => {
+          const label = `${pad(i + 1)} — ${w.kind}`
+          return (
+            <TypeOnView as="li" key={w.href} className={`w-[82%] ${i % 2 ? 'self-end' : ''} md:w-auto ${WORK_SPOTS[i]}`}>
+              <Link href={w.href} className="group flex flex-col gap-3">
+                <span className={`work-frame relative block overflow-hidden bg-line ${WORK_RATIOS[i]}`} style={{ '--at': `${(i % 2) * 120}ms` } as React.CSSProperties}>
+                  <span className="work-pic absolute inset-0 block">
+                    <Image
+                      src={w.src}
+                      alt={w.alt}
+                      fill
+                      sizes="(min-width: 768px) 40vw, 82vw"
+                      unoptimized={w.src.endsWith('.svg')}
+                      className="object-cover grayscale transition-transform duration-700 ease-[var(--ease-out)] group-hover:scale-[1.03]"
+                    />
+                  </span>
+                </span>
+                <span className="flex items-baseline justify-between gap-4">
+                  <span className="label text-muted"><TypeText text={label} at={700} ms={14} /></span>
+                  {w.credit && <span className="label hidden text-muted md:inline"><TypeText text={w.credit} at={typeEnd(label, 700, 14)} ms={14} /></span>}
+                </span>
+                <span className="wordmark text-[clamp(26px,2.4vw,40px)] uppercase leading-none underline-offset-[0.12em] group-hover:underline">
+                  <TypeText text={w.name} at={820} ms={28} />
+                </span>
+              </Link>
+            </TypeOnView>
+          )
+        })}
       </ol>
     </section>
   )

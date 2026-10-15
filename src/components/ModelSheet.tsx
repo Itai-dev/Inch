@@ -13,7 +13,7 @@
  * link without a page load). Close steps back to the page you came from, or the board.
  */
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, type Unit } from './Measurements'
@@ -39,6 +39,8 @@ const INTRO_MS = 1600 // by then every opening animation is done
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 const mod = (a: number, n: number) => ((a % n) + n) % n
+/** The page's address doesn't change under it while it's open (books use replaceState after the start). */
+const noSubscribe = () => () => {}
 const tabCls = (on: boolean) => `uppercase transition-colors ${on ? 'text-fg' : 'text-muted hover:text-fg'}`
 const narrow = { fontStretch: '80%' } as const
 
@@ -133,6 +135,14 @@ export function ModelSheet({
   const step = useCallback((d: number) => S > 1 && setCur((c) => c + d), [S])
   // Ruler → spread: k is an unbounded image index; land on the spread that holds it.
   const select = (k: number) => setCur(Math.floor(k / N) * S + spreadOf(mod(k, N)))
+
+  // Opened at a picture (?p=3, from the home page's selected work): sit on its spread while the
+  // stage is still sizing itself (so nothing slides), then let go.
+  const startParam = useSyncExternalStore(noSubscribe, () => Number(new URLSearchParams(location.search).get('p')) || 0, () => 0)
+  const [startDone, setStartDone] = useState(false)
+  const startSpread = !startDone && startParam > 0 && startParam <= N ? spreadOf(startParam - 1) : null
+  if (startSpread !== null && cur !== startSpread) setCur(startSpread)
+  if (startSpread !== null && settled) setStartDone(true)
   const rulerPos = Math.floor(cur / S) * N + ((visible[0] ?? 0) + (visible[visible.length - 1] ?? 0)) / 2
 
   const close = useCallback(() => {
@@ -211,10 +221,10 @@ export function ModelSheet({
             </div>
           ))}
         </dl>
-        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write('in cm')}>
+        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write('IN CM')}>
           {(['in', 'cm'] as Unit[]).map((u) => (
             <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
-              {u}
+              {u.toUpperCase()}
             </button>
           ))}
         </div>

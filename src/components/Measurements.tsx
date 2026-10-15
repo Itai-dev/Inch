@@ -38,7 +38,7 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
       <div className="label flex gap-3" role="group" aria-label="Units">
         {(['in', 'cm'] as Unit[]).map((u) => (
           <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
-            {u}
+            {u.toUpperCase()}
           </button>
         ))}
       </div>

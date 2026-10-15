@@ -37,43 +37,13 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
   // INCH”: the split carries the stroke past the first letter, then a letter every CHAR_MS.
   const total = DELAY_MS + (dot ? n * CHAR_MS : split + Math.max(0, n - 1) * CHAR_MS)
 
-  const [t, setT] = useState(0) // ms since mount
-  useEffect(() => {
-    if (reduced) return
-    let raf = 0
-    const t0 = performance.now()
-    const tick = (now: number) => {
-      const v = Math.min(total, now - t0)
-      setT(v)
-      if (v < total) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [reduced, total])
-  const done = reduced || t >= total
-  // Where the moving mark is, in letters: 0 = before the name (INCH”: the ” still closed), k = just after letter k.
-  const e = Math.max(0, t - DELAY_MS)
-  const pos = done ? n : dot ? Math.min(n, e / CHAR_MS) : e < split ? easeOut(e / split) : Math.min(n, 1 + (e - split) / CHAR_MS)
-  // A letter appears as the mark crosses its middle.
-  const shown = done ? n : Math.max(0, Math.min(n, Math.floor(pos + 0.5)))
-
   const wrapRef = useRef<HTMLHeadingElement>(null)
   const leftRef = useRef<HTMLSpanElement>(null)
   const rightRef = useRef<HTMLSpanElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(44)
-  const [, bump] = useState(0)
-  useEffect(() => {
-    const el = wrapRef.current
-    if (!el) return
-    const read = () => setFont(parseFloat(getComputedStyle(el).fontSize) || 44)
-    read()
-    const ro = new ResizeObserver(read)
-    ro.observe(el)
-    // A late web font changes the letters' sizes: place the marks again.
-    document.fonts?.ready.then(() => bump((n) => n + 1))
-    return () => ro.disconnect()
-  }, [])
+  const [done, setDone] = useState(false)
+  const finished = reduced || done
 
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
@@ -82,40 +52,89 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
   // The ” sits inside the margin, in front of the name (the name is padded to make room).
   const lead = dot ? 0 : markW + sideGap
 
-  // The marks are placed straight on the DOM, measured against the letters.
+  /** Places the marks for a moment of the writing (`pos` in letters: 0 = before the name, k = just after letter k), straight on the DOM. */
+  const place = useRef<(pos: number) => void>(() => {})
+  // Kept current with this render's sizes (set before the effects below run).
   useLayoutEffect(() => {
-    const wrap = wrapRef.current
-    const right = rightRef.current
-    const first = charRefs.current[0]
-    if (!wrap || !right || !first) return
-    const wr = wrap.getBoundingClientRect()
-    const fr = first.getBoundingClientRect()
-    const { capTop, baseline } = metrics(first)
-    const put = (el: HTMLElement, x: number, y: number) => {
-      el.style.transform = `translate(${x}px, ${y}px)`
+    place.current = (pos: number) => {
+      const wrap = wrapRef.current
+      const right = rightRef.current
+      const first = charRefs.current[0]
+      if (!wrap || !right || !first) return
+      const wr = wrap.getBoundingClientRect()
+      const fr = first.getBoundingClientRect()
+      const { capTop, baseline } = metrics(first)
+      const put = (el: HTMLElement, x: number, y: number) => {
+        el.style.transform = `translate(${x}px, ${y}px)`
+        el.style.visibility = 'visible'
+      }
+      const size = right.offsetWidth
+      const gap = dot ? size * 0.3 : sideGap
+      const yOf = (r: DOMRect) => (dot ? r.top - wr.top + baseline - size : r.top - wr.top + capTop)
+      const stop = (k: number) => {
+        if (k === 0) return { x: dot ? fr.left - wr.left : markW + strokeGap, y: yOf(fr) }
+        const r = charRefs.current[k - 1]!.getBoundingClientRect()
+        return { x: r.right - wr.left + gap, y: yOf(r) }
+      }
+      const k = Math.min(n - 1, Math.floor(pos))
+      let a = stop(k)
+      const b = stop(Math.min(n, k + 1))
+      const f = pos >= n ? 1 : pos - k
+      // A new line: no sweep back across the page; the mark starts again at the head of the line.
+      if (a.y !== b.y) a = { x: charRefs.current[k]!.getBoundingClientRect().left - wr.left, y: b.y }
+      if (!dot && leftRef.current) put(leftRef.current, 0, yOf(fr))
+      put(right, lerp(a.x, b.x, f), b.y)
     }
-    // The mark's stops: before the name, then just after each letter. It glides between them.
-    const size = right.offsetWidth
-    const gap = dot ? size * 0.3 : sideGap
-    const yOf = (r: DOMRect) => (dot ? r.top - wr.top + baseline - size : r.top - wr.top + capTop)
-    const stop = (k: number) => {
-      if (k === 0) return { x: dot ? fr.left - wr.left : markW + strokeGap, y: yOf(fr) }
-      const r = charRefs.current[k - 1]!.getBoundingClientRect()
-      return { x: r.right - wr.left + gap, y: yOf(r) }
+  })
+
+  // The writing runs on the DOM, frame by frame, without re-rendering; it starts once the
+  // wordmark's font is in, so it never writes in a stand-in face.
+  useEffect(() => {
+    if (reduced) return
+    let raf = 0
+    let live = true
+    const el = wrapRef.current
+    const cs = el && getComputedStyle(el)
+    // (The font shorthand takes no percentage width: the variable font's one file covers every width.)
+    const loaded = cs && document.fonts ? document.fonts.load(`${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`, name).catch(() => {}) : Promise.resolve()
+    Promise.race([loaded, new Promise((r) => setTimeout(r, 900))]).then(() => {
+      if (!live) return
+      const t0 = performance.now()
+      const tick = (now: number) => {
+        const e = Math.min(total, now - t0) - DELAY_MS
+        const pos = dot ? Math.min(n, Math.max(0, e) / CHAR_MS) : e < split ? easeOut(Math.max(0, e) / split) : Math.min(n, 1 + (e - split) / CHAR_MS)
+        // A letter appears as the mark crosses its middle.
+        const shown = Math.floor(pos + 0.5)
+        charRefs.current.forEach((c, i) => c && (c.style.visibility = i < shown ? 'visible' : 'hidden'))
+        place.current(pos)
+        if (now - t0 < total) raf = requestAnimationFrame(tick)
+        else setDone(true)
+      }
+      raf = requestAnimationFrame(tick)
+    })
+    return () => {
+      live = false
+      cancelAnimationFrame(raf)
     }
-    const k = Math.min(n - 1, Math.floor(pos))
-    let a = stop(k)
-    const b = stop(Math.min(n, k + 1))
-    const f = pos >= n ? 1 : pos - k
-    // A new line: no sweep back across the page; the mark starts again at the head of the line.
-    if (a.y !== b.y) a = { x: charRefs.current[k]!.getBoundingClientRect().left - wr.left, y: b.y }
-    const p = { x: lerp(a.x, b.x, f), y: b.y }
-    if (!dot && leftRef.current) {
-      put(leftRef.current, 0, yOf(fr))
-      leftRef.current.style.visibility = 'visible'
+  }, [reduced, total, dot, n, split, name])
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const read = () => {
+      setFont(parseFloat(getComputedStyle(el).fontSize) || 44)
+      if (finished) place.current(n)
     }
-    put(right, p.x, p.y)
-    right.style.visibility = 'visible'
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    // A late web font changes the letters' sizes: place the marks again.
+    document.fonts?.ready.then(() => finished && place.current(n))
+    return () => ro.disconnect()
+  }, [finished, n])
+  // Once written (or with reduced motion), the marks sit at the end.
+  useLayoutEffect(() => {
+    if (finished) place.current(n)
   })
 
   return (
@@ -129,7 +148,7 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
         ref={rightRef}
         aria-hidden
         className="pointer-events-none invisible absolute left-0 top-0 block"
-        style={dot ? { width: Math.round(font * 0.2), aspectRatio: '1', background: 'currentColor', animation: done ? 'none' : 'dot-cursor 0.9s steps(1) infinite' } : undefined}
+        style={dot ? { width: Math.round(font * 0.2), aspectRatio: '1', background: 'currentColor', animation: finished ? 'none' : 'dot-cursor 0.9s steps(1) infinite' } : undefined}
       >
         {!dot && <QuoteStroke side="right" height={markH} />}
       </span>
@@ -140,7 +159,7 @@ export function NameOpen({ name, division, className = '' }: { name: string; div
           ref={(el) => {
             charRefs.current[i] = el
           }}
-          style={{ visibility: i < shown ? 'visible' : 'hidden' }}
+          style={{ visibility: finished ? 'visible' : 'hidden' }}
         >
           {c}
         </span>

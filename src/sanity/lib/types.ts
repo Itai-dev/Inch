@@ -31,6 +31,8 @@ export type TalentCard = {
   coverSrc?: string
   /** The first few book images, where a query asks for them (the home page's name strip). */
   pics?: SanityImage[] | null
+  /** The first few covers and ads, where a query asks for them (the home page's selected work). */
+  work?: SanityImage[] | null
 }
 
 export type Talent = TalentCard & {
