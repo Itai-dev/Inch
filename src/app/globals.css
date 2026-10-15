@@ -137,7 +137,7 @@ body:has([data-hero="intro"]) [data-site-header],
 body:has([data-hero="open"]) [data-site-header] {
   visibility: hidden;
 }
-/* Over the video: plain white. Once past it: inverse against what's behind. */
+/* At the top, over the video: plain white. From the first scroll: inverse against what's behind. */
 body:has([data-hero]:not([data-scrolled="1"])) [data-site-header] {
   mix-blend-mode: normal;
 }
