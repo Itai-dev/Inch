@@ -61,6 +61,31 @@ function Hand({ at: ms, children }: { at: number; children: React.ReactNode }) {
   )
 }
 
+/** Where the small print's top edge crosses the clip: a share of the clip's height from its top. */
+const CLIP_EDGE = '36%'
+
+/** One copy of the paper clip (see the sheet): `back` under the small print, `front` over it. */
+function Clip({ layer }: { layer: 'back' | 'front' }) {
+  // The front copy hides the inner leg (a band down the left of the clip) below the paper's edge.
+  const mask = `linear-gradient(to bottom, #000 ${CLIP_EDGE}, transparent ${CLIP_EDGE}), linear-gradient(to right, #000 9%, transparent 9%, transparent 38%, #000 38%)`
+  return (
+    <span
+      aria-hidden
+      className={`sheet-clip absolute left-[37%] top-[4.9%] block aspect-[164/560] h-[17%] -rotate-[7deg] ${layer === 'back' ? 'z-[5]' : 'z-20'}`}
+      style={{ '--at': '1350ms' } as React.CSSProperties}
+    >
+      <Image
+        src="/contact/paperclip.png"
+        alt=""
+        fill
+        sizes="40px"
+        className="object-contain drop-shadow-[0_2px_2px_rgb(0_0_0/0.3)]"
+        style={layer === 'front' ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+      />
+    </span>
+  )
+}
+
 /**
  * Contact, in one screen: a contact sheet in the middle of the page (a print clipped over a
  * larger one, with pencilled notes) and the details either side, typing themselves in.
@@ -123,10 +148,11 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
               <Image src={small} alt="" fill sizes="(min-width: 768px) 18vw, 45vw" unoptimized={small.endsWith('.svg')} className={`object-cover object-top grayscale ${bookPic ? '' : 'origin-[50%_12%] scale-[1.9]'}`} />
             </div>
           </div>
-          {/* The clip holding the two prints together, where the small one lies over the large one; it lands with them. */}
-          <span className="sheet-clip absolute left-[37%] top-[3%] z-20 block aspect-[386/640] h-[21%]" style={at(1350)}>
-            <Image src="/contact/paperclip.png" alt="" fill sizes="80px" className="-rotate-[12deg] object-contain drop-shadow-[0_3px_3px_rgb(0_0_0/0.28)]" />
-          </span>
+          {/* The paper clip, gripping the small print's top edge (and the large one under it): drawn
+              twice, behind the small print and in front of it, the front copy without its inner leg
+              below the edge, so that leg runs behind the paper. It lands with the prints. */}
+          <Clip layer="back" />
+          <Clip layer="front" />
           <p aria-hidden className="absolute bottom-[-1%] right-[3%] z-20 -rotate-1 text-right text-[clamp(17px,1.5vw,24px)] leading-[1.05] text-[#4a4a47]">
             <Hand at={2150}>Fig. 001 {model?.name ?? 'The board'}</Hand>
             <Hand at={2650}>in {city}</Hand>
