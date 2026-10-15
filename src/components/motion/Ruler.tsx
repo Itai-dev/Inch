@@ -34,9 +34,13 @@ export type RulerProps = {
   className?: string
 }
 
-export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10, tickH = 8, minors = 3, reduced, duration = 500, easing = EASE, className = '' }: RulerProps) {
+export function Ruler({ count: N, pos, active, onSelect, segW: segWidth = 32, fontPx = 10, tickH = 8, minors = 3, reduced, duration = 500, easing = EASE, className = '' }: RulerProps) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(1200)
+  // Every tick on a whole pixel: an inch a whole number of pixels per tick (else ticks every 4.8px
+  // smear across two pixels and look uneven), and the tape centred on a whole pixel.
+  const segW = Math.max(minors + 1, Math.round(segWidth / (minors + 1)) * (minors + 1))
+  const mid = Math.round(w / 2)
 
   useEffect(() => {
     const el = boxRef.current
@@ -80,8 +84,9 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
       onClick={onClick}
     >
       <div
-        className="absolute inset-y-0 left-1/2"
+        className="absolute inset-y-0"
         style={{
+          left: mid,
           transform: `translateX(${-(pos + 0.5) * segW}px)`,
           transition: reduced ? 'none' : `transform ${duration}ms ${easing}`,
           willChange: 'transform',
