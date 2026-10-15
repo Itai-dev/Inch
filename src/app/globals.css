@@ -242,30 +242,14 @@ body:has([data-model-sheet], [data-sheet]) > footer {
 }
 
 /* Contact sheet, put together as the page opens: the prints drop onto it from a slight turn, the
-   paper clip draws itself, and the pencilled notes write in, a line at a time. */
+   paper clip slips on to hold them, and the pencilled notes write in, a line at a time. */
 @keyframes print-drop { from { opacity: 0; transform: translateY(-28px) rotate(var(--turn, 0deg)) scale(1.04); } to { opacity: 1; transform: none; } }
 @keyframes hand-write { from { clip-path: inset(-30% 100% -30% -10%); } to { clip-path: inset(-30% -10% -30% -10%); } }
-@keyframes wire-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes clip-on { from { opacity: 0; transform: translateY(-14px) scale(1.06); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: no-preference) {
   .sheet-print { animation: print-drop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--at, 0ms) both; }
   .hand-line { animation: hand-write 0.75s cubic-bezier(0.45, 0.05, 0.55, 0.95) var(--at, 0ms) both; }
-  .clip-draw path { stroke-dasharray: 1; animation: wire-draw 0.7s ease-in-out var(--at, 0ms) both; }
-}
-
-/* Fluted (reeded) glass: what's behind blurs, and each reed bends the light: bright on one edge,
-   shaded on the other, with a fine dark seam between reeds. */
-.fluted-glass {
-  -webkit-backdrop-filter: blur(9px) saturate(1.15) brightness(1.04);
-  backdrop-filter: blur(9px) saturate(1.15) brightness(1.04);
-  background-color: rgb(255 255 255 / 0.12);
-  background-image:
-    repeating-linear-gradient(90deg,
-      rgb(255 255 255 / 0.26) 0,
-      rgb(255 255 255 / 0.08) 6px,
-      rgb(255 255 255 / 0) 13px,
-      rgb(0 0 0 / 0.05) 22px,
-      rgb(0 0 0 / 0.11) 29px,
-      rgb(0 0 0 / 0.16) 30px);
+  .sheet-clip { animation: clip-on 0.45s cubic-bezier(0.3, 0.9, 0.3, 1.2) var(--at, 0ms) both; }
 }
 
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */

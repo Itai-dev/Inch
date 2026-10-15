@@ -61,11 +61,11 @@ function Hand({ at: ms, children }: { at: number; children: React.ReactNode }) {
   )
 }
 
-/** A paper clip, drawn in one wire (and drawing itself in). */
+/** A paper clip, in one wire. (Stand-in until the photographed clip arrives.) */
 function Clip({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg viewBox="0 0 24 64" fill="none" aria-hidden className={className} style={style}>
-      <path d="M8 22V50a6 6 0 0 0 12 0V12a9 9 0 0 0-18 0v40a11 11 0 0 0 22 0V24" stroke="#7e7e7a" strokeWidth="1.8" strokeLinecap="round" pathLength={1} />
+      <path d="M8 22V50a6 6 0 0 0 12 0V12a9 9 0 0 0-18 0v40a11 11 0 0 0 22 0V24" stroke="#7e7e7a" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
@@ -132,7 +132,8 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
               <Image src={small} alt="" fill sizes="(min-width: 768px) 18vw, 45vw" unoptimized={small.endsWith('.svg')} className={`object-cover object-top grayscale ${bookPic ? '' : 'origin-[50%_12%] scale-[1.9]'}`} />
             </div>
           </div>
-          <Clip className="clip-draw absolute left-[8%] top-[7%] z-20 h-[14%] w-auto" style={at(950)} />
+          {/* The clip holding the two prints together, where the small one lies over the large one; it lands with them. */}
+          <Clip className="sheet-clip absolute left-[40%] top-[6%] z-20 h-[15%] w-auto" style={at(1350)} />
           <p aria-hidden className="absolute bottom-[-1%] right-[3%] z-20 -rotate-1 text-right text-[clamp(17px,1.5vw,24px)] leading-[1.05] text-[#4a4a47]">
             <Hand at={2150}>Fig. 001 {model?.name ?? 'The board'}</Hand>
             <Hand at={2650}>in {city}</Hand>
