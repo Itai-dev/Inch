@@ -19,6 +19,7 @@ import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
 import { NameOpen } from './motion/NameOpen'
 import { Ruler } from './motion/Ruler'
+import { ThemeToggle, useTheme } from './ThemeToggle'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
 import { useSelection } from './selection/SelectionProvider'
@@ -195,7 +196,11 @@ export function ModelSheet({
   const { has, toggle } = useSelection()
   const selected = talent ? has(talent._id) : false
   const handle = instagram?.replace('@', '')
-  const stats = measurements ? measurementRows(measurements, division, unit) : []
+  // Both units, so each value keeps the width of the wider one and nothing moves when switching.
+  const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
+  const statsCm = measurements ? measurementRows(measurements, division, 'cm') : []
+  const stats = unit === 'in' ? statsIn : statsCm
+  const [theme, setTheme] = useTheme(division === 'men' ? 'dark' : 'light')
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
@@ -215,9 +220,16 @@ export function ModelSheet({
     stats.length ? (
       <div className={className}>
         <dl className="contents">
-          {stats.map(([k, v]) => (
+          {stats.map(([k, v], i) => (
             <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
-              <dt className="inline" style={narrow}>{k}</dt> <dd className="inline font-bold normal-case">{v}</dd>
+              <dt className="inline" style={narrow}>{k}</dt>{' '}
+              <dd className="inline-grid font-bold normal-case">
+                {[statsIn[i][1], statsCm[i][1]].map((x, j) => (
+                  <span key={j} aria-hidden={x !== v || undefined} className={`[grid-area:1/1] ${x === v ? '' : 'invisible'}`}>
+                    {x}
+                  </span>
+                ))}
+              </dd>
             </div>
           ))}
         </dl>
@@ -234,20 +246,23 @@ export function ModelSheet({
       role="dialog"
       aria-modal="true"
       aria-label={name}
+      data-theme={theme === 'dark' ? 'dot' : 'light'}
       className="model-sheet fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg"
     >
       {/* Top rail: name | stats in one line | close */}
-      <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-8 md:py-0">
+      <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-8 md:py-0">
         <div className="flex items-start justify-between gap-4">
-          <NameOpen name={name} division={division} className="wordmark text-[clamp(32px,3vw,44px)] uppercase" />
+          <NameOpen name={name} division={division} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap" />
+          <ThemeToggle theme={theme} onChange={setTheme} className="ml-auto md:hidden" />
           <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
             <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
               <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
             </svg>
           </button>
         </div>
-        {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:gap-x-[24px] md:text-[15px]')}
-        <div className="hidden justify-end md:flex">
+        {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)] md:text-[15px]')}
+        <div className="hidden items-center justify-end gap-6 md:flex">
+          <ThemeToggle theme={theme} onChange={setTheme} />
           <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
             <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
               <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />

@@ -209,15 +209,12 @@ function selectedWork(talents: TalentCardType[]): Work[] {
  * the pieces unveil one after another, left to right, each rising from the bottom of its frame and
  * settling from a closer crop, then its caption types in. Phones swipe along it.
  */
-export function SelectedWork({ site, talents }: { site: Site; talents: TalentCardType[] }) {
+export function SelectedWork({ talents }: { talents: TalentCardType[] }) {
   const work = selectedWork(talents)
   if (!work.length) return null
   return (
     <section aria-labelledby="work-title" className="py-[clamp(72px,9vw,160px)]">
-      <div className="mx-[var(--gutter)] mb-8 flex items-end justify-between gap-6 border-b-2 border-fg pb-4">
-        <h2 id="work-title" className="wordmark text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected work</h2>
-        <Link href={sitePath(site, '/models')} className="label hover:opacity-60">All models →</Link>
-      </div>
+      <h2 id="work-title" className="wordmark mx-[var(--gutter)] mb-6 text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected work</h2>
       <TypeOnView>
         <ol className="flex snap-x snap-mandatory gap-[3px] overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-5 md:overflow-visible">
           {work.map((w, i) => {
@@ -262,8 +259,7 @@ export function SelectedWork({ site, talents }: { site: Site; talents: TalentCar
 export function ApplyCallout({ site }: { site: Site }) {
   return (
     <section className="px-gutter pb-[clamp(80px,10vw,180px)]">
-      <Link href={sitePath(site, '/apply')} className="group flex flex-col gap-5 border-t-2 border-fg pt-6 md:flex-row md:items-end md:justify-between">
-        <span className="label text-muted">Become a model</span>
+      <Link href={sitePath(site, '/apply')} className="group block w-fit">
         <span className="wordmark text-[clamp(64px,12vw,220px)] uppercase leading-[0.8] transition-[letter-spacing] duration-500 ease-[var(--ease-out)] group-hover:tracking-[0.02em]">
           Get scouted →
         </span>

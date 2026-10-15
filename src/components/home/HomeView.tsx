@@ -80,7 +80,7 @@ function Story({ site, home, talents, overlap = false }: { site: Site; home: Hom
       <StorySection site={site} chapters={home?.story} talents={talents} />
       <IntroSection text={home?.intro} images={home?.introImages} />
       <NameMarquee site={site} talents={talents} />
-      <SelectedWork site={site} talents={talents} />
+      <SelectedWork talents={talents} />
       <ApplyCallout site={site} />
     </>
   )

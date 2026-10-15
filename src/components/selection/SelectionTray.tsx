@@ -30,12 +30,17 @@ export function SelectionTray({ site }: { site: Site }) {
     }
   }
 
-  if (!open) return null
-
+  // Always there, so it can slide: in from the right as it opens, back out as it closes (with the
+  // shade fading behind it). Hidden from clicks, focus and screen readers while shut.
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setOpen(false)}>
+    <div
+      inert={!open}
+      aria-hidden={!open || undefined}
+      className={`fixed inset-0 z-50 flex justify-end transition-[background-color,visibility] duration-500 ${open ? 'visible bg-black/30' : 'invisible bg-black/0'}`}
+      onClick={() => setOpen(false)}
+    >
       <aside
-        className="flex h-full w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6"
+        className={`flex h-full w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={(e) => e.stopPropagation()}
         aria-label="Selection"
       >

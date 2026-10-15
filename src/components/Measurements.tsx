@@ -8,7 +8,7 @@ export type Unit = 'cm' | 'in'
 
 /** [label, value] pairs for the stats that are filled in. Stored in cm; shoes stay EU. */
 export function measurementRows(m: M, division: Division, unit: Unit): [string, string | number][] {
-  const len = (v?: number) => v && (unit === 'cm' ? v : cmToInches(v))
+  const len = (v?: number) => v && (unit === 'cm' ? `${v} cm` : cmToInches(v))
   const rows: [string, string | number | undefined][] = [
     ['Height', m.height && (unit === 'cm' ? `${m.height} cm` : cmToFeet(m.height))],
     [division === 'men' ? 'Chest' : 'Bust', len(m.bust)],
@@ -40,13 +40,13 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
   )
 }
 
-/** IN / CM as a switch: a black thumb slides under the chosen unit. */
+/** IN / CM as a switch: a quiet grey thumb slides under the chosen unit. */
 export function UnitToggle({ unit, onChange, className = '' }: { unit: Unit; onChange: (u: Unit) => void; className?: string }) {
   return (
-    <div role="radiogroup" aria-label="Units" className={`relative inline-grid grid-cols-2 border border-fg ${className}`}>
+    <div role="radiogroup" aria-label="Units" className={`relative inline-grid grid-cols-2 bg-surface p-[2px] ${className}`}>
       <span
         aria-hidden
-        className="absolute inset-y-0 left-0 w-1/2 bg-fg transition-transform duration-300 ease-[var(--ease-out)]"
+        className="absolute inset-y-[2px] left-[2px] w-[calc(50%-2px)] bg-bg shadow-[0_1px_3px_rgb(0_0_0/0.18)] transition-transform duration-300 ease-[var(--ease-out)]"
         style={{ transform: unit === 'cm' ? 'translateX(100%)' : 'none' }}
       />
       {(['in', 'cm'] as Unit[]).map((u) => (
@@ -56,7 +56,7 @@ export function UnitToggle({ unit, onChange, className = '' }: { unit: Unit; onC
           role="radio"
           aria-checked={unit === u}
           onClick={() => onChange(u)}
-          className={`relative px-[0.5em] py-[0.2em] leading-none transition-colors duration-300 ${unit === u ? 'text-bg' : 'text-fg hover:opacity-60'}`}
+          className={`relative px-[0.7em] py-[0.3em] leading-none transition-colors duration-300 ${unit === u ? 'text-fg' : 'text-muted hover:text-fg'}`}
         >
           {u.toUpperCase()}
         </button>

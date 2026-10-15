@@ -34,6 +34,14 @@
   --line: #2a2a2a;
   --surface: #161616;
 }
+/* Back to light inside a DOT. page (the model page's light/dark switch). */
+[data-theme="light"] {
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --muted: var(--grey-600);
+  --line: #e6e6e6;
+  --surface: #f4f4f3;
+}
 
 @theme inline {
   --color-bg: var(--bg);
