@@ -1,14 +1,19 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { isPlaceholder } from '@/lib/placeholders'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
+/** Chromium can run an SVG filter on what's behind an element (refraction); others can only blur it. */
+const refractSnapshot = () => /Chrome\//.test(navigator.userAgent)
+const noSubscribe = () => () => {}
+
 export function SelectionTray({ site }: { site: Site }) {
   const { items, remove, clear, open, setOpen } = useSelection()
+  const refracts = useSyncExternalStore(noSubscribe, refractSnapshot, () => false)
   // The selection as comp cards: one PDF, a page a model, each linking to her page on the site.
   const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}`
   const real = items.filter((t) => !isPlaceholder(t)).length
@@ -48,8 +53,16 @@ export function SelectionTray({ site }: { site: Site }) {
       className={`fixed inset-0 z-50 flex justify-end transition-[visibility] duration-500 ${open ? 'visible' : 'invisible'}`}
       onClick={() => setOpen(false)}
     >
-      {/* The page behind, blurred. */}
-      <span aria-hidden className={`absolute inset-0 bg-bg/25 backdrop-blur-xl transition-opacity duration-500 ${open ? 'opacity-100' : 'opacity-0'}`} />
+      {/* The page behind, through glass: bent by a slow ripple (where the browser can refract what's
+          behind an element: Chromium), softened, with a sheen across it. Elsewhere, a plain blur. */}
+      <svg aria-hidden className="absolute size-0">
+        <filter id="tray-glass" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.006 0.006" numOctaves="2" seed="11" result="ripple" />
+          <feGaussianBlur in="ripple" stdDeviation="6" result="soft" />
+          <feDisplacementMap in="SourceGraphic" in2="soft" scale="55" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+      <span aria-hidden className={`${refracts ? 'glass-refract' : 'glass-blur'} absolute inset-0 transition-opacity duration-500 ${open ? 'opacity-100' : 'opacity-0'}`} />
       <aside
         className={`relative flex h-full w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={(e) => e.stopPropagation()}
