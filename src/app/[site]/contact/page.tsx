@@ -66,8 +66,8 @@ const CLIP_EDGE = '36%'
 
 /** One copy of the paper clip (see the sheet): `back` under the small print, `front` over it. */
 function Clip({ layer }: { layer: 'back' | 'front' }) {
-  // The front copy hides the inner leg (a band down the left of the clip) below the paper's edge.
-  const mask = `linear-gradient(to bottom, #000 ${CLIP_EDGE}, transparent ${CLIP_EDGE}), linear-gradient(to right, #000 9%, transparent 9%, transparent 38%, #000 38%)`
+  // The front copy hides the clip's right part below the paper's edge, as if that side were behind it.
+  const mask = `linear-gradient(to bottom, #000 ${CLIP_EDGE}, transparent ${CLIP_EDGE}), linear-gradient(to right, #000 56%, transparent 56%)`
   return (
     <span
       aria-hidden
@@ -149,8 +149,8 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
             </div>
           </div>
           {/* The paper clip, gripping the small print's top edge (and the large one under it): drawn
-              twice, behind the small print and in front of it, the front copy without its inner leg
-              below the edge, so that leg runs behind the paper. It lands with the prints. */}
+              twice, behind the small print and in front of it, the front copy without its right part
+              below the edge, so that side runs behind the paper. It lands with the prints. */}
           <Clip layer="back" />
           <Clip layer="front" />
           <p aria-hidden className="absolute bottom-[-1%] right-[3%] z-20 -rotate-1 text-right text-[clamp(17px,1.5vw,24px)] leading-[1.05] text-[#4a4a47]">

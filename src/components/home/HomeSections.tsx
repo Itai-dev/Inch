@@ -211,7 +211,9 @@ export function SelectedWork({ talents }: { talents: TalentCardType[] }) {
   return (
     <section aria-labelledby="work-title" className="py-[clamp(72px,9vw,160px)]">
       <h2 id="work-title" className="wordmark mx-[var(--gutter)] mb-6 text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected work</h2>
-      <TypeOnView>
+      {/* The pictures open a little before the row is well up the screen; the captions type with the scroll. */}
+      <TypeOnView margin="-8%">
+        <TypeOnScroll>
         <ol className="flex snap-x snap-mandatory gap-[3px] overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-5 md:overflow-visible">
           {work.map((w, i) => {
             const at = i * 110
@@ -246,6 +248,7 @@ export function SelectedWork({ talents }: { talents: TalentCardType[] }) {
             )
           })}
         </ol>
+        </TypeOnScroll>
       </TypeOnView>
     </section>
   )
@@ -257,7 +260,9 @@ export function ApplyCallout({ site }: { site: Site }) {
     <section className="mx-[var(--gutter)] flex justify-end border-t-2 border-fg pb-[clamp(80px,10vw,180px)] pt-6">
       <Link href={sitePath(site, '/apply')} className="group block w-fit text-right">
         <span className="wordmark text-[clamp(64px,12vw,220px)] uppercase leading-[0.8] transition-[letter-spacing] duration-500 ease-[var(--ease-out)] group-hover:tracking-[0.02em]">
-          Get scouted →
+          Get scouted{' '}
+          {/* The arrow gives under the pointer, like a key pressed. */}
+          <span className="inline-block transition-transform duration-200 ease-[var(--ease-out)] group-hover:translate-x-[0.04em] group-hover:translate-y-[0.03em] group-hover:scale-[0.9] group-active:scale-[0.82]">→</span>
         </span>
       </Link>
     </section>

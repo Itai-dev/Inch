@@ -17,7 +17,7 @@ export function Header({ site }: { site: Site }) {
   return (
     <header
       data-site-header
-      className="sticky top-0 z-40 flex items-start justify-between px-gutter pb-4 pt-[clamp(12px,2.1vw,40px)] text-paper mix-blend-difference"
+      className="sticky top-0 z-40 flex items-center justify-between px-gutter pb-4 pt-[clamp(12px,2.1vw,40px)] text-paper mix-blend-difference"
     >
       <Link href={sitePath(site)} aria-label={`${s.brand} home`}>
         <Logo division={s.division} className="text-[48px] md:text-[70px]" />

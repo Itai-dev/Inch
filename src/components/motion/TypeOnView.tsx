@@ -5,7 +5,8 @@
  */
 import { useEffect, useRef, useState } from 'react'
 
-export function TypeOnView({ as: Tag = 'div', className, children }: { as?: 'div' | 'li' | 'p'; className?: string; children: React.ReactNode }) {
+/** `margin`: how far up from the bottom of the screen it must come first (default a quarter of it). */
+export function TypeOnView({ as: Tag = 'div', className, margin = '-25%', children }: { as?: 'div' | 'li' | 'p'; className?: string; margin?: string; children: React.ReactNode }) {
   const ref = useRef<HTMLElement>(null)
   const [seen, setSeen] = useState(false)
 
@@ -18,11 +19,11 @@ export function TypeOnView({ as: Tag = 'div', className, children }: { as?: 'div
         setSeen(true)
         io.disconnect()
       },
-      { rootMargin: '0px 0px -25% 0px' },
+      { rootMargin: `0px 0px ${margin} 0px` },
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [])
+  }, [margin])
 
   return (
     <Tag ref={ref as React.Ref<never>} data-type-wait={seen ? undefined : ''} className={className}>

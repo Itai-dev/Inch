@@ -17,9 +17,12 @@ export function TypeOnScroll({ className, children }: { className?: string; chil
   useEffect(() => {
     const el = ref.current
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    // Letters in typing order, each with its moment as a share of the last one's.
+    // Letters in typing order, each with its moment as a share of the run from the first to the last
+    // (any delay before the first letter is the clock's, not the scroll's).
     const chars = [...el.querySelectorAll<HTMLElement>('.type-char')]
-    const ats = chars.map((c) => parseFloat(c.style.getPropertyValue('--at')) || 0)
+    const at0 = chars.map((c) => parseFloat(c.style.getPropertyValue('--at')) || 0)
+    const first = Math.min(...at0)
+    const ats = at0.map((a) => a - first)
     const last = Math.max(1, ...ats)
     let shown = -1
     let raf = 0
