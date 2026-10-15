@@ -161,7 +161,8 @@ export function NameMarquee({ site, talents }: { site: Site; talents: TalentCard
   const names: StripName[] = talents.slice(0, 12).map((t) => ({ name: t.name, href: talentPath(t), pics: stripPics(t) }))
   if (!names.length) return null
   return (
-    <section aria-label="The board" className="overflow-hidden border-t-2 border-fg pb-[clamp(8px,1vw,14px)] pt-[clamp(16px,2vw,28px)]">
+    <section aria-label="The board" className="overflow-hidden border-y-2 border-fg pt-[clamp(16px,2vw,28px)]">
+      {/* The ticks stand on the bottom line: the strip is a ruler's edge. */}
       <NameStrip names={names} mark={<DivisionMark division={division} size={28} />} />
     </section>
   )

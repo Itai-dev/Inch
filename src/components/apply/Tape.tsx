@@ -6,7 +6,7 @@
  * in cm or inches; until it's touched it rests on a typical value.
  */
 import { useEffect, useRef, useState } from 'react'
-import { rulerTicks } from '@/lib/ruler'
+import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
 import { cmToFeet } from '@/lib/units'
 
 export type TapeScale = {
@@ -129,10 +129,8 @@ export function Tape({
               {mark(n)}
             </span>
             {i < marks.length - 1 ? (
-              <span className="absolute bottom-0 left-0 block h-[26px]" style={{ width: every * px, ...rulerTicks(26, Math.round(every / snap) - 1, every * px) }} />
-            ) : (
-              <span className="absolute bottom-0 left-0 block h-[26px] w-[2px] bg-current" />
-            )}
+              <span className="absolute bottom-0 left-0 block h-[26px]" style={{ width: `calc(${every * px}px + ${SEG_OVERLAP})`, ...rulerTicks(26, Math.round(every / snap) - 1, every * px) }} />
+            ) : null}
           </div>
         ))}
       </div>

@@ -71,7 +71,7 @@ export function CompCard({
       ref={card}
       // Light grey, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
       style={flat ? undefined : ({ '--bg': '#f9f9f9', '--fg': '#0a0a0a', '--muted': '#6f6f6f', '--line': '#e6e6e6' } as React.CSSProperties)}
-      className={`flex flex-col gap-5 bg-bg p-[clamp(20px,2.2vw,32px)] text-fg ${flat ? '' : 'border border-[#bcbcbc] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] will-change-transform'} ${className}`}
+      className={`flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'border border-[#bcbcbc] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] will-change-transform'} ${className}`}
     >
       <div className="label flex items-start justify-between text-[11px] text-muted">
         <span>{brand} — Application</span>
@@ -80,7 +80,7 @@ export function CompCard({
         </span>
       </div>
 
-      <p className={`wordmark text-[clamp(32px,3vw,46px)] uppercase ${name ? '' : 'text-muted/50'}`}>{name || 'Your name'}</p>
+      <p className={`wordmark text-[clamp(34px,3.4vw,54px)] uppercase ${name ? '' : 'text-muted/50'}`}>{name || 'Your name'}</p>
 
       <dl className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] uppercase">
         {stats.map(([k, v]) => (

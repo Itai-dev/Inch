@@ -75,7 +75,7 @@ export function ModelSheet({
   const [segment, setSegment] = useState(initial)
   const book = books.find((b) => b.segment === segment)
   const [view, setView] = useState<View>(book?.view ?? 'book')
-  const [unit, setUnit] = useState<Unit>('cm')
+  const [unit, setUnit] = useState<Unit>('in')
   const slides = book?.slides ?? []
   const N = slides.length
   const showBook = !!book && view === 'book' && N > 0
@@ -83,12 +83,24 @@ export function ModelSheet({
   // Stage size → pages per spread and page size.
   const stageRef = useRef<HTMLDivElement>(null)
   const [stage, setStage] = useState({ w: 1440, h: 680 })
+  // The spreads only slide when you move through the book: not while the stage is first measured
+  // or resized (else the neighbouring spreads walk across the frame as it settles on its size).
+  const [settled, setSettled] = useState(false)
   useEffect(() => {
     const el = stageRef.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setStage({ w: e.contentRect.width, h: e.contentRect.height }))
+    let t = 0
+    const ro = new ResizeObserver(([e]) => {
+      setSettled(false)
+      setStage({ w: e.contentRect.width, h: e.contentRect.height })
+      clearTimeout(t)
+      t = window.setTimeout(() => setSettled(true), 120)
+    })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      ro.disconnect()
+      clearTimeout(t)
+    }
   }, [showBook])
   const per = stage.w < 640 ? 1 : 2
   // Spreads: two portrait pages side by side, or one horizontal image filling the same frame.
@@ -176,7 +188,7 @@ export function ModelSheet({
   const stats = measurements ? measurementRows(measurements, division, unit) : []
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
-  const anim = reduced ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
+  const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
   // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
   // other line writes itself in letter by letter, and the spread slides into its frame as one.
@@ -195,12 +207,12 @@ export function ModelSheet({
         <dl className="contents">
           {stats.map(([k, v]) => (
             <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
-              <dt className="inline font-bold" style={narrow}>{k}</dt> <dd className="inline normal-case">{v}</dd>
+              <dt className="inline" style={narrow}>{k}</dt> <dd className="inline font-bold normal-case">{v}</dd>
             </div>
           ))}
         </dl>
-        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write('cm in')}>
-          {(['cm', 'in'] as Unit[]).map((u) => (
+        <div className="intro-write flex gap-2 font-bold italic" role="group" aria-label="Units" style={write('in cm')}>
+          {(['in', 'cm'] as Unit[]).map((u) => (
             <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u} className={unit === u ? 'text-fg' : 'text-muted hover:text-fg'}>
               {u}
             </button>
@@ -228,7 +240,7 @@ export function ModelSheet({
             </svg>
           </button>
         </div>
-        {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] md:flex-nowrap md:gap-x-[22px] md:text-[13px]')}
+        {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:gap-x-[24px] md:text-[15px]')}
         <div className="hidden justify-end md:flex">
           <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
             <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
@@ -323,7 +335,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[13px] font-bold uppercase md:text-[14px]" style={narrow}>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[15px] font-bold uppercase md:text-[16px]" style={narrow}>
           <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
             {tabs.map((t) => (
               <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>

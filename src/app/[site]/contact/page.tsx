@@ -92,10 +92,10 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   ]
 
   return (
-    // One screen on larger screens: no scrolling, no footer (globals.css).
-    <div data-fit-screen className="md:fixed md:inset-0">
+    // The first screen under the header; scrolling on reaches the footer.
+    <div>
       <h1 className="sr-only">Contact {brand}</h1>
-      <div className="grid h-full items-center gap-y-12 px-gutter pb-16 pt-4 md:grid-cols-[1fr_auto_1fr] md:gap-x-[clamp(32px,4vw,80px)] md:pb-[clamp(24px,4vh,48px)] md:pt-[clamp(96px,13vh,150px)]">
+      <div className="grid items-center gap-y-12 px-gutter pb-16 pt-4 md:min-h-[calc(100svh-7rem)] md:grid-cols-[1fr_auto_1fr] md:gap-x-[clamp(32px,4vw,80px)] md:pb-[clamp(24px,4vh,48px)] md:pt-0">
         <div className="order-2 md:order-1">
           <Details rows={left} at={300} />
         </div>

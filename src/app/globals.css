@@ -194,12 +194,6 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 body:has([data-model-sheet], [data-sheet]) {
   overflow: hidden;
 }
-/* One-screen pages (contact): no scrolling and no footer, from tablet up. */
-@media (min-width: 768px) {
-  body:has([data-fit-screen]) { overflow: hidden; }
-  body:has([data-fit-screen]) > footer { display: none; }
-  body:has([data-fit-screen]) > main { min-height: 0; }
-}
 body:has([data-model-sheet], [data-sheet]) [data-site-header],
 body:has([data-model-sheet], [data-sheet]) > footer {
   display: none;

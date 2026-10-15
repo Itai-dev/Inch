@@ -96,7 +96,8 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
               >
                 {pad2(mod(k, N) + 1)}
               </span>
-              <span className="absolute bottom-0 block" style={{ left: k * segW, width: segW, height: tickH, ...tickBg }} />
+              {/* 1px wider than its inch, so its closing tick lies on the next one's opening tick. */}
+              <span className="absolute bottom-0 block" style={{ left: k * segW, width: segW + 1, height: tickH, ...tickBg }} />
             </div>
           )
         })}

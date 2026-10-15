@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { isPlaceholder } from '@/lib/placeholders'
-import { rulerTicks, rulerTicksDown } from '@/lib/ruler'
+import { rulerTicks, rulerTicksDown, SEG_OVERLAP } from '@/lib/ruler'
 import { talentPath } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import type { TalentCard as TalentCardType } from '@/sanity/lib/types'
@@ -40,8 +40,9 @@ export function TalentCard({ talent, priority, n }: { talent: TalentCardType; pr
         </h3>
       </Link>
       {n !== undefined && (
-        <span aria-hidden className="ruler-seg relative mt-4 block h-[30px]" style={{ width: `calc(100% + ${BOARD_GAP})` }}>
-          <span className="absolute left-0 top-0 -translate-x-1/2 text-[11px] font-extrabold tabular-nums leading-none">{String(n).padStart(2, '0')}</span>
+        <span aria-hidden className="ruler-seg relative mt-4 block h-[30px]" style={{ width: `calc(100% + ${BOARD_GAP} + ${SEG_OVERLAP})` }}>
+          {/* Her number in the middle of her inch, as on the hero ruler. */}
+          <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-extrabold tabular-nums leading-none">{String(n).padStart(2, '0')}</span>
           <span className="ruler-draw absolute inset-x-0 bottom-0 block h-4" style={rulerTicks(16, 9)} />
         </span>
       )}
@@ -78,8 +79,8 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
         return (
           <li key={t._id} className="ruler-cell">
             <Link href={talentPath(t)} className="group grid grid-cols-[3.5rem_56px_1fr_auto] items-center gap-x-4 md:grid-cols-[6rem_72px_1fr_auto] md:gap-x-8">
-              <span aria-hidden className="ruler-seg relative self-stretch" style={rulerTicksDown(26, 9)}>
-                <span className="absolute left-[34px] top-[-6px] text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
+              <span aria-hidden className="ruler-seg relative self-stretch" style={{ ...rulerTicksDown(26, 9), marginBottom: `-${SEG_OVERLAP}` }}>
+                <span className="absolute left-[34px] top-1/2 -translate-y-1/2 text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
               </span>
               <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}

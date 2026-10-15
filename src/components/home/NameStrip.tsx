@@ -8,7 +8,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { rulerTicksPitch } from '@/lib/ruler'
+import { rulerTicksPitch, SEG_OVERLAP } from '@/lib/ruler'
 
 export type StripName = { name: string; href: string; pics: string[] }
 
@@ -59,8 +59,8 @@ export function NameStrip({ names, mark }: { names: StripName[]; mark: React.Rea
             {mark}
           </span>
           {/* Her stretch of the ruler, reaching to the next name. */}
-          <span aria-hidden className="ruler-seg relative mt-[clamp(10px,1.2vw,18px)] block h-[30px]">
-            <span className="absolute left-0 top-0 -translate-x-1/2 text-[11px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
+          <span aria-hidden className="ruler-seg relative mt-[clamp(10px,1.2vw,18px)] block h-[30px]" style={{ width: `calc(100% + ${SEG_OVERLAP})` }}>
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
             <span className="ruler-draw absolute inset-x-0 bottom-0 block h-4" style={rulerTicksPitch(16, 12)} />
           </span>
         </li>

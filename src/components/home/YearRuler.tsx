@@ -6,7 +6,7 @@
  * the screen's edges so the ruler never ends in view.
  */
 import { useEffect, useRef } from 'react'
-import { rulerTicks } from '@/lib/ruler'
+import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
 
 const YEAR_W = 160
 /** Years drawn before the first and after the last: enough to reach the edges of a wide screen. */
@@ -29,7 +29,8 @@ export function YearRuler({ from, to }: { from: number; to: number }) {
         const r = el.getBoundingClientRect()
         // 0 as the band comes up from the bottom of the screen, 1 as it leaves at the top.
         const p = reduce ? 1 : Math.min(1, Math.max(0, (innerHeight - r.bottom) / (innerHeight - r.height)))
-        t.style.transform = `translateX(${(el.clientWidth / 2 - (PAD + p * (to - from)) * YEAR_W).toFixed(1)}px)`
+        // The needle stands in the middle of the year it reads, under its number.
+        t.style.transform = `translateX(${(el.clientWidth / 2 - (PAD + p * (to - from) + 0.5) * YEAR_W).toFixed(1)}px)`
       })
     }
     move()
@@ -45,10 +46,10 @@ export function YearRuler({ from, to }: { from: number; to: number }) {
   return (
     <div ref={band} aria-hidden className="relative h-14 overflow-hidden">
       <div ref={track} className="absolute bottom-0 left-0 flex will-change-transform">
-        {years.map((y, i) => (
-          <span key={y} className="relative flex h-10 shrink-0 flex-col justify-between" style={{ width: i < years.length - 1 ? YEAR_W : 2 }}>
-            <span className="-translate-x-1/2 self-start text-[12px] font-bold leading-none tabular-nums">{y}</span>
-            <span className="block h-[18px]" style={i < years.length - 1 ? rulerTicks(18, 11, YEAR_W) : { width: 2, background: 'currentColor' }} />
+        {years.map((y) => (
+          <span key={y} className="relative flex h-10 shrink-0 flex-col items-center justify-between" style={{ width: YEAR_W }}>
+            <span className="text-[12px] font-bold leading-none tabular-nums">{y}</span>
+            <span className="block h-[18px] self-start" style={{ width: `calc(100% + ${SEG_OVERLAP})`, ...rulerTicks(18, 11, YEAR_W) }} />
           </span>
         ))}
       </div>

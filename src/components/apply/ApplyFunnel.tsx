@@ -67,13 +67,13 @@ const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A pa
 
 const narrow = { fontStretch: '80%' } as const
 const big =
-  'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.9vw,26px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
-const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(18px,1.5vw,22px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
+  'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
+const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.7vw,25px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
     <label className={`flex min-w-0 flex-col gap-2 ${className}`}>
-      <span className="text-[12px] font-bold uppercase tracking-[0.04em]" style={narrow}>{label}</span>
+      <span className="text-[13px] font-bold uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
     </label>
@@ -304,15 +304,18 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   )
 
   if (!body) body = (
-    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
-      <StepRuler
-        steps={STEP_NAMES}
-        current={number - 1}
-        reached={furthest - 1}
-        onSelect={(i) => go(flow.find((s) => NUMBER[s] === i + 1) ?? step)}
-      />
+      {/* A small ruler: the form and the card are the page. */}
+      <div className="mx-auto w-full max-w-[620px]">
+        <StepRuler
+          steps={STEP_NAMES}
+          current={number - 1}
+          reached={furthest - 1}
+          onSelect={(i) => go(flow.find((s) => NUMBER[s] === i + 1) ?? step)}
+        />
+      </div>
       <h1 className="sr-only">{TITLE[step]}</h1>
 
       {/* Phones: the comp card folds into a strip above the form. */}
@@ -338,10 +341,10 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
       </details>
 
       {/* The form and the card, centred in the space under the ruler. */}
-      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,580px)_minmax(0,400px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(64px,8vw,128px)] md:py-10">
-        <div className="flex flex-col gap-9">
+      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,680px)_minmax(0,480px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(72px,9vw,160px)] md:py-10">
+        <div className="flex flex-col gap-12">
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
               <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
@@ -356,7 +359,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'guardian' && (
-            <form className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
               <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {GUARDIAN_AGE}, so we’ll speak to a parent or guardian first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
@@ -403,7 +406,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               </div>
               {/* Each size is a closed field; tap one and its tape opens below, full width. */}
               <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-10 sm:grid-cols-4">
                   {SIZE_KEYS.map((k) => {
                     const shown = sizeShown(k)
                     const open = openSize === k
@@ -421,7 +424,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                             if (!shown.value) setSize(k, shown.start)
                             setOpenSize(k)
                           }}
-                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(18px,1.5vw,22px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
+                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
                         >
                           <span className={`min-w-0 flex-1 truncate ${shown.value ? '' : 'text-muted/40'}`}>{half(shown.value ?? shown.start)}</span>
                           <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
@@ -455,7 +458,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
@@ -512,7 +515,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
 
           {step === 'send' && (
-            <form className="grid grid-cols-1 gap-x-8 gap-y-9 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
+            <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
               <Field label="Instagram"><input className={big} placeholder="@handle" value={d.instagram} onChange={(e) => set('instagram', e.target.value)} /></Field>
               <Field label="TikTok"><input className={big} placeholder="@handle" value={d.tiktok} onChange={(e) => set('tiktok', e.target.value)} /></Field>
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">
