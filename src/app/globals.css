@@ -34,6 +34,14 @@
   --line: #2a2a2a;
   --surface: #161616;
 }
+/* Back to light inside a DOT. page (the model page's light/dark switch). */
+[data-theme="light"] {
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --muted: var(--grey-600);
+  --line: #e6e6e6;
+  --surface: #f4f4f3;
+}
 
 @theme inline {
   --color-bg: var(--bg);
@@ -51,6 +59,9 @@
 html {
   background: var(--bg);
   transition: background-color 0.4s var(--ease-out);
+  /* Keep room for the scrollbar from the first paint, so nothing centred jumps sideways
+     when it appears (or when a sheet locks the scroll). */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -106,6 +117,13 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* Hard on/off cut, like a cursor blink (steps(1, end) holds each keyframe). */
+@keyframes hero-blink {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  50% { opacity: 0; }
+  70%, 100% { opacity: 1; }
+}
 @keyframes hero-type {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
@@ -119,7 +137,7 @@ body:has([data-hero="intro"]) [data-site-header],
 body:has([data-hero="open"]) [data-site-header] {
   visibility: hidden;
 }
-/* Over the video at the very top: plain white. Once you scroll: inverse against what's behind. */
+/* At the top, over the video: plain white. From the first scroll: inverse against what's behind. */
 body:has([data-hero]:not([data-scrolled="1"])) [data-site-header] {
   mix-blend-mode: normal;
 }
@@ -163,4 +181,88 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 }
 .site-switch:active {
   transform: scale(1.12);
+}
+
+/* ── Model page (ModelSheet): a full-screen sheet over the site ───────────── */
+.model-sheet {
+  transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+/* Opening (data-intro, first open only), all at once: text writes in letter by letter
+   (one step per letter, --n), the spread slides into its frame as one, the ruler fades up. */
+@keyframes crop-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-intro] .intro-write { animation: hero-type var(--t, 0.3s) steps(var(--n, 6)) both; animation-delay: var(--d, 0ms); }
+  [data-intro] .intro-crop > [data-current], [data-intro] ul.intro-crop img { animation: crop-in 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; animation-delay: var(--d, 0ms); }
+  [data-intro] .intro-fade { animation: hero-fade 0.6s var(--ease-out) both; animation-delay: var(--d, 0ms); }
+}
+/* Full-screen sheets (model page, apply): no site header, footer or page scroll behind them. */
+body:has([data-model-sheet], [data-sheet]) {
+  overflow: hidden;
+}
+body:has([data-model-sheet], [data-sheet]) [data-site-header],
+body:has([data-model-sheet], [data-sheet]) > footer {
+  display: none;
+}
+
+/* Board rulers: every model sits on her stretch of the INCH” ruler. Quiet at rest; hovering a
+   model brings hers to full strength and fades the rest. */
+.ruler-seg { opacity: 0.4; transition: opacity 0.3s; }
+.ruler-board:has(.ruler-cell:hover) .ruler-seg { opacity: 0.16; }
+.ruler-board .ruler-cell:hover .ruler-seg { opacity: 1; }
+@keyframes ruler-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    /* Each segment draws itself in, left to right, as its row comes up the screen. */
+    .ruler-draw { animation: ruler-draw linear both; animation-timeline: view(); animation-range: entry 0% entry 100%; }
+  }
+}
+
+/* Home: the board's names running past; still with reduced motion. */
+.marquee-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--fg);
+}
+@keyframes marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: no-preference) {
+  .marquee-track { animation: marquee 60s linear infinite; }
+  .marquee-track:hover, .marquee-track:focus-within { animation-play-state: paused; }
+}
+
+/* Home, selected work: each piece unveils from the bottom as it comes into view (TypeOnView),
+   the picture settling from a closer crop as it opens. */
+@keyframes work-unveil { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes work-settle { from { transform: scale(1.3) translateY(6%); } to { transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .work-frame { animation: work-unveil 1.1s cubic-bezier(0.76, 0, 0.24, 1) var(--at, 0ms) both; }
+  .work-pic { animation: work-settle 1.6s cubic-bezier(0.22, 0.8, 0.25, 1) var(--at, 0ms) both; }
+  [data-type-wait] .work-frame, [data-type-wait] .work-pic { animation-play-state: paused; }
+}
+
+/* Contact sheet, put together as the page opens: the prints drop onto it from a slight turn, the
+   paper clip slips on to hold them, and the pencilled notes write in, a line at a time. */
+@keyframes print-drop { from { opacity: 0; transform: translateY(-28px) rotate(var(--turn, 0deg)) scale(1.04); } to { opacity: 1; transform: none; } }
+@keyframes hand-write { from { clip-path: inset(-30% 100% -30% -10%); } to { clip-path: inset(-30% -10% -30% -10%); } }
+@keyframes clip-on { from { opacity: 0; transform: translateY(-14px) scale(1.06); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-print { animation: print-drop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--at, 0ms) both; }
+  .hand-line { animation: hand-write 0.75s cubic-bezier(0.45, 0.05, 0.55, 0.95) var(--at, 0ms) both; }
+  .sheet-clip { animation: clip-on 0.45s cubic-bezier(0.3, 0.9, 0.3, 1.2) var(--at, 0ms) both; }
+}
+
+/* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
+@keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  /* steps(1, start): on as soon as its moment comes (end would flicker back off at a progress of 0.9999…).
+     The extra 1ms keeps a letter due at 0 hidden while TypeOnView holds it. */
+  .type-char { animation: type-char 1ms steps(1, start) calc(var(--at, 0ms) + 1ms) both; }
+  /* Grows in at its moment (a button after typed lines). */
+  .scale-in { animation: scale-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1.15) var(--at, 0ms) both; }
+  /* TypeOnView: held until in view. */
+  [data-type-wait] .type-char { animation-play-state: paused; }
+  /* TypeOnScroll: each letter shown by the scroll, not the clock. */
+  [data-type-scroll] .type-char { animation: none; opacity: 0; }
 }

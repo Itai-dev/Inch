@@ -8,6 +8,7 @@
  * always slides the short way round; numbers wrap with `mod`.
  */
 import { useEffect, useRef, useState } from 'react'
+import { rulerTicks } from '@/lib/ruler'
 
 const EASE = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
@@ -33,9 +34,13 @@ export type RulerProps = {
   className?: string
 }
 
-export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10, tickH = 8, minors = 3, reduced, duration = 500, easing = EASE, className = '' }: RulerProps) {
+export function Ruler({ count: N, pos, active, onSelect, segW: segWidth = 32, fontPx = 10, tickH = 8, minors = 3, reduced, duration = 500, easing = EASE, className = '' }: RulerProps) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(1200)
+  // Every tick on a whole pixel: an inch a whole number of pixels per tick (else ticks every 4.8px
+  // smear across two pixels and look uneven), and the tape centred on a whole pixel.
+  const segW = Math.max(minors + 1, Math.round(segWidth / (minors + 1)) * (minors + 1))
+  const mid = Math.round(w / 2)
 
   useEffect(() => {
     const el = boxRef.current
@@ -53,25 +58,16 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
   // Numbers sit just above the ticks.
   const labelH = Math.round(fontPx * 1.05)
   const height = labelH + Math.round(fontPx * 0.15) + tickH
-  const majorW = tickH >= 24 ? 2 : 1
-  const sub = segW / (minors + 1)
-  const tickBg = {
-    backgroundImage: [
-      'linear-gradient(currentColor, currentColor)',
-      'linear-gradient(currentColor, currentColor)',
-      `repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px ${sub}px)`,
-    ].join(','),
-    backgroundSize: `${majorW}px ${tickH}px, 1px ${Math.round(tickH * 0.7)}px, 100% ${Math.round(tickH * 0.45)}px`,
-    backgroundPosition: 'left bottom, 50% bottom, left bottom',
-    backgroundRepeat: 'no-repeat',
-  } as const
+  const tickBg = rulerTicks(tickH, minors, segW)
 
-  // Faded tape (Figma Make carousel): only the centre is at full strength, falling away to the sides.
-  const half = segW * (0.53 + (Math.max(1, active.length) - 1) * 0.5)
-  const mask = [
-    `linear-gradient(to right, transparent, rgba(0,0,0,0.12) calc(50% - ${half + segW * 2.6}px), rgba(0,0,0,0.38) calc(50% - ${half + segW * 0.6}px), black calc(50% - ${half}px), black calc(50% + ${half}px), rgba(0,0,0,0.38) calc(50% + ${half + segW * 0.6}px), rgba(0,0,0,0.12) calc(50% + ${half + segW * 2.6}px), transparent)`,
-    `radial-gradient(ellipse ${Math.round(segW * 7)}px 100% at 50% 50%, rgba(0,0,0,0.5) 0%, transparent 100%)`,
-  ].join(', ')
+  // Faded tape: the selected inches at full strength, each inch further out a step fainter, every
+  // tick of an inch alike (an inch is lit whole); only the far ends fade into the edges.
+  const lit = (Math.max(1, active.length) - 1) / 2
+  const strength = (k: number) => {
+    const d = Math.round(Math.max(0, Math.abs(k - pos) - lit))
+    return d === 0 ? 1 : Math.max(0.1, 0.4 - (d - 1) * 0.1)
+  }
+  const mask = 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)'
 
   // Click a number to go to it (no dragging).
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -88,8 +84,9 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
       onClick={onClick}
     >
       <div
-        className="absolute inset-y-0 left-1/2"
+        className="absolute inset-y-0"
         style={{
+          left: mid,
           transform: `translateX(${-(pos + 0.5) * segW}px)`,
           transition: reduced ? 'none' : `transform ${duration}ms ${easing}`,
           willChange: 'transform',
@@ -97,16 +94,16 @@ export function Ruler({ count: N, pos, active, onSelect, segW = 32, fontPx = 10,
       >
         {ks.map((k) => {
           // Only the copy under the centre counts as selected (numbers repeat along the tape).
-          const on = Math.abs(k - pos) <= (Math.max(1, active.length) - 1) / 2 + 0.01
           return (
-            <div key={k}>
+            <div key={k} className="transition-opacity duration-500" style={{ opacity: strength(k) }}>
               <span
-                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums transition-opacity duration-500"
-                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx, opacity: on ? 1 : 0.4 }}
+                className="absolute top-0 flex items-start justify-center font-bold leading-none tabular-nums"
+                style={{ left: k * segW, width: segW, height: labelH, fontSize: fontPx }}
               >
                 {pad2(mod(k, N) + 1)}
               </span>
-              <span className="absolute bottom-0 block" style={{ left: k * segW, width: segW, height: tickH, ...tickBg }} />
+              {/* 1px wider than its inch, so its closing tick lies on the next one's opening tick. */}
+              <span className="absolute bottom-0 block" style={{ left: k * segW, width: segW + 1, height: tickH, ...tickBg }} />
             </div>
           )
         })}

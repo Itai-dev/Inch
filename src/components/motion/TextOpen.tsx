@@ -2,56 +2,94 @@
 
 /**
  * INCH” — "Text open" (from Figma Make prototype).
- * Scroll-driven: the ” splits into two strokes; the right stroke travels with
- * a character-by-character fade-in reveal of the statement.
+ * Scroll-driven: the ” splits into two strokes; the right stroke writes the
+ * statement letter by letter (hard cuts, no fade). The statement is set as large as it can be
+ * while staying clear of the header, so the header logo doesn't sink into the big type while
+ * it is held.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useScrollProgress } from '@/hooks/useScrollProgress'
 
-const FADE_CHARS = 18
-const ANIM_END = 0.78
+// Written by 62% of the zone's scroll (as before, about 0.87 screens), then held for about half a screen to be read.
+const ANIM_END = 0.62
 const DROP_END = 0.18
 const DROP_PX = 48
-const EXIT_UP = 70
-const WIDTH_PER_FONT = 1214 / 81.37 // container width ÷ font size in the prototype
-const MAX_FONT = 72
+const EXIT_UP = 40
+const DRIFT_UP = 30 // the statement rises this much while it is written
+const WIDTH_PER_FONT = 12.5 // container width ÷ font size
+const MAX_FONT = 104
+const MIN_FONT = 26
+const LINE_HEIGHT = 1.28
+/** Set a little tight, letters and words both. */
+const TRACKING = '-0.025em'
+const WORD_SPACING = '-0.04em'
+/** The marks' distance from the text, in em: about the space between two of its letters. */
+const LETTER_GAP = 0.03
+
+/** The bottom of the header logo, with a little air under it. */
+const headerBottom = () => (document.querySelector('[data-site-header] > a')?.getBoundingClientRect().bottom ?? 90) + 16
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-export function TextOpen({ text }: { text: string }) {
+/** The zone's own length (vh) before any `holdVh`: written, then held, over its scroll of 140vh. */
+const ZONE_VH = 240
+
+/** `holdVh` keeps the written statement pinned for that much more scroll (something can play over it). */
+export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }) {
   const reduced = useReducedMotion()
   const { ref: zoneRef, progress: rawProgress } = useScrollProgress<HTMLDivElement>()
-  const progress = reduced ? 1 : rawProgress
+  // The timeline runs over the zone's own scroll; any hold comes after it.
+  const progress = reduced ? 1 : Math.min(1, (rawProgress * (ZONE_VH - 100 + holdVh)) / (ZONE_VH - 100))
 
   const wrapRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLParagraphElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(MAX_FONT)
 
   useEffect(() => {
     const el = wrapRef.current
-    if (!el) return
-    const ro = new ResizeObserver(([e]) => setFont(Math.min(MAX_FONT, e.contentRect.width / WIDTH_PER_FONT * 1.0)))
+    const t = textRef.current
+    if (!el || !t) return
+    // As large as the width allows, then smaller until the statement, centred and at its highest,
+    // stays below the header: the height goes roughly with the square of the size (more lines too).
+    const fit = (width: number) => {
+      const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + Math.max(DROP_PX, DRIFT_UP + EXIT_UP)))
+      let f = Math.min(MAX_FONT, width / WIDTH_PER_FONT)
+      const was = t.style.fontSize
+      for (let i = 0; i < 4; i++) {
+        t.style.fontSize = `${f}px`
+        const h = t.offsetHeight
+        if (h <= room) break
+        f = Math.max(MIN_FONT, f * Math.sqrt(room / h) * 0.98)
+      }
+      t.style.fontSize = was
+      setFont(f)
+    }
+    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
+
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
   const strokeGap = Math.round(markH * STROKE_GAP_RATIO)
-  const topNudge = Math.round(font * 0.18)
-  const sideGap = Math.round(font * 0.13)
+  // The marks hang from the top of the capitals: 0.18em at line-height 1.1, plus half of the extra leading.
+  const topNudge = Math.round(font * (0.18 + (LINE_HEIGHT - 1.1) / 2))
+  // As far from the text as one letter is from the next.
+  const sideGap = Math.round(font * LETTER_GAP)
 
   const animP = Math.min(1, progress / ANIM_END)
   const exitT = Math.max(0, (progress - ANIM_END) / (1 - ANIM_END))
   const dropT = Math.min(animP / DROP_END, 1)
   const splitT = easeOutCubic(dropT)
-  const translateY = (1 - splitT) * -DROP_PX - animP * 60 + exitT * -EXIT_UP
+  const translateY = (1 - splitT) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
-  const cursor = reduced ? text.length + FADE_CHARS : revealP * (text.length + FADE_CHARS)
+  const cursor = reduced ? text.length : revealP * text.length
   const leadIdx = Math.min(text.length - 1, Math.max(0, Math.floor(cursor)))
   const leftX = -(markW + sideGap)
 
@@ -90,22 +128,22 @@ export function TextOpen({ text }: { text: string }) {
   })
 
   return (
-    <div ref={zoneRef} style={{ height: reduced ? 'auto' : '210vh' }} className="relative">
+    <div ref={zoneRef} style={{ height: reduced ? 'auto' : `${ZONE_VH + holdVh}vh` }} className="relative">
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
-        <div ref={wrapRef} className="relative w-[min(86vw,1214px)]" style={{ transform: `translateY(${translateY}px)` }}>
+        <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
             <QuoteStroke side="left" height={markH} />
           </div>
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p className="m-0 font-bold" style={{ fontSize: font, lineHeight: 1.1 }} aria-label={text}>
+          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text}>
             {text.split('').map((c, i) => (
               <span
                 key={i}
                 aria-hidden
                 ref={(el) => { charRefs.current[i] = el }}
-                style={{ opacity: Math.min(1, Math.max(0, (cursor - i) / FADE_CHARS)) }}
+                style={{ opacity: i < cursor ? 1 : 0 }}
               >
                 {c}
               </span>

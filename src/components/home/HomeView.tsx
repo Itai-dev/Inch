@@ -1,0 +1,87 @@
+import { IntroSection } from '@/components/IntroSection'
+import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
+import { DotStatement } from '@/components/motion/DotStatement'
+import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
+import { TextOpen } from '@/components/motion/TextOpen'
+import { ApplyCallout, NameMarquee, SelectedWork, StoryMagazine, storyMagazineVh, StorySection, type Chapter } from './HomeSections'
+import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
+import { withPlaceholders } from '@/lib/placeholders'
+import { singletonId, SITES, type Site } from '@/lib/sites'
+import { talentSlides } from '@/lib/slides'
+import { sanityFetch } from '@/sanity/lib/client'
+import { urlFor } from '@/sanity/lib/image'
+import { HOME_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
+import type { SanityImage, TalentCard } from '@/sanity/lib/types'
+
+type Home = {
+  heroVideos?: ({ _type: 'heroVideo'; src?: string; poster?: SanityImage } | ({ _type: 'heroImage' } & SanityImage))[] | null
+  heroVideo?: string
+  heroPoster?: SanityImage
+  statement?: string
+  intro?: string
+  introImages?: SanityImage[]
+  story?: Chapter[] | null
+  featured?: TalentCard[]
+} | null
+
+/**
+ * The home page for a site. `hero` picks how INCH”'s ” opens into the video: it splits
+ * (the live home) or it grows with the video inside it (/logotest, for trying it out).
+ * `magazine` picks how the magazine meets the statement: it slides in as the statement leaves
+ * (the live home), or it lands on it and they scroll away together ('together').
+ */
+export async function HomeView({ site, hero = 'split', magazine = 'after' }: { site: Site; hero?: 'split' | 'grow'; magazine?: 'after' | 'together' }) {
+  const { division } = SITES[site]
+  const [home, talents] = await Promise.all([
+    sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', site) }, null, ['homePage']),
+    sanityFetch<TalentCard[]>(TALENTS_BY_DIVISION_QUERY, { division }, [], ['talent']),
+  ])
+  const featured = home?.featured?.filter((t) => t?.division === division) ?? []
+  const models = featured.length ? featured : talents
+  const isDot = site === 'dot'
+
+  const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
+  const videos = (home?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
+    m?._type === 'heroImage'
+      ? m.asset ? [{ kind: 'image', src: urlFor(m).width(2400).url() }] : []
+      : m?.src ? [{ kind: 'video', src: m.src, poster: posterUrl(m.poster) }] : [],
+  )
+  if (!videos.length && home?.heroVideo) videos.push({ kind: 'video', src: home.heroVideo, poster: posterUrl(home.heroPoster) })
+
+  if (isDot) {
+    const slides = talentSlides(featured.length ? featured : talents.slice(0, 12))
+    return (
+      <>
+        <DotStatement text={home?.statement || DEFAULT_DOT_STATEMENT} />
+        {slides.length > 0 && <DotIndexCarousel slides={slides} height="90dvh" />}
+        <Story site={site} home={home} talents={withPlaceholders(talents, division)} />
+      </>
+    )
+  }
+
+  // INCH”: ” opens to full-screen video → statement on scroll → the magazine slides in over it → the story and the board (Story).
+  const story = withPlaceholders(models, division)
+  // 'together': the statement stays pinned under the magazine until both leave.
+  const hold = magazine === 'together' ? Math.max(0, storyMagazineVh({ site, chapters: home?.story, talents: story }) - 100) : 0
+  return (
+    <>
+      <QuoteVideoHero videos={videos} opening={hero} />
+      <TextOpen text={home?.statement || DEFAULT_STATEMENT} holdVh={hold} />
+      <Story site={site} home={home} talents={story} overlap={magazine} />
+    </>
+  )
+}
+
+/** Below the opening, on both sites: the magazine (over the statement's end, with `overlap`), the rest of the story, the paragraph and images from the Studio, the board's names, selected work, and Apply. */
+function Story({ site, home, talents, overlap = false }: { site: Site; home: Home; talents: TalentCard[]; overlap?: false | 'after' | 'together' }) {
+  return (
+    <>
+      <StoryMagazine site={site} chapters={home?.story} talents={talents} overlap={overlap} />
+      <StorySection site={site} chapters={home?.story} talents={talents} />
+      <IntroSection text={home?.intro} images={home?.introImages} />
+      <NameMarquee site={site} talents={talents} />
+      <SelectedWork talents={talents} />
+      <ApplyCallout site={site} />
+    </>
+  )
+}

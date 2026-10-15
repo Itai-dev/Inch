@@ -1,28 +1,42 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { meetsCriteria } from '@/lib/apply-criteria'
+import { ageFrom, meetsCriteria } from '@/lib/apply-criteria'
 import { getWriteClient } from '@/sanity/lib/client'
 
 const num = z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional())
+const opt = (max: number) => z.string().max(max).optional()
 
 const Body = z.object({
   division: z.enum(['women', 'men']),
-  name: z.string().min(1).max(120),
-  age: z.coerce.number().int().min(10).max(80),
+  firstName: z.string().min(1).max(60),
+  lastName: z.string().min(1).max(60),
+  birthdate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   city: z.string().max(120),
   email: z.email(),
   phone: z.string().max(40),
-  guardianName: z.string().max(120).optional(),
-  guardianPhone: z.string().max(40).optional(),
+  guardianName: opt(120),
+  guardianPhone: opt(40),
   height: z.coerce.number().min(100).max(230),
   bust: num, waist: num, hips: num, shoes: num,
-  instagram: z.string().max(60).optional(),
-  experience: z.string().max(2000).optional(),
+  hair: opt(40),
+  eyes: opt(40),
+  instagram: opt(60),
+  tiktok: opt(60),
+  experience: opt(2000),
   consent: z.literal('true'),
+  // Spam checks: a field people never see, and when the form was started.
+  website: opt(200),
+  startedAt: z.coerce.number().optional(),
 })
 
-const MAX_FILES = 5
-const MAX_BYTES = 8 * 1024 * 1024
+const MIN_FILES = 3
+const MAX_FILES = 4
+// Photos are shrunk in the browser (~0.3–0.8 MB each); a request is capped at ~4.5 MB on Vercel.
+const MAX_BYTES = 2.5 * 1024 * 1024
+const MAX_TOTAL = 4.3 * 1024 * 1024
+const MIN_FILL_MS = 8000
+
+const key = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export async function POST(req: Request) {
   const form = await req.formData()
@@ -30,11 +44,15 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid application' }, { status: 400 })
   const d = parsed.data
 
-  // Server-side re-check of the pre-screen (client check is UX only).
-  if (!meetsCriteria(d.division, d.age, d.height)) return NextResponse.json({ ok: true, screened: true })
+  // Bots fill the hidden field or post instantly: answer as if it worked, keep nothing.
+  if (d.website || !d.startedAt || Date.now() - d.startedAt < MIN_FILL_MS) return NextResponse.json({ ok: true })
+
+  const age = ageFrom(d.birthdate)
+  if (!(age >= 10 && age <= 80)) return NextResponse.json({ error: 'Invalid date of birth' }, { status: 400 })
 
   const files = form.getAll('digitals').filter((f): f is File => f instanceof File).slice(0, MAX_FILES)
-  if (files.some((f) => f.size > MAX_BYTES || !f.type.startsWith('image/'))) {
+  const total = files.reduce((n, f) => n + f.size, 0)
+  if (files.length < MIN_FILES || total > MAX_TOTAL || files.some((f) => f.size > MAX_BYTES || !f.type.startsWith('image/'))) {
     return NextResponse.json({ error: 'Invalid photos' }, { status: 400 })
   }
 
@@ -45,24 +63,53 @@ export async function POST(req: Request) {
     files.map((f) => client.assets.upload('image', f, { filename: f.name, contentType: f.type })),
   )
 
+  const name = `${d.firstName} ${d.lastName}`
+  // Everyone's application is kept; the ones outside the current criteria are flagged for the scouts.
+  const outsideCriteria = !meetsCriteria(d.division, age, d.height)
   await client.create({
     _type: 'application',
     status: 'new',
     division: d.division,
-    name: d.name,
-    age: d.age,
+    name,
+    birthdate: d.birthdate,
+    age,
     city: d.city,
     email: d.email,
     phone: d.phone,
     guardian: d.guardianName ? { name: d.guardianName, phone: d.guardianPhone } : undefined,
-    measurements: { height: d.height, bust: d.bust, waist: d.waist, hips: d.hips, shoes: d.shoes },
-    digitals: assets.map((a) => ({ _type: 'image', _key: a._id.slice(-12), asset: { _type: 'reference', _ref: a._id } })),
+    measurements: { height: d.height, bust: d.bust, waist: d.waist, hips: d.hips, shoes: d.shoes, hair: d.hair, eyes: d.eyes },
+    digitals: assets.map((a) => ({ _type: 'image', _key: key(), asset: { _type: 'reference', _ref: a._id } })),
     instagram: d.instagram,
+    tiktok: d.tiktok,
     experience: d.experience,
+    outsideCriteria,
     consent: true,
   })
 
-  // TODO: notify INCH” (e.g. Resend → APPLY_NOTIFY_EMAIL) once the email provider is chosen.
+  await notify(`New application: ${name}`, [
+    `${name}, ${age}, ${d.city}`,
+    `${d.height} cm${outsideCriteria ? ' (outside current criteria)' : ''}`,
+    `${d.email} · ${d.phone}`,
+    d.instagram ? `Instagram: ${d.instagram}` : '',
+    'Open the Studio → Applications to see the photos.',
+  ])
 
   return NextResponse.json({ ok: true })
+}
+
+/** Emails the scouts through Resend, once RESEND_API_KEY and APPLY_NOTIFY_EMAIL are set. */
+async function notify(subject: string, lines: string[]) {
+  const apiKey = process.env.RESEND_API_KEY
+  const to = process.env.APPLY_NOTIFY_EMAIL
+  if (!apiKey || !to) return
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: process.env.APPLY_FROM_EMAIL || 'INCH” Applications <onboarding@resend.dev>',
+      to: to.split(',').map((s) => s.trim()),
+      subject,
+      text: lines.filter(Boolean).join('\n'),
+    }),
+  }).catch(() => {})
 }

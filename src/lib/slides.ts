@@ -26,6 +26,12 @@ export const creditLine = (img: SanityImage) =>
     .filter(Boolean)
     .join(' / ')
 
+/** Sanity asset refs carry the size: image-<hash>-1500x1000-jpg. */
+const isLandscape = (img: SanityImage) => {
+  const m = img.asset?._ref.match(/-(\d+)x(\d+)-/)
+  return !!m && Number(m[1]) > Number(m[2])
+}
+
 export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =>
   images
     .filter((i) => i.asset)
@@ -34,6 +40,7 @@ export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =
       src: urlFor(img).width(1400).url(),
       alt: img.alt || name,
       caption: creditLine(img) || undefined,
+      landscape: isLandscape(img),
     }))
 
 export const placeholderSlides = (n = 10): Slide[] =>

@@ -119,7 +119,7 @@ export function TapeCarousel({ slides, height = '100dvh', start = 0 }: { slides:
                         <img src={s.src} alt={offset === 0 ? s.alt : ''} draggable={false} className="block size-full object-cover" />
                       </div>
                       {s.caption && (
-                        <figcaption className="mt-2 truncate text-[10px] uppercase leading-tight tracking-wide text-muted">{s.caption}</figcaption>
+                        <figcaption className="mt-2 truncate text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
                       )}
                     </figure>
                   )

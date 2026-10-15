@@ -32,5 +32,6 @@ export async function POST(req: Request) {
     talents: [...new Set(parsed.data.talentIds)].map((ref) => ({ _type: 'reference', _ref: ref, _weak: true, _key: ref.slice(-12) })),
   })
 
-  return NextResponse.json({ url: `${siteUrl}${sitePath(site, `/s/${id}`)}` })
+  // The link points at the site it was made on (production, or a preview while testing).
+  return NextResponse.json({ url: `${new URL(req.url).origin || siteUrl}${sitePath(site, `/s/${id}`)}` })
 }

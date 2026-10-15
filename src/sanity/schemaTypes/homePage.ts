@@ -61,6 +61,24 @@ export const homePage = defineType({
       of: [creditedImage()],
     }),
     defineField({
+      name: 'story',
+      title: 'Story',
+      description: 'The story of the agency, in short chapters, each with a heading, a paragraph and up to three images (shown as black and white prints). Empty = the placeholder story.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'object',
+          name: 'chapter',
+          fields: [
+            defineField({ name: 'heading', type: 'string', validation: (r) => r.required().max(40) }),
+            defineField({ name: 'text', type: 'text', rows: 4, validation: (r) => r.required() }),
+            defineField({ name: 'images', type: 'array', of: [creditedImage()], validation: (r) => r.max(3) }),
+          ],
+          preview: { select: { title: 'heading', subtitle: 'text', media: 'images.0' } },
+        }),
+      ],
+    }),
+    defineField({
       name: 'featured',
       title: 'Featured models',
       description: 'Models section. Empty = all models.',

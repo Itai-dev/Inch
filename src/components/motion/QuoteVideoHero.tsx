@@ -10,11 +10,13 @@
  *    the hero items (click a number / arrow keys). Every 6 s
  *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
+ * `opening="grow"` (on /logotest) replaces step 2: the ” grows in one movement, ever faster,
+ * the video fading in inside it, into its left stroke until the video fills the screen.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { QuoteMark, QuoteStroke, STROKE_GAP_RATIO } from '@/components/brand/Marks'
+import { LEFT_PATH, QuoteMark, QuoteStroke, RIGHT_PATH, STROKE_GAP_RATIO } from '@/components/brand/Marks'
 import { SKIP_HERO_LOADER } from '@/components/SiteSwitchLink'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { Ruler } from './Ruler'
@@ -26,10 +28,15 @@ const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
-const BLINK_MS = 1200 // one smooth blink; the open always starts at the top of a blink
+const BLINK_MS = 900 // one soft blink (a slight fade out and back, eased); the open always starts at the top of one
 const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
+const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the video fills the screen
+const GROW_FADE = [0.3, 0.7] // the video fades in inside the ” (share of GROW_MS)…
+const GROW_INTO = [15.7 / 64, 16.3 / 72] // …as it grows into the solid top of its left stroke (share of the mark)
+const GROW_SQUARE = [28.6 / 64, 32.7 / 72] // size of that solid part (share of the mark)
+const MARK_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72"><path d="${LEFT_PATH}"/><path d="${RIGHT_PATH}"/></svg>`)}")`
 const SPLIT = 0.25
 const SLIDE_MS = 6000 // each item stays this long, then the next pushes it out
 const PUSH_MS = 1300
@@ -37,13 +44,13 @@ const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 // Hand-off after the reveal (t = 0 when the video has finished growing):
 const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
 const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.4s (globals.css)
-const RULER_IN_MS = 1000 // ruler fades in from +1s…
+const RULER_IN_MS = 1000 // ruler blinks in at +1s…
 const RULER_STEP_MS = 1400 // …and moves on one item as it arrives, to show what it does
 const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
 // The real header (keep in sync with Header.tsx): logo font size, top and side padding.
 const headerLogo = () => (window.innerWidth >= 768 ? 70 : 48)
-const headerTop = () => Math.min(57, Math.max(16, window.innerWidth * 0.0297))
+const headerTop = () => Math.min(40, Math.max(12, window.innerWidth * 0.021))
 const headerSide = () => Math.min(46, Math.max(20, window.innerWidth * 0.024))
 
 // Coming back from DOT.: no blinking loader, start straight at the video reveal.
@@ -79,7 +86,8 @@ function placeLogo(el: HTMLElement | null) {
   return big
 }
 
-export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
+export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos: HeroMedia[]; opening?: 'split' | 'grow' }) {
+  const grow = openWith === 'grow'
   const N = videos.length
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
@@ -118,7 +126,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     }
     if (reduced || fast) return
     blinkAnim.current =
-      blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }], {
+      blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.4 }, { opacity: 1 }], {
         duration: BLINK_MS,
         iterations: Infinity,
         easing: 'ease-in-out',
@@ -161,6 +169,35 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     r.style.left = `${winW / 2 + gap}px`
   }
 
+  // The "grow" opening: the video, full screen, seen through the ” as it grows (mask size and
+  // place), with a black cover over the video that lifts so it fades in inside the mark.
+  const layoutGrow = (p: number) => {
+    const win = winRef.current
+    if (!win) return
+    // The stage's own size (not the window's, which counts a scrollbar), so the ” starts
+    // exactly where the blinking one was centred.
+    const W = win.clientWidth
+    const H = win.clientHeight
+    const mh0 = H * MARK_VH
+    const mw0 = (mh0 * 64) / 72
+    const sEnd = Math.max((W * 1.15) / (mw0 * GROW_SQUARE[0]), (H * 1.15) / (mh0 * GROW_SQUARE[1]))
+    // One movement, ever faster: exponential growth, and the exponent itself accelerating.
+    const s = sEnd ** (p ** 1.7)
+    const mw = mw0 * s
+    const mh = mh0 * s
+    // Grows from its middle and drifts into its left stroke, which comes to the middle of the screen.
+    // The drift follows the growth (not the clock), so the mark never slides before it has grown.
+    const into = (s - 1) / (sEnd - 1)
+    const ax = lerp(0.5, GROW_INTO[0], into)
+    const ay = lerp(0.5, GROW_INTO[1], into)
+    win.style.setProperty('--mw', `${mw}px`)
+    win.style.setProperty('--mh', `${mh}px`)
+    win.style.setProperty('--mx', `${W / 2 - ax * mw}px`)
+    win.style.setProperty('--my', `${H / 2 - ay * mh}px`)
+    const f = easeOut(Math.max(0, Math.min(1, (p - GROW_FADE[0]) / (GROW_FADE[1] - GROW_FADE[0]))))
+    win.style.setProperty('--cover', String(1 - f))
+  }
+
   const openedRef = useRef(false)
   useEffect(() => {
     if (!opening || openedRef.current) return
@@ -172,13 +209,15 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     const wait = typeof t === 'number' ? (BLINK_MS - (t % BLINK_MS)) % BLINK_MS : 0
     const timer = setTimeout(() => {
       blinkAnim.current?.cancel()
-      layout(0)
+      const draw = grow ? layoutGrow : layout
+      const total = grow ? GROW_MS : OPEN_MS
+      draw(0)
       setStage('open')
       const t0 = performance.now()
       const tick = (now: number) => {
-        const p = Math.min(1, (now - t0) / OPEN_MS)
-        layout(p)
-        if (now - t0 >= OPEN_MS - LOGO_LEAD_MS) setLogoIn(true)
+        const p = Math.min(1, (now - t0) / total)
+        draw(p)
+        if (now - t0 >= total - LOGO_LEAD_MS) setLogoIn(true)
         if (p < 1) raf = requestAnimationFrame(tick)
         else {
           done = true
@@ -196,7 +235,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
       cancelAnimationFrame(raf)
       if (!done) openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
     }
-  }, [opening])
+  }, [opening, grow])
 
   const settled = skip || stage === 'over' || stage === 'past'
 
@@ -207,8 +246,9 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
     const on = () => {
       setStage(window.scrollY > window.innerHeight - 72 ? 'past' : 'over')
       placeLogo(logoRef.current)
-      // The inverse (difference) effect on the header and logo only kicks in once you scroll.
-      if (rootRef.current) rootRef.current.dataset.scrolled = window.scrollY > 2 ? '1' : '0'
+      // The header and logo are plain white at the top; the inverse (difference) effect starts with
+      // the first scroll.
+      if (rootRef.current) rootRef.current.dataset.scrolled = window.scrollY > 0 ? '1' : '0'
       // The ruler fades out over the first quarter screen of scrolling.
       const r = rulerRef.current
       if (r) {
@@ -337,6 +377,21 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
           transform: 'translate(-50%, -50%)',
           visibility: showVideo ? 'visible' : 'hidden',
           ...(settled ? { width: '100%', height: '100%' } : null),
+          // "grow": full screen from the start, seen through the growing ”.
+          ...(grow && !settled
+            ? {
+                width: '100%',
+                height: '100%',
+                maskImage: MARK_MASK,
+                WebkitMaskImage: MARK_MASK,
+                maskRepeat: 'no-repeat',
+                WebkitMaskRepeat: 'no-repeat',
+                maskSize: 'var(--mw) var(--mh)',
+                WebkitMaskSize: 'var(--mw) var(--mh)',
+                maskPosition: 'var(--mx) var(--my)',
+                WebkitMaskPosition: 'var(--mx) var(--my)',
+              }
+            : null),
         }}
       >
         {videos.map((v, i) => {
@@ -375,8 +430,10 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
             />
           )
         })}
+        {/* "grow": the ” is black until the video fades in inside it. */}
+        {grow && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
       </div>
-      {!settled && (
+      {!settled && !grow && (
         <div
           ref={strokesRef}
           aria-hidden
@@ -406,7 +463,7 @@ export function QuoteVideoHero({ videos }: { videos: HeroMedia[] }) {
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
-        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-fade 0.8s var(--ease-out) ${RULER_IN_MS}ms both` }}>
+        <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-blink 0.4s steps(1, end) ${RULER_IN_MS}ms both` }}>
           <div ref={rulerRef}>
             <Ruler
               count={N}
