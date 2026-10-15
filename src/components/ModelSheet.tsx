@@ -13,7 +13,7 @@
  * link without a page load). Close steps back to the page you came from, or the board.
  */
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
@@ -199,6 +199,37 @@ export function ModelSheet({
   const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
   const statsCm = measurements ? measurementRows(measurements, division, 'cm') : []
   const stats = unit === 'in' ? statsIn : statsCm
+  // The bio in parts, a sentence each (an inch on the ruler a sentence).
+  const bioParts = useMemo(
+    () =>
+      (bio ?? '')
+        .split(/\n\s*\n/)
+        .flatMap((para) => para.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g) ?? [])
+        .map((x) => x.trim())
+        .filter(Boolean),
+    [bio],
+  )
+  const bioRef = useRef<HTMLElement>(null)
+  const [bioAt, setBioAt] = useState(0)
+  // The part nearest the middle of the view is the current one.
+  const onBioScroll = () => {
+    const el = bioRef.current
+    if (!el) return
+    const mid = el.getBoundingClientRect().top + el.clientHeight / 2
+    let best = 0
+    let d = Infinity
+    el.querySelectorAll<HTMLElement>('[data-part]').forEach((p, i) => {
+      const r = p.getBoundingClientRect()
+      const x = Math.abs(r.top + r.height / 2 - mid)
+      if (x < d) [d, best] = [x, i]
+    })
+    if (best !== bioAt) setBioAt(best)
+  }
+  const toBioPart = (i: number) => {
+    const part = bioRef.current?.querySelectorAll<HTMLElement>('[data-part]')[i]
+    part?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+  }
+
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
@@ -343,9 +374,22 @@ export function ModelSheet({
         </ul>
       )}
 
+      {/* The bio scrolls a part at a time, on the same ruler as the book: the part in the middle is
+          at full strength and lights its inch; a click on the ruler scrolls to that part. */}
       {segment === 'bio' && bio && (
-        <section style={at(INTRO_AT)} className="intro-fade flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-gutter py-10">
-          <p className="max-w-xl whitespace-pre-line text-lg">{bio}</p>
+        <section ref={bioRef} onScroll={onBioScroll} style={at(INTRO_AT)} className="intro-fade min-h-0 flex-1 overflow-y-auto px-gutter [scrollbar-width:none]">
+          <div className="mx-auto flex max-w-[38ch] flex-col gap-[clamp(28px,4vh,48px)] py-[30vh]">
+            {bioParts.map((part, i) => (
+              <p
+                key={i}
+                data-part
+                className="whitespace-pre-line text-[clamp(20px,1.9vw,30px)] leading-[1.35] tracking-[-0.01em] transition-opacity duration-500"
+                style={{ opacity: i === bioAt ? 1 : 0.22 }}
+              >
+                {part}
+              </p>
+            ))}
+          </div>
         </section>
       )}
 
@@ -382,6 +426,24 @@ export function ModelSheet({
             )}
           </div>
         </div>
+
+        {segment === 'bio' && bioParts.length > 1 && (
+          <div className="intro-fade" style={at(INTRO_AT + 200)}>
+            <Ruler
+              count={bioParts.length}
+              pos={bioAt}
+              active={[bioAt]}
+              onSelect={(k) => toBioPart(mod(k, bioParts.length))}
+              reduced={reduced}
+              segW={small ? 40 : 48}
+              fontPx={small ? 13 : 14}
+              tickH={small ? 16 : 18}
+              minors={9}
+              duration={SLIDE_MS}
+              easing={EASE}
+            />
+          </div>
+        )}
 
         {showBook && S > 1 && (
           <>

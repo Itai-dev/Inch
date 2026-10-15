@@ -17,6 +17,8 @@ const M = 28
 const FOOT = 92
 const INK = rgb(0.04, 0.04, 0.04)
 const MUTED = rgb(0.43, 0.43, 0.43)
+/** The model's name, in points. */
+const NAME_PT = 24
 
 /** One PDF with a comp card for each model, in order. `origin` makes the links absolute. */
 export async function compCardsPdf(talents: Talent[], site: Site, settings: SiteSettings | null, origin: string) {
@@ -58,8 +60,28 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
 
   const url = origin + talentPath(t)
   const name = safe(t.name.toUpperCase(), bold)
-  text(name, M, FOOT - 36, 24, bold)
-  link(pdf, page, [M, FOOT - 40, M + bold.widthOfTextAtSize(name, 24), FOOT - 36 + 20], url)
+  const nameW = bold.widthOfTextAtSize(name, NAME_PT)
+  const base = FOOT - 36
+  // As on her page: INCH” names between the ’ ’ marks, hanging from the capitals, a letter's gap
+  // away; DOT. names end on the ■.
+  let end = M + nameW
+  if (t.division === 'men') {
+    text(name, M, base, NAME_PT, bold)
+    const sq = NAME_PT * 0.2
+    page.drawRectangle({ x: end + NAME_PT * 0.06, y: base, width: sq, height: sq, color: INK })
+    end += NAME_PT * 0.06 + sq
+  } else {
+    const mh = NAME_PT * 0.42
+    const k = mh / 72 // brand ” is 64×72; each stroke 30×72
+    const mw = 30.05 * k
+    const gap = NAME_PT * 0.06
+    const capTop = base + NAME_PT * 0.718
+    page.drawSvgPath(LEFT_PATH, { x: M, y: capTop, scale: k, color: INK })
+    text(name, M + mw + gap, base, NAME_PT, bold)
+    page.drawSvgPath(RIGHT_PATH, { x: M + mw + gap * 2 + nameW - 33.71 * k, y: capTop, scale: k, color: INK })
+    end = M + mw * 2 + gap * 2 + nameW
+  }
+  link(pdf, page, [M, base - 4, end, base + 20], url)
 
   // As on the site: the label regular and muted, the value bold.
   const m = t.measurements ?? {}

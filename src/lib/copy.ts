@@ -35,8 +35,8 @@ export const DEFAULT_STORY = [
     text: 'An inch is the smallest measure that still changes a fit. INCH” is built around that idea: a small board, chosen closely, and the time to get every detail right.',
   },
   {
-    heading: 'The eye',
-    text: 'We look for faces that hold a picture and the people behind them. Then we take it slowly: tests, the right first jobs, the right first clients.',
+    heading: 'The fit',
+    text: 'So the board stays small, and every name on it is there for a reason. We match each face to the work by hand, the right model for the right client at the right moment, and stay with it until the picture is made.',
   },
 ]
 

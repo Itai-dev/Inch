@@ -125,12 +125,7 @@ export function StorySection(props: StoryProps) {
             <li key={c._key || i} className="flex flex-col items-center text-center">
               {/* The heading types in with the scroll, then the paragraph; scrolling back takes them away. */}
               <TypeOnScroll className="flex flex-col items-center">
-                <p className="flex items-center gap-3 text-[13px] font-extrabold tabular-nums">
-                  <span aria-hidden className="h-[2px] w-10 bg-current" />
-                  {pad(i + 1)}
-                  <span aria-hidden className="h-[2px] w-10 bg-current" />
-                </p>
-                <h3 className="wordmark mt-5 text-[clamp(56px,8.5vw,150px)] uppercase leading-[0.82]">
+                <h3 className="wordmark text-[clamp(56px,8.5vw,150px)] uppercase leading-[0.82]">
                   <TypeText text={c.heading} ms={45} />
                 </h3>
                 <p className="mt-7 max-w-[44ch] whitespace-pre-line text-[17px] leading-snug md:text-[19px]">
@@ -215,9 +210,10 @@ export function SelectedWork({ talents }: { talents: TalentCardType[] }) {
   if (!work.length) return null
   return (
     <section aria-labelledby="work-title" className="py-[clamp(72px,9vw,160px)]">
-      <h2 id="work-title" className="wordmark mx-[var(--gutter)] mb-6 text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected work</h2>
-      <TypeOnView>
-        <ol className="flex snap-x snap-mandatory gap-[3px] overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-5 md:overflow-visible">
+      <h2 id="work-title" className="wordmark mb-8 text-center text-[clamp(28px,3vw,48px)] uppercase leading-none">Selected work</h2>
+      {/* Centred, with wide margins either side (tablet up). */}
+      <TypeOnView className="mx-auto w-full max-w-[1180px] md:px-gutter">
+        <ol className="flex snap-x snap-mandatory gap-[3px] overflow-x-auto px-gutter pb-2 [scrollbar-width:none] md:grid md:grid-cols-5 md:overflow-visible md:px-0">
           {work.map((w, i) => {
             const at = i * 110
             const label = `${pad(i + 1)} — ${w.kind}`
@@ -237,7 +233,7 @@ export function SelectedWork({ talents }: { talents: TalentCardType[] }) {
                       />
                     </span>
                   </span>
-                  <span className="flex flex-col gap-1 pr-2">
+                  <span className="flex flex-col items-center gap-1 px-1 text-center">
                     <span className="label text-[11px] text-muted"><TypeText text={label} at={textAt} ms={14} /></span>
                     {w.title && (
                       <span className="text-[15px] font-bold leading-tight underline-offset-4 group-hover:underline">

@@ -164,10 +164,11 @@ export function Magazine({
             const angle = Math.min(180, 180 * e + bend * ((i + 1) / STRIPS) ** 1.6)
             strip.style.transform = `rotateY(${(before - angle).toFixed(2)}deg)` // relative to the strip before
             before = angle
-            // Light from the front: the face darkens as it turns away.
+            // Light from the front: the face shades a touch as it turns away, never so much that the
+            // page looks faded mid-turn.
             const c = Math.cos((angle * Math.PI) / 180)
-            strip.style.setProperty('--sf', (0.32 * (1 - c)).toFixed(3))
-            strip.style.setProperty('--sb', (0.26 * (1 + c)).toFixed(3))
+            strip.style.setProperty('--sf', (0.05 * (1 - c)).toFixed(3))
+            strip.style.setProperty('--sb', (0.04 * (1 + c)).toFixed(3))
           })
         })
       })
