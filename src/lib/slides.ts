@@ -32,6 +32,9 @@ const isLandscape = (img: SanityImage) => {
   return !!m && Number(m[1]) > Number(m[2])
 }
 
+/** Shown where a picture has no credits in the Studio yet. */
+export const PLACEHOLDER_CREDIT = 'photographer Name Surname / stylist Name Surname'
+
 export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =>
   images
     .filter((i) => i.asset)
@@ -39,7 +42,8 @@ export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =
       id: img._key || String(k),
       src: urlFor(img).width(1400).url(),
       alt: img.alt || name,
-      caption: creditLine(img) || undefined,
+      // TODO: placeholder until each picture's credits are filled in in the Studio (photographer, publication…).
+      caption: creditLine(img) || PLACEHOLDER_CREDIT,
       landscape: isLandscape(img),
     }))
 

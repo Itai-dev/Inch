@@ -13,7 +13,7 @@
  * link without a page load). Close steps back to the page you came from, or the board.
  */
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
@@ -34,8 +34,7 @@ const CAPTION_H = 22
 const CREDIT_GAP = 12 // between a page and its credit
 const MARK_INSET = 16 // the brand's mark, in from the spread's corner
 const ROW_H = 46 // the books and actions under a two-page spread, with the gap above them
-const BESIDE_FROM = 1000 // from this stage width, they stand beside the spread instead
-const SIDE_W = 190 // the room kept each side of the spread for them
+const SIDE_W = 215 // on wide screens, the room kept each side of the spread for the sizes and the actions
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
@@ -46,6 +45,13 @@ const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 const mod = (a: number, n: number) => ((a % n) + n) % n
 /** The page's address doesn't change under it while it's open (books use replaceState after the start). */
 const noSubscribe = () => () => {}
+/** Wide screens: the name alone on top, the sizes down the left, books and actions down the right. */
+const WIDE = '(min-width: 1024px)'
+const onWide = (cb: () => void) => {
+  const m = matchMedia(WIDE)
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
+}
 const tabCls = (on: boolean) => `uppercase transition-colors ${on ? 'text-fg' : 'text-muted hover:text-fg'}`
 const narrow = { fontStretch: '80%' } as const
 
@@ -122,11 +128,12 @@ export function ModelSheet({
   // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
   const capH = per === 2 ? 0 : CAPTION_H
   // Two pages: the books and actions sit just under the spread, so leave room for them.
-  // Wide screens: the books and actions stand beside the spread; else they run under it.
-  const beside = showBook && per === 2 && stage.w >= BESIDE_FROM
-  const underSpread = showBook && per === 2 && !beside
+  // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
+  const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
+  const beside = wide && showBook && per === 2
+  const underSpread = showBook && per === 2 && !wide
   const rowH = underSpread ? ROW_H : 0
-  const peek = per === 2 ? (beside ? SIDE_W : 44) : 12 // minimum room each side of the frame
+  const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   let pageH = Math.max(0, stage.h - capH - rowH)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
@@ -284,7 +291,7 @@ export function ModelSheet({
   // The books, and the actions: in a row across the foot (or under the spread), or stacked beside a
   // wide spread, each column level with its bottom and in line with the name (left) and close (right).
   const bookTabs = (stacked = false) => (
-    <nav className={`flex ${stacked ? 'flex-col items-start gap-1.5' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
+    <nav className={`flex ${stacked ? 'flex-col items-end gap-1.5' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
       {tabs.map((t) => (
         <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
           {t.title}
@@ -324,6 +331,17 @@ export function ModelSheet({
     </div>
   )
 
+  // The side columns sit level with the bottom of the pictures, or just above the foot without them.
+  const leftCol = useRef<HTMLDivElement>(null)
+  const rightCol = useRef<HTMLDivElement>(null)
+  const foot = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!wide) return
+    const st = stageRef.current
+    const bottom = beside && st ? innerHeight - (st.getBoundingClientRect().top + top + pageH) : (foot.current?.offsetHeight ?? 80) + 24
+    for (const c of [leftCol.current, rightCol.current]) if (c) c.style.bottom = `${Math.max(0, bottom).toFixed(1)}px`
+  })
+
   return (
     <div
       data-model-sheet
@@ -333,28 +351,45 @@ export function ModelSheet({
       aria-label={name}
       className="model-sheet fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg"
     >
-      {/* Top rail: name | stats in one line | close */}
-      <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8 md:py-0">
-        <div className="flex items-start justify-between gap-4">
-          {/* The name on its own: the brand's mark sits on the spread. */}
-          <h1 aria-label={name} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap">
+      {wide ? (
+        // Top rail, wide: the name alone in the middle, close on the right.
+        <header className="grid min-h-[92px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter">
+          <span />
+          <h1 aria-label={name} className="wordmark whitespace-nowrap text-[clamp(36px,3.2vw,52px)] uppercase">
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
-          <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
-            <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
-              <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
-            </svg>
-          </button>
-        </div>
-        {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)] md:text-[15px]')}
-        <div className="hidden items-center justify-end gap-6 md:flex">
-          <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
-            <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
-              <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
-            </svg>
-          </button>
-        </div>
-      </header>
+          <div className="flex justify-end">
+            <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
+              <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
+                <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
+              </svg>
+            </button>
+          </div>
+        </header>
+      ) : (
+        /* Top rail: name | stats in one line | close */
+        <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8 md:py-0">
+          <div className="flex items-start justify-between gap-4">
+            {/* The name on its own: the brand's mark sits on the spread. */}
+            <h1 aria-label={name} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap">
+              <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
+            </h1>
+            <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
+              <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
+                <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
+              </svg>
+            </button>
+          </div>
+          {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)] md:text-[15px]')}
+          <div className="hidden items-center justify-end gap-6 md:flex">
+            <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
+              <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
+                <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
+              </svg>
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* The book: one spread centred, nothing beside it */}
       {showBook && (
@@ -446,16 +481,6 @@ export function ModelSheet({
             {visible.map((i) => `${pad2(i + 1)} ${slides[i].caption || slides[i].alt}`).join(', ')} of {pad2(N)}
           </p>
           {underSpread && actionsRow('absolute z-20 items-end', { top: top + pageH, height: ROW_H, left, width: frameW })}
-          {beside && (
-            <>
-              <div className={`absolute z-20 ${rowCls}`} style={{ ...narrow, left: 'var(--gutter)', bottom: stage.h - (top + pageH) }}>
-                {bookTabs(true)}
-              </div>
-              <div className={`absolute z-20 ${rowCls}`} style={{ ...narrow, right: 'var(--gutter)', bottom: stage.h - (top + pageH) }}>
-                {bookActions(true)}
-              </div>
-            </>
-          )}
         </section>
       )}
 
@@ -493,9 +518,23 @@ export function ModelSheet({
         </section>
       )}
 
+      {/* Wide: the sizes down the left and the books and actions down the right, level with the
+          bottom of the pictures (else just above the foot), in line with the name's margins. */}
+      {wide && (
+        <>
+          <div ref={leftCol} className="absolute left-[var(--gutter)] z-20" style={{ bottom: 120 }}>
+            {renderStats('flex flex-col items-start gap-1.5 text-[15px]')}
+          </div>
+          <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, bottom: 120 }}>
+            {bookTabs(true)}
+            {bookActions(true)}
+          </div>
+        </>
+      )}
+
       {/* Books | counter | actions, then the ruler across the full width */}
-      <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        {!underSpread && !beside && actionsRow('px-gutter')}
+      <div ref={foot} className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
+        {!underSpread && !wide && actionsRow('px-gutter')}
 
         {segment === 'bio' && bioParts.length > 1 && (
           <div className="intro-fade" style={at(INTRO_AT + 200)}>
