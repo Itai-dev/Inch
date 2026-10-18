@@ -19,10 +19,17 @@ const HAND_PATHS = {
   ],
 }
 
+/** Each hand's outline as one closed shape, filled white under the lines. */
+const HAND_FILL = {
+  open: 'M6 14V6a2 2 0 0 1 4 0V4a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82z',
+  held: 'M2 14a2 2 0 0 1 4 0V9a2 2 0 0 1 4 0V8a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v2a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8z',
+}
+
 export function HandIcon({ kind }: { kind: keyof typeof HAND_PATHS }) {
   return (
     <svg viewBox="0 0 24 24" width={HAND_PX} height={HAND_PX} fill="none" strokeLinecap="round" strokeLinejoin="round" className="absolute inset-0 overflow-visible">
       {/* A white edge under the black line, so it reads on the pictures and on the paper. */}
+      <path d={HAND_FILL[kind]} fill="#fff" stroke="#fff" strokeWidth={4.2} />
       {HAND_PATHS[kind].map((d) => (
         <path key={`w${d}`} d={d} stroke="#fff" strokeWidth={4.2} />
       ))}

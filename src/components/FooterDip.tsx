@@ -20,10 +20,11 @@ export function FooterDip() {
     const read = () => {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
-        // Deepest as the footer comes into view; flat once its top is halfway up the screen.
-        const p = clamp01((innerHeight - footer.getBoundingClientRect().top) / (innerHeight * 0.5))
-        const depth = Math.min(innerWidth * 0.12, 180) * (1 - p) ** 1.3
-        svg.style.height = `${depth.toFixed(1)}px`
+        // Deepest as the footer comes into view; flat once its top is 60% of the way up the screen.
+        const p = clamp01((innerHeight - footer.getBoundingClientRect().top) / (innerHeight * 0.6))
+        const d = Math.min(innerWidth * 0.32, 440) * (1 - p) ** 2
+        // Gone outright once shallow, so the end never shows as a thin line across the footer.
+        svg.style.height = d < 3 ? '0px' : `${d.toFixed(1)}px`
       })
     }
     read()

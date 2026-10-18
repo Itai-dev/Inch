@@ -31,7 +31,7 @@ function kindAt(el: Element | null): Kind {
 
 /** Each kind: its size (px) and where its point is (share of the size). */
 const SHAPE: Record<Kind, { px: number; x: number; y: number }> = {
-  arrow: { px: 30, x: 0.17, y: 0.17 },
+  arrow: { px: 36, x: 0.16, y: 0.16 },
   finger: { px: 42, x: 0.34, y: 0.1 },
   text: { px: 30, x: 0.5, y: 0.5 },
   grab: { px: 46, x: 0.5, y: 0.5 },
@@ -39,6 +39,9 @@ const SHAPE: Record<Kind, { px: number; x: number; y: number }> = {
 
 const halo = { stroke: '#fff', strokeWidth: 4.2 }
 const line = { stroke: '#0a0a0a', strokeWidth: 1.7 }
+
+/** The pointing hand's outline as one closed shape, filled white under the lines. */
+const FINGER_FILL = 'M6 14V4a2 2 0 0 1 4 0v5a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82z'
 
 function Icon({ kind }: { kind: Exclude<Kind, 'grab'> }) {
   const paths =
@@ -53,6 +56,7 @@ function Icon({ kind }: { kind: Exclude<Kind, 'grab'> }) {
       : ['M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1', 'M7 22h1a4 4 0 0 0 4-4v-1', 'M7 2h1a4 4 0 0 1 4 4v1']
   return (
     <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" className="block size-full overflow-visible">
+      {kind === 'finger' && <path d={FINGER_FILL} fill="#fff" stroke="#fff" strokeWidth={4.2} />}
       {paths.map((d) => (
         <path key={`w${d}`} d={d} {...halo} />
       ))}
@@ -63,10 +67,14 @@ function Icon({ kind }: { kind: Exclude<Kind, 'grab'> }) {
   )
 }
 
+const ARROW = 'M4.04 4.69a.5.5 0 0 1 .65-.65l16 6.5a.5.5 0 0 1-.06.95l-6.13 1.58a2 2 0 0 0-1.43 1.43l-1.58 6.13a.5.5 0 0 1-.95.06z'
+
 function Arrow() {
   return (
     <svg viewBox="0 0 24 24" className="block size-full overflow-visible">
-      <path d="M4.04 4.69a.5.5 0 0 1 .65-.65l16 6.5a.5.5 0 0 1-.06.95l-6.13 1.58a2 2 0 0 0-1.43 1.43l-1.58 6.13a.5.5 0 0 1-.95.06z" fill="#0a0a0a" stroke="#fff" strokeWidth={1.6} strokeLinejoin="round" />
+      {/* A white edge, then the black arrow with a round stroke of its own, which softens its corners. */}
+      <path d={ARROW} fill="#fff" stroke="#fff" strokeWidth={4.6} strokeLinejoin="round" />
+      <path d={ARROW} fill="#0a0a0a" stroke="#0a0a0a" strokeWidth={1.4} strokeLinejoin="round" />
     </svg>
   )
 }

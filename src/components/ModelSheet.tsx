@@ -134,7 +134,8 @@ export function ModelSheet({
   const underSpread = showBook && per === 2 && !wide
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
-  let pageH = Math.max(0, stage.h - capH - rowH)
+  // Wide screens keep the pictures a little short of the full height, so the name has the room.
+  let pageH = Math.max(0, stage.h - capH - rowH) * (wide ? 0.86 : 1)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
@@ -331,15 +332,14 @@ export function ModelSheet({
     </div>
   )
 
-  // The side columns sit level with the bottom of the pictures, or just above the foot without them.
+  // The side columns sit level with the middle of the pictures, or the middle of the screen without them.
   const leftCol = useRef<HTMLDivElement>(null)
   const rightCol = useRef<HTMLDivElement>(null)
-  const foot = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     if (!wide) return
     const st = stageRef.current
-    const bottom = beside && st ? innerHeight - (st.getBoundingClientRect().top + top + pageH) : (foot.current?.offsetHeight ?? 80) + 24
-    for (const c of [leftCol.current, rightCol.current]) if (c) c.style.bottom = `${Math.max(0, bottom).toFixed(1)}px`
+    const mid = beside && st ? st.getBoundingClientRect().top + top + pageH / 2 : innerHeight / 2
+    for (const c of [leftCol.current, rightCol.current]) if (c) c.style.top = `${mid.toFixed(1)}px`
   })
 
   return (
@@ -353,9 +353,9 @@ export function ModelSheet({
     >
       {wide ? (
         // Top rail, wide: the name alone in the middle, close on the right.
-        <header className="grid min-h-[92px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter">
+        <header className="grid min-h-[clamp(104px,8.5vw,140px)] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter">
           <span />
-          <h1 aria-label={name} className="wordmark whitespace-nowrap text-[clamp(36px,3.2vw,52px)] uppercase">
+          <h1 aria-label={name} className="wordmark whitespace-nowrap text-[clamp(48px,4.6vw,80px)] uppercase">
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
           <div className="flex justify-end">
@@ -519,13 +519,13 @@ export function ModelSheet({
       )}
 
       {/* Wide: the sizes down the left and the books and actions down the right, level with the
-          bottom of the pictures (else just above the foot), in line with the name's margins. */}
+          middle of the pictures (else of the screen), in line with the name's margins. */}
       {wide && (
         <>
-          <div ref={leftCol} className="absolute left-[var(--gutter)] z-20" style={{ bottom: 120 }}>
+          <div ref={leftCol} className="absolute left-[var(--gutter)] z-20 -translate-y-1/2" style={{ top: '50%' }}>
             {renderStats('flex flex-col items-start gap-1.5 text-[15px]')}
           </div>
-          <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, bottom: 120 }}>
+          <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex -translate-y-1/2 flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, top: '50%' }}>
             {bookTabs(true)}
             {bookActions(true)}
           </div>
@@ -533,7 +533,7 @@ export function ModelSheet({
       )}
 
       {/* Books | counter | actions, then the ruler across the full width */}
-      <div ref={foot} className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
+      <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
         {!underSpread && !wide && actionsRow('px-gutter')}
 
         {segment === 'bio' && bioParts.length > 1 && (
