@@ -346,7 +346,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
   return (
     <section
       ref={rootRef}
-      data-hero={skip ? 'over' : stage}
+      // Skipping the intro still hands over to the header logo once the video has scrolled away.
+      data-hero={skip ? (stage === 'past' ? 'past' : 'over') : stage}
       data-intro-done={seen ? '1' : undefined}
       className="relative h-dvh overflow-hidden bg-bg"
       aria-roledescription="carousel"

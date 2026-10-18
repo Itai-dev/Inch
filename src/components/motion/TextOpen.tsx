@@ -14,7 +14,12 @@ import { useScrollProgress } from '@/hooks/useScrollProgress'
 
 // Written by 62% of the zone's scroll (as before, about 0.87 screens), then held for about half a screen to be read.
 const ANIM_END = 0.62
-const DROP_END = 0.18
+/** First the ” sits a little larger in the middle of the screen, then moves to its place at the
+ * statement's start (MOVE_FROM to MOVE_END of the writing), then splits (to DROP_END). */
+const MARK_BIG = 2.2
+const MOVE_FROM = 0.04
+const MOVE_END = 0.16
+const DROP_END = 0.28
 const DROP_PX = 48
 const EXIT_UP = 40
 const DRIFT_UP = 30 // the statement rises this much while it is written
@@ -32,6 +37,8 @@ const LETTER_GAP = 0.03
 const headerBottom = () => (document.querySelector('[data-site-header] > a')?.getBoundingClientRect().bottom ?? 90) + 16
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 /** The zone's own length (vh) before any `holdVh`: written, then held, over its scroll of 140vh. */
@@ -68,6 +75,7 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   const picRefs = useRef<(HTMLSpanElement | null)[]>([])
   const textRef = useRef<HTMLParagraphElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
+  const leftRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(MAX_FONT)
 
@@ -107,8 +115,9 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   const animP = Math.min(1, progress / ANIM_END)
   const exitT = Math.max(0, (progress - ANIM_END) / (1 - ANIM_END))
   const dropT = Math.min(animP / DROP_END, 1)
-  const splitT = easeOutCubic(dropT)
-  const translateY = (1 - splitT) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
+  const moveE = easeInOutCubic(clamp01((animP - MOVE_FROM) / (MOVE_END - MOVE_FROM)))
+  const splitT = easeOutCubic(clamp01((animP - MOVE_END) / (DROP_END - MOVE_END)))
+  const translateY = (1 - easeOutCubic(dropT)) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
   // The writing runs through the letters and the pictures alike: a picture takes picSteps letters'
   // worth of the scroll and opens left to right at the letters' pace, the stroke travelling across it.
@@ -138,12 +147,24 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   useLayoutEffect(() => {
     const wrap = wrapRef.current
     const right = rightRef.current
-    if (!wrap || !right) return
+    const left = leftRef.current
+    if (!wrap || !right || !left) return
     const wr = wrap.getBoundingClientRect()
-    const place = (x: number, y: number, visible: boolean) => {
-      right.style.transform = `translate(${x}px, ${y}px)`
+    const place = (x: number, y: number, visible: boolean, scale = 1) => {
+      right.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
       right.style.opacity = visible ? '1' : '0'
     }
+    // Arriving: the whole ”, larger, in the middle of the screen, easing over to the statement's start.
+    if (moveE < 1 && !reduced) {
+      const s = lerp(MARK_BIG, 1, moveE)
+      const markFull = markW * 2 + strokeGap
+      const x = lerp(wrap.offsetWidth / 2 - (MARK_BIG * markFull) / 2, leftX, moveE)
+      const y = lerp(wrap.offsetHeight / 2 - (MARK_BIG * markH) / 2, topNudge, moveE)
+      left.style.transform = `translate(${x}px, ${y}px) scale(${s})`
+      place(x + (markW + strokeGap) * s, y, true, s)
+      return
+    }
+    left.style.transform = `translate(${leftX}px, ${topNudge}px)`
     const first = charRefs.current[0]
     if (splitT < 1 || cursor <= 0) {
       const firstRight = first ? first.getBoundingClientRect().right - wr.left + sideGap : sideGap
@@ -182,10 +203,10 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : `${ZONE_VH + holdVh}vh` }} className="relative">
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
-          <div aria-hidden className="pointer-events-none absolute" style={{ left: leftX, top: topNudge }}>
+          <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">
             <QuoteStroke side="left" height={markH} />
           </div>
-          <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 transition-opacity duration-100">
+          <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
           <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text}>

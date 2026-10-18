@@ -9,7 +9,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { NameOpen } from '@/components/motion/NameOpen'
+import { Logo } from '@/components/brand/Logo'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
@@ -96,7 +96,7 @@ const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', sho
 const half = (v: string | number) => String(v).replace('.5', '½')
 
 export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
-  const { brand, division, label } = SITES[site]
+  const { brand, division } = SITES[site]
   const reduced = useReducedMotion()
   const [step, setStep] = useState<Step>('intro')
   const [furthest, setFurthest] = useState(0)
@@ -239,7 +239,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           </div>
         )}
         <div className="flex flex-col justify-center gap-7 px-gutter py-10 md:px-[clamp(40px,6vw,120px)] md:py-24">
-          <NameOpen name="Get scouted" division={division} className="wordmark text-[clamp(56px,7vw,112px)] uppercase" />
+          <h1 className="wordmark text-[clamp(56px,7vw,112px)] uppercase">
+            <TypeText text="Get scouted" at={0} ms={45} />
+          </h1>
           <div className="flex max-w-[520px] flex-col gap-3 text-[17px] leading-snug">
             <p><TypeText text={INTRO[0]} at={introAt[0]} ms={INTRO_MS} /></p>
             <p className="text-muted"><TypeText text={INTRO[1]} at={introAt[1]} ms={INTRO_MS} /></p>
@@ -542,10 +544,10 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
   return (
     <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
-      {/* Top bar, as on the model page: what this is, and close. */}
-      {/* Over the opening picture the bar is see-through and its label white. */}
+      {/* Top bar, as on the model page: the logo, and close. */}
+      {/* Over the opening picture the bar is see-through and the logo white. */}
       <div className={`sticky top-0 z-10 flex shrink-0 items-center justify-between px-gutter pb-3 pt-[clamp(16px,2vw,28px)] ${step === 'intro' && image ? 'md:bg-transparent' : ''} bg-bg`}>
-        <p className={`label ${step === 'intro' && image ? 'text-muted md:text-white' : 'text-muted'}`}>Become a model · {brand} {label}</p>
+        <Logo division={division} className={`text-[48px] md:text-[70px] ${step === 'intro' && image ? 'md:text-white' : ''}`} />
         <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
             <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />

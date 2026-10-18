@@ -172,20 +172,31 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   letter-spacing: -0.1em;
   margin-right: 0.1em;
 }
-/* The other site's box (SiteSwitch): upright in the bottom-left corner, in the page's margin, its
-   note above it. The box grows slightly on hover and press. */
+/* The other site's box (SiteSwitch): upright in the bottom-left corner, in the page's margin. It
+   pops up (a small overshoot) when shown and drops away when not; the box grows slightly on hover and press. */
 .site-switch-tab {
   --tab: clamp(22px, 1.8vw, 34px);
   position: fixed;
   z-index: 40;
   left: var(--gutter);
   bottom: var(--gutter);
+  transform-origin: bottom left;
+  opacity: 0;
+  transform: translateY(14px) scale(0.6);
+  pointer-events: none;
+  transition: opacity 0.2s var(--ease-out), transform 0.3s var(--ease-out);
+}
+.site-switch-tab[data-shown] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity 0.15s var(--ease-out), transform 0.55s cubic-bezier(0.34, 1.6, 0.64, 1);
 }
 .site-switch {
   transition: transform 0.35s var(--ease-out);
 }
 .site-switch-tab:hover .site-switch,
-.site-switch-tab:focus-visible .site-switch {
+.site-switch-tab:focus-within .site-switch {
   transform: scale(1.08);
 }
 .site-switch-tab:active .site-switch {
