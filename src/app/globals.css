@@ -274,3 +274,6 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   /* TypeOnScroll: each letter shown by the scroll, not the clock. */
   [data-type-scroll] .type-char { animation: none; opacity: 0; }
 }
+
+/* The home page ends on the magazine's grey surface, straight into the footer. */
+main:has([data-magazine]) + footer { margin-top: 0; }

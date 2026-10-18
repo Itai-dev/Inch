@@ -15,6 +15,7 @@
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
+import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
 import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
@@ -167,6 +168,19 @@ function HandIcon({ kind }: { kind: keyof typeof HAND_PATHS }) {
 }
 
 
+/**
+ * The grey surface's pattern (brand artboard 18): a small mark every PATTERN_SIZE, the ” for INCH”
+ * (the ■ for DOT.), used as a mask so it takes the page's colour, very faint.
+ */
+const PATTERN_SIZE = 'clamp(36px, 3vw, 58px) clamp(33px, 2.75vw, 53px)'
+const patternTile = (division: Division) => {
+  const mark =
+    division === 'men'
+      ? `<rect x='2' y='14' width='9' height='9'/>`
+      : `<g transform='scale(${(22.7 / 72).toFixed(4)})'><path d='${LEFT_PATH}'/><path d='${RIGHT_PATH}'/></g>`
+  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='57.6' height='52.84' viewBox='0 0 57.6 52.84'>${mark}</svg>`)}")`
+}
+
 /** The pages' edges, as seen on the side of a closed magazine: fine lines across its thickness. */
 const paper = (dir: 'right' | 'bottom') => `repeating-linear-gradient(to ${dir}, #f6f4ef 0 1px, #e4e0d8 1px 2px)`
 
@@ -238,7 +252,7 @@ export function Magazine({
   cover: Pic
   spreads: Spread[]
 }) {
-  const section = useRef<HTMLElement>(null)
+  const section = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const book = useRef<HTMLDivElement>(null)
   const shadow = useRef<HTMLSpanElement>(null)
@@ -249,7 +263,7 @@ export function Magazine({
   const controls = useRef<HTMLDivElement>(null)
   const hand = useRef<HTMLDivElement>(null)
   const tape = useRef<HTMLSpanElement>(null)
-  const pinned = useRef<HTMLDivElement>(null)
+  const tail = useRef<HTMLDivElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader is on: 0 = closed, k = k leaves turned.
@@ -355,10 +369,8 @@ export function Magazine({
       raf = requestAnimationFrame(() => {
         const r = el.getBoundingClientRect()
         const p = clamp01(-r.top / Math.max(1, r.height - innerHeight))
-        // Leaving for the footer: once the section's end rises into the screen, the arrows fade first,
-        // then the magazine, so none of it is left at the top of the screen over the footer.
-        const leave = clamp01((innerHeight - r.bottom) / (innerHeight * 0.5))
-        if (pinned.current) pinned.current.style.opacity = (1 - smooth(clamp01((leave - 0.1) / 0.6))).toFixed(3)
+        // Leaving for the footer: once the magazine starts to scroll away, the arrows fade out.
+        const leave = clamp01((innerHeight - r.bottom) / (innerHeight * 0.3))
         if (leave !== l.leave) {
           l.leave = leave
           if (l.user) l.draw()
@@ -392,6 +404,23 @@ export function Magazine({
     const ro = new ResizeObserver(() => live.current.draw())
     ro.observe(el)
     return () => ro.disconnect()
+  }, [])
+
+  // The room under the magazine: enough that, with the footer filling the rest of the screen, none
+  // of the magazine is left in view at the bottom of the page.
+  useEffect(() => {
+    const el = tail.current
+    const footer = document.querySelector('footer')
+    if (!el || !footer) return
+    const fit = () => (el.style.height = `${Math.max(0, innerHeight - footer.offsetHeight) + 16}px`)
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(footer)
+    addEventListener('resize', fit)
+    return () => {
+      ro.disconnect()
+      removeEventListener('resize', fit)
+    }
   }, [])
 
   /** Eases the pages to `to` (whole leaves turned): a turn a page, faster through many. */
@@ -546,18 +575,34 @@ export function Magazine({
   ]
   return (
     <section
-      ref={section}
+      data-magazine
       aria-label={`${pad(number)} ${heading}`}
       aria-roledescription="carousel"
-      className="relative motion-reduce:!h-auto"
-      // On a grey surface, fading in from the page and back out to it.
+      className="relative"
+      // On a grey surface, fading in from the page and grey down to the footer.
       style={{
-        height: `${ZONE_VH}vh`,
-        background: 'linear-gradient(to bottom, var(--bg), var(--surface-mag) 45vh, var(--surface-mag) calc(100% - 45vh), var(--bg))',
+        background: 'linear-gradient(to bottom, var(--bg), var(--surface-mag) 45vh)',
         ['--surface-mag' as string]: 'color-mix(in srgb, var(--fg) 9%, var(--bg))',
       }}
     >
-      <div ref={pinned} className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
+      {/* The surface's pattern: rows of small brand marks, barely darker than the grey (brand artboard 18). */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 top-[30vh]"
+        style={{
+          backgroundColor: 'var(--fg)',
+          opacity: 0.028,
+          maskImage: patternTile(division),
+          WebkitMaskImage: patternTile(division),
+          maskSize: PATTERN_SIZE,
+          WebkitMaskSize: PATTERN_SIZE,
+          maskPosition: 'center top',
+          WebkitMaskPosition: 'center top',
+        }}
+      />
+      {/* The pinned stretch: the opening, the cover opening, then the magazine scrolls away. */}
+      <div ref={section} className="relative motion-reduce:!h-auto" style={{ height: `${ZONE_VH}vh` }}>
+      <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
           className="relative select-none"
@@ -666,6 +711,9 @@ export function Magazine({
           </span>
         </div>
       </div>
+      </div>
+      {/* Room for the magazine to scroll right out of sight before the footer comes up. */}
+      <div ref={tail} aria-hidden style={{ height: '40vh' }} />
     </section>
   )
 }
