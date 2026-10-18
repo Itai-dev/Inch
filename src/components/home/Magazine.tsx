@@ -2,8 +2,9 @@
 
 /**
  * A chapter told as a magazine, on the page itself, right under the statement. The closed
- * magazine first shows its spine, lying across ("INCH” Model Management 2026"); once it is well in
- * view it turns to face you with its cover, upright. Then the reader
+ * magazine first shows its spine, lying across ("INCH” Model Management 2026"), and turns with
+ * the scroll to face you with its cover, upright, as it rises to the middle of the screen: a
+ * solid box, cover, spine and the pages' edges, shading as it turns, with its shadow under it. Then the reader
  * turns the pages: a click or tap on the right page (or the cover) turns on, on the left page
  * back; also a swipe, or the buttons under it. The cover opens onto the chapter on the first
  * left page, then a model on every right page and her name on the page facing it. The pages
@@ -92,16 +93,26 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
   )
 }
 
-/** The opening once it is in view (ms): the spine rests a moment, then the magazine turns to its cover. And a page to turn. */
-const INTRO_MS = 2200
-const TURN_FROM = 0.3
+/** The opening, as a share of its scroll: the spine rests until here, then the magazine turns to its cover. And a page to turn (ms). */
+const TURN_FROM = 0.22
 const TURN_MS = 900
-/** The book's width, and the spine's thickness. */
+/** The book's width, the closed magazine's (the cover's) width and height, and its thickness. */
 const BOOK_W = 'min(92vw, 100dvh)'
-const SPINE_T = `calc(${BOOK_W} * 0.036)`
+const COVER_W = `(${BOOK_W} / 2)`
+const COVER_H = `(${BOOK_W} / 1.5)`
+const SPINE_T = `(${BOOK_W} * 0.036)`
+const css = (expr: string) => `calc(${expr})`
 
-/** The closed magazine as a box, its cover and its spine: for the opening only (the real book takes over once it faces you). */
-function ClosedBook({ boxRef, cover, division, number, heading, brand }: { boxRef: React.Ref<HTMLDivElement>; cover: Pic; division: Division; number: number; heading: string; brand: string }) {
+/** The pages' edges, as seen on the side of a closed magazine: fine lines across its thickness. */
+const paper = (dir: 'right' | 'bottom') => `repeating-linear-gradient(to ${dir}, #f6f4ef 0 1px, #e4e0d8 1px 2px)`
+
+/**
+ * The closed magazine as a solid box — cover, spine and the pages' edges — for the opening only
+ * (the real book takes over once it faces you). Faces carry a shade that the opening sets as they
+ * turn toward or away from the light (in front).
+ */
+function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: React.Ref<HTMLDivElement>; cover: Pic; division: Division; number: number; heading: string }) {
+  const half = css(`${SPINE_T} / 2`)
   return (
     <div
       ref={boxRef}
@@ -109,22 +120,38 @@ function ClosedBook({ boxRef, cover, division, number, heading, brand }: { boxRe
       className="pointer-events-none absolute inset-y-0 left-1/4 w-1/2 [transform-style:preserve-3d]"
       style={{ transform: 'rotateZ(-90deg) rotateY(90deg)' }}
     >
-      <div className="absolute inset-0 [backface-visibility:hidden]" style={{ transform: `translateZ(calc(${SPINE_T} / 2))` }}>
+      {/* Cover. */}
+      <div className="absolute inset-0 [backface-visibility:hidden]" style={{ transform: `translateZ(${half})` }}>
         <CoverPage pic={cover} division={division} number={number} heading={heading} />
+        <span data-shade="cover" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
       </div>
-      {/* The spine, on the cover's left edge: read along it once it lies across. */}
+      {/* The pages' edges: top, bottom and the side opposite the spine. */}
+      <div className="absolute inset-x-0 [backface-visibility:hidden]" style={{ height: css(SPINE_T), top: css(`${SPINE_T} / -2`), transform: 'rotateX(90deg)', backgroundImage: paper('bottom') }} />
+      <div className="absolute inset-x-0 [backface-visibility:hidden]" style={{ height: css(SPINE_T), bottom: css(`${SPINE_T} / -2`), transform: 'rotateX(-90deg)', backgroundImage: paper('bottom') }} />
+      <div className="absolute inset-y-0 [backface-visibility:hidden]" style={{ width: css(SPINE_T), right: css(`${SPINE_T} / -2`), transform: 'rotateY(90deg)', backgroundImage: paper('right') }} />
+      {/* The spine, on the cover's left edge, a little rounded by the light. */}
       <div
-        className="absolute inset-y-0 flex bg-[#111] text-white [backface-visibility:hidden]"
-        style={{ width: SPINE_T, left: `calc(${SPINE_T} / -2)`, transform: 'rotateY(-90deg)' }}
+        className="absolute inset-y-0 overflow-hidden bg-[#121212] text-white [backface-visibility:hidden]"
+        style={{ width: css(SPINE_T), left: css(`${SPINE_T} / -2`), transform: 'rotateY(-90deg)' }}
       >
-        <p
-          className="flex h-full w-full items-center justify-between whitespace-nowrap px-0 py-[6%] uppercase [writing-mode:vertical-rl]"
-          style={{ fontSize: `calc(${SPINE_T} * 0.42)` }}
+        {/* Laid out lengthwise, then turned onto the spine: it reads left to right once the magazine lies across. */}
+        <div
+          className="absolute left-1/2 top-1/2 flex items-center justify-between"
+          style={{ width: css(COVER_H), height: css(SPINE_T), padding: `0 ${css(SPINE_T)}`, transform: 'translate(-50%, -50%) rotate(90deg)' }}
         >
-          <span className="wordmark leading-none" style={{ fontSize: '1.35em' }}>{brand}</span>
-          <span className="tracking-[0.28em]">Model Management</span>
-          <span className="tabular-nums tracking-[0.2em]">{new Date().getFullYear()}</span>
-        </p>
+          {/* The logo, a little under half the spine's thickness tall, as far in from the end as the spine is thick. */}
+          <span className="flex" style={{ fontSize: css(`${SPINE_T} * 0.625`) }}>
+            <Logo division={division} />
+          </span>
+          <span className="whitespace-nowrap uppercase tracking-[0.32em]" style={{ fontSize: css(`${SPINE_T} * 0.26`) }}>
+            Model Management
+          </span>
+          <span className="whitespace-nowrap tabular-nums tracking-[0.2em]" style={{ fontSize: css(`${SPINE_T} * 0.26`) }}>
+            {new Date().getFullYear()}
+          </span>
+        </div>
+        <span aria-hidden className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgb(0 0 0 / 0.35), rgb(255 255 255 / 0.08) 45%, rgb(255 255 255 / 0.04) 60%, rgb(0 0 0 / 0.4))' }} />
+        <span data-shade="spine" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
       </div>
     </div>
   )
@@ -153,12 +180,13 @@ export function Magazine({
   const spine = useRef<HTMLSpanElement>(null)
   const leaves = useRef<(HTMLDivElement | null)[]>([])
   const box = useRef<HTMLDivElement>(null)
+  const boxShadow = useRef<HTMLSpanElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader asked for: 0 = closed, k = k leaves turned.
   const [page, setPage] = useState(0)
   /** Where the pages are now (they ease toward `page`), and how far the magazine has arrived. */
-  const live = useRef({ at: 0, arrive: 0, draw: () => {}, frame: 0 })
+  const live = useRef({ at: 0, arrive: 0, done: false, draw: () => {}, frame: 0 })
 
   // Draws the book for the current state, straight on the DOM.
   useEffect(() => {
@@ -168,9 +196,25 @@ export function Magazine({
       const opened = smooth(Math.min(1, Math.max(0, (at - 0.15) / 0.7)))
       // The opening: the spine lies across (there as soon as you scroll to it), then the box turns upright to its cover.
       const turn = smooth(Math.min(1, Math.max(0, (a - TURN_FROM) / (1 - TURN_FROM))))
-      if (box.current) {
-        box.current.style.opacity = a >= 1 ? '0' : '1'
-        box.current.style.transform = `rotateZ(${(-90 * (1 - turn)).toFixed(2)}deg) rotateY(${(90 * (1 - turn)).toFixed(2)}deg)`
+      const deg = 90 * (1 - turn)
+      const sin = Math.sin((deg * Math.PI) / 180)
+      const cos = Math.cos((deg * Math.PI) / 180)
+      const bx = box.current
+      if (bx) {
+        bx.style.opacity = a >= 1 ? '0' : '1'
+        bx.style.transform = `rotateZ(${(-deg).toFixed(2)}deg) rotateY(${deg.toFixed(2)}deg)`
+        // Light from in front: a face darkens as it turns away.
+        const shade = (k: string, v: number) => bx.querySelector<HTMLElement>(`[data-shade="${k}"]`)?.style.setProperty('opacity', v.toFixed(3))
+        shade('spine', 0.6 * (1 - sin))
+        shade('cover', 0.5 * (1 - cos))
+      }
+      // Its shadow: the outline it shows (the spine's, widening to the cover's), turned with it, a little down and to the right.
+      const sh = boxShadow.current
+      if (sh) {
+        sh.style.opacity = a >= 1 ? '0' : '1'
+        sh.style.width = css(`${COVER_W} * ${(0.96 * cos).toFixed(4)} + ${SPINE_T} * ${sin.toFixed(4)}`)
+        sh.style.height = css(COVER_H)
+        sh.style.transform = `translate(-50%, -50%) translate(${css(`${COVER_W} * 0.02`)}, ${css(`${COVER_H} * 0.02`)}) rotate(${(-deg).toFixed(2)}deg)`
       }
       // Closed, the cover sits in the middle; open, the spine does. The real book shows once the box faces you.
       const b = book.current
@@ -203,9 +247,11 @@ export function Magazine({
     live.current.draw()
   }, [turns])
 
-  // The opening plays once the magazine is well in view.
+  // The opening follows the scroll: the spine comes up from below, and the magazine turns to its
+  // cover as it rises to the middle of the screen (and back, scrolling up). Once the reader has
+  // opened it, or clicked during the opening, it stays a book.
   useEffect(() => {
-    const el = section.current
+    const el = section.current?.firstElementChild
     if (!el) return
     const l = live.current
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -214,25 +260,27 @@ export function Magazine({
       return
     }
     let raf = 0
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (!e.isIntersecting) return
-        io.disconnect()
-        const from = performance.now()
-        const tick = (now: number) => {
-          // (A click may have skipped it to the end already.)
-          l.arrive = Math.max(l.arrive, Math.min(1, (now - from) / INTRO_MS))
-          l.draw()
-          if (l.arrive < 1) raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-      },
-      { threshold: 0.6 },
-    )
-    io.observe(el.firstElementChild ?? el)
-    return () => {
-      io.disconnect()
+    const read = () => {
       cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect()
+        const mid = r.top + r.height / 2
+        const from = innerHeight * 1.05 // its middle just under the screen
+        const to = innerHeight * 0.52 // its middle in the middle
+        const p = Math.min(1, Math.max(0, (from - mid) / (from - to)))
+        const a = l.done || l.at > 0 ? 1 : p
+        if (a === l.arrive) return
+        l.arrive = a
+        l.draw()
+      })
+    }
+    read()
+    addEventListener('scroll', read, { passive: true })
+    addEventListener('resize', read)
+    return () => {
+      cancelAnimationFrame(raf)
+      removeEventListener('scroll', read)
+      removeEventListener('resize', read)
     }
   }, [])
 
@@ -262,6 +310,7 @@ export function Magazine({
   const step = (d: number) => {
     // Turning a page ends the opening at once.
     const l = live.current
+    l.done = true
     if (l.arrive < 1) {
       l.arrive = 1
       l.draw()
@@ -309,6 +358,7 @@ export function Magazine({
           // During the opening, a click skips to the cover.
           const l = live.current
           if (l.arrive < 1) {
+            l.done = true
             l.arrive = 1
             l.draw()
             return
@@ -318,7 +368,9 @@ export function Magazine({
           step(page === 0 || e.clientX > r.left + r.width / 2 ? 1 : -1)
         }}
       >
-        <ClosedBook boxRef={box} cover={cover} division={division} number={number} heading={heading} brand={brand} />
+        {/* The closed magazine's shadow on the floor, following its outline as it turns. */}
+        <span ref={boxShadow} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 bg-black/25 blur-2xl" />
+        <ClosedBook boxRef={box} cover={cover} division={division} number={number} heading={heading} />
         <div ref={book} className="absolute inset-0 will-change-transform" style={{ perspective: '2600px', transform: 'translateX(-25%)', opacity: 0 }}>
           {/* The book's shadow on the floor: under the cover while closed, under both pages once open. */}
           <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-2xl" style={{ bottom: '-2%' }} />
