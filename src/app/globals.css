@@ -193,9 +193,15 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   from { transform: translateX(100%); }
   to { transform: none; }
 }
+@keyframes crop-hold {
+  from { transform: translateX(calc(-1 * var(--w))); }
+  to { transform: none; }
+}
 @media (prefers-reduced-motion: no-preference) {
   [data-intro] .intro-write { animation: hero-type var(--t, 0.3s) steps(var(--n, 6)) both; animation-delay: var(--d, 0ms); }
   [data-intro] .intro-crop > [data-current], [data-intro] ul.intro-crop img { animation: crop-in 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; animation-delay: var(--d, 0ms); }
+  /* What stays still on the sliding spread (the model page's mark) slides the other way, by the frame's width. */
+  [data-intro] .intro-crop > [data-current] .intro-hold { animation: crop-hold 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; animation-delay: var(--d, 0ms); }
   [data-intro] .intro-fade { animation: hero-fade 0.6s var(--ease-out) both; animation-delay: var(--d, 0ms); }
   /* A spread's credits fade in once it has slid into place. */
   .credit-in { animation: hero-fade 0.5s var(--ease-out) 0.45s both; }

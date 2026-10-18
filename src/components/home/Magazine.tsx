@@ -249,12 +249,13 @@ export function Magazine({
   const controls = useRef<HTMLDivElement>(null)
   const hand = useRef<HTMLDivElement>(null)
   const tape = useRef<HTMLSpanElement>(null)
+  const pinned = useRef<HTMLDivElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader is on: 0 = closed, k = k leaves turned.
   const [page, setPage] = useState(0)
   /** Where the pages are now (`at`: leaves turned, fractions mid-turn), how far the opening has gone, and the running turn. */
-  const live = useRef({ at: 0, arrive: 0, user: false, page: 0, draw: () => {}, frame: 0 })
+  const live = useRef({ at: 0, arrive: 0, leave: 0, user: false, page: 0, draw: () => {}, frame: 0 })
 
   // Draws the book for the current state, straight on the DOM.
   useEffect(() => {
@@ -296,7 +297,7 @@ export function Magazine({
         sh.style.filter = `blur(${lerp(40, 70, lift).toFixed(1)}px)`
         sh.style.transform = `translate(-50%, -50%) translate(${(coverW * 0.02 + lift * W * 0.03).toFixed(1)}px, ${(coverH * 0.02 + lift * coverH * 0.22).toFixed(1)}px) rotate(${(-deg).toFixed(2)}deg)`
       }
-      if (controls.current) controls.current.style.opacity = a >= 1 ? '1' : '0'
+      if (controls.current) controls.current.style.opacity = a >= 1 ? (1 - clamp01(live.current.leave / 0.3)).toFixed(3) : '0'
       // The tape under the arrows follows the pages; the number in the middle is at full strength.
       const tp = tape.current
       if (tp) {
@@ -354,6 +355,14 @@ export function Magazine({
       raf = requestAnimationFrame(() => {
         const r = el.getBoundingClientRect()
         const p = clamp01(-r.top / Math.max(1, r.height - innerHeight))
+        // Leaving for the footer: once the section's end rises into the screen, the arrows fade first,
+        // then the magazine, so none of it is left at the top of the screen over the footer.
+        const leave = clamp01((innerHeight - r.bottom) / (innerHeight * 0.5))
+        if (pinned.current) pinned.current.style.opacity = (1 - smooth(clamp01((leave - 0.1) / 0.6))).toFixed(3)
+        if (leave !== l.leave) {
+          l.leave = leave
+          if (l.user) l.draw()
+        }
         // Once the reader has turned a page, the scroll leaves the magazine as it is.
         if (l.user) return
         l.arrive = Math.min(1, p / INTRO_END)
@@ -548,7 +557,7 @@ export function Magazine({
         ['--surface-mag' as string]: 'color-mix(in srgb, var(--fg) 9%, var(--bg))',
       }}
     >
-      <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
+      <div ref={pinned} className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
           className="relative select-none"

@@ -33,6 +33,7 @@ const GAP = 16 // between spreads
 const CAPTION_H = 22
 const CREDIT_GAP = 12 // between a page and its credit
 const MARK_INSET = 16 // the brand's mark, in from the spread's corner
+const ROW_H = 46 // the books and actions under a two-page spread, with the gap above them
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
@@ -118,8 +119,11 @@ export function ModelSheet({
   const S = Math.max(1, spreads.length)
   // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
   const capH = per === 2 ? 0 : CAPTION_H
+  // Two pages: the books and actions sit just under the spread, so leave room for them.
+  const underSpread = showBook && per === 2
+  const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? 44 : 12 // minimum breathing room each side of the frame
-  let pageH = Math.max(0, stage.h - capH)
+  let pageH = Math.max(0, stage.h - capH - rowH)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
@@ -128,7 +132,7 @@ export function ModelSheet({
   // Every spread takes the same frame, so the margins never change.
   const frameW = pageW * per + FOLD * (per - 1)
   const left = (stage.w - frameW) / 2
-  const top = Math.max(0, (stage.h - pageH - capH) / 2)
+  const top = Math.max(0, (stage.h - pageH - capH - rowH) / 2)
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -272,6 +276,41 @@ export function ModelSheet({
       </div>
     ) : null
 
+  // Books | actions: under the spread, edge to edge with it, when the book shows two pages; else across the foot.
+  const actionsRow = (className: string, style?: React.CSSProperties) => (
+<div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[15px] font-bold uppercase md:text-[16px] ${className}`} style={{ ...narrow, ...style }}>
+      <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
+        {tabs.map((t) => (
+          <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
+            {t.title}
+          </button>
+        ))}
+        {handle && (
+          <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
+            IG
+          </a>
+        )}
+      </nav>
+      <div className="flex gap-5 md:justify-end md:gap-[26px]">
+        {book && N > 0 && (
+          <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
+            {view === 'book' ? 'Thumbnails' : 'Book'}
+          </button>
+        )}
+        {compCard && (
+          <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
+            Comp card
+          </a>
+        )}
+        {talent && (
+          <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
+            {selected ? 'Selected' : '+ Selection'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <div
       data-model-sheet
@@ -339,13 +378,25 @@ export function ModelSheet({
                   transition: anim,
                 }}
               >
-                {idx.map((i) => {
+                {idx.map((i, j) => {
                   const s = slides[i]
+                  // Where this page starts across the frame, for the mark below.
+                  const pageX = idx.length === 2 ? j * (pageW + FOLD) : (frameW - w) / 2
                   return (
                     <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
-                      <div className="overflow-hidden bg-line" style={{ width: w, height: pageH }}>
+                      <div className="relative overflow-hidden bg-line" style={{ width: w, height: pageH }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
+                        {/* The brand's mark, in the frame's top left corner and held still there while the
+                            pages slide (it moves against its page), inverting the picture under it. Each
+                            page carries it, clipped to the page: it shows only where a picture is. */}
+                        <span
+                          aria-hidden
+                          className="intro-hold pointer-events-none absolute z-10 text-white mix-blend-difference"
+                          style={{ top: MARK_INSET, left: MARK_INSET - pageX, transform: `translateX(${-o * (frameW + GAP)}px)`, transition: anim, '--w': `${frameW}px` } as React.CSSProperties}
+                        >
+                          {division === 'men' ? <span className="block size-[clamp(12px,1.1vw,16px)] bg-current" /> : <QuoteMark className="h-[clamp(22px,2.2vw,32px)] w-auto" />}
+                        </span>
                       </div>
                       {o === 0 && per === 1 && s.caption && (
                         <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
@@ -375,16 +426,13 @@ export function ModelSheet({
                 </p>
               )
             })}
-          {/* The brand's mark in the spread's top left corner, inverting what's under it; it stays put while the pages slide. */}
-          <span aria-hidden className="pointer-events-none absolute z-10 text-white mix-blend-difference" style={{ top: top + MARK_INSET, left: left + MARK_INSET }}>
-            {division === 'men' ? <span className="block size-[clamp(12px,1.1vw,16px)] bg-current" /> : <QuoteMark className="h-[clamp(22px,2.2vw,32px)] w-auto" />}
-          </span>
           {/* Either half of the spread: back / on. */}
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 left-0 w-1/2 cursor-w-resize" onClick={() => !swipe.current.moved && step(-1)} />
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 right-0 w-1/2 cursor-e-resize" onClick={() => !swipe.current.moved && step(1)} />
           <p className="sr-only" aria-live="polite">
             {visible.map((i) => `${pad2(i + 1)} ${slides[i].caption || slides[i].alt}`).join(', ')} of {pad2(N)}
           </p>
+          {underSpread && actionsRow('absolute z-20 items-end', { top: top + pageH, height: ROW_H, left, width: frameW })}
         </section>
       )}
 
@@ -424,37 +472,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[15px] font-bold uppercase md:text-[16px]" style={narrow}>
-          <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
-            {tabs.map((t) => (
-              <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
-                {t.title}
-              </button>
-            ))}
-            {handle && (
-              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
-                IG
-              </a>
-            )}
-          </nav>
-          <div className="flex gap-5 md:justify-end md:gap-[26px]">
-            {book && N > 0 && (
-              <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
-                {view === 'book' ? 'Thumbnails' : 'Book'}
-              </button>
-            )}
-            {compCard && (
-              <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
-                Comp card
-              </a>
-            )}
-            {talent && (
-              <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
-                {selected ? 'Selected' : '+ Selection'}
-              </button>
-            )}
-          </div>
-        </div>
+        {!underSpread && actionsRow('px-gutter')}
 
         {segment === 'bio' && bioParts.length > 1 && (
           <div className="intro-fade" style={at(INTRO_AT + 200)}>
