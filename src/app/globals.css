@@ -249,17 +249,6 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   [data-type-wait] .work-frame, [data-type-wait] .work-pic { animation-play-state: paused; }
 }
 
-/* Contact sheet, put together as the page opens: the prints drop onto it from a slight turn, the
-   paper clip slips on to hold them, and the pencilled notes write in, a line at a time. */
-@keyframes print-drop { from { opacity: 0; transform: translateY(-28px) rotate(var(--turn, 0deg)) scale(1.04); } to { opacity: 1; transform: none; } }
-@keyframes hand-write { from { clip-path: inset(-30% 100% -30% -10%); } to { clip-path: inset(-30% -10% -30% -10%); } }
-@keyframes clip-on { from { opacity: 0; transform: translateY(-14px) scale(1.06); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: no-preference) {
-  .sheet-print { animation: print-drop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--at, 0ms) both; }
-  .hand-line { animation: hand-write 0.75s cubic-bezier(0.45, 0.05, 0.55, 0.95) var(--at, 0ms) both; }
-  .sheet-clip { animation: clip-on 0.45s cubic-bezier(0.3, 0.9, 0.3, 1.2) var(--at, 0ms) both; }
-}
-
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
 @keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }

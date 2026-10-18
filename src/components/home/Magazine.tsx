@@ -16,6 +16,7 @@ import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
 import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
+import { HAND_PX, HandIcon } from '@/components/HandCursor'
 import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
 
@@ -38,7 +39,7 @@ function NamePage({ name, n }: { name: string; n: number }) {
 }
 
 /** The page corners away from the spine are a little rounded, as on a printed magazine. */
-const RADIUS = 'clamp(4px, 0.5vw, 7px)'
+const RADIUS = 'clamp(2px, 0.22vw, 3.5px)'
 
 /** Coated paper: a soft band of light across the page, sliding with the mouse (--gx on the stage). */
 function Gloss({ strength = 0.16 }: { strength?: number }) {
@@ -57,7 +58,7 @@ function PhotoPage({ pic }: { pic: Pic }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
       <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.06]" />
-      <Gloss strength={0.1} />
+      <Gloss strength={0.045} />
     </div>
   )
 }
@@ -75,7 +76,7 @@ function CoverPage({ pic, division, number, heading }: { pic: Pic; division: Div
         </div>
       </div>
       {/* The cover's gloss. */}
-      <Gloss strength={0.2} />
+      <Gloss strength={0.08} />
     </div>
   )
 }
@@ -152,37 +153,6 @@ function Arrow({ dir }: { dir: 'left' | 'right' }) {
   )
 }
 
-/** The pointer over the magazine: a large open hand that closes on the page while it is held (drawn, so it stays sharp at any size). */
-const HAND_PX = 46
-const HAND_PATHS = {
-  open: [
-    'M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2',
-    'M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2',
-    'M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8',
-    'M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
-  ],
-  held: [
-    'M18 11.5V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1.4',
-    'M14 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2',
-    'M10 9.9V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5',
-    'M6 14a2 2 0 0 0-2-2a2 2 0 0 0-2 2',
-    'M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0',
-  ],
-}
-
-function HandIcon({ kind }: { kind: keyof typeof HAND_PATHS }) {
-  return (
-    <svg viewBox="0 0 24 24" width={HAND_PX} height={HAND_PX} fill="none" strokeLinecap="round" strokeLinejoin="round" className="absolute inset-0 overflow-visible">
-      {/* A white edge under the black line, so it reads on the pictures and on the paper. */}
-      {HAND_PATHS[kind].map((d) => (
-        <path key={`w${d}`} d={d} stroke="#fff" strokeWidth={4.2} />
-      ))}
-      {HAND_PATHS[kind].map((d) => (
-        <path key={d} d={d} stroke="#0a0a0a" strokeWidth={1.7} />
-      ))}
-    </svg>
-  )
-}
 
 
 /** The pages' edges, as seen on the side of a closed magazine: fine lines across its thickness. */
@@ -206,6 +176,12 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
       <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]" style={{ transform: `translateZ(${half})`, borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
         <CoverPage pic={cover} division={division} number={number} heading={heading} />
         <span data-shade="cover" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
+        {/* The light catching the glossy cover as it turns toward you. */}
+        <span
+          data-glare
+          className="absolute inset-0"
+          style={{ opacity: 0, backgroundImage: 'linear-gradient(118deg, transparent 38%, rgb(255 255 255 / 0.55) 50%, transparent 62%)', backgroundSize: '260% 100%', backgroundRepeat: 'no-repeat' }}
+        />
       </div>
       {/* The pages' edges: top, bottom and the side opposite the spine. */}
       <div className="absolute inset-x-0 [backface-visibility:hidden]" style={{ height: css(SPINE_T), top: css(`${SPINE_T} / -2`), transform: 'rotateX(90deg)', backgroundImage: paper('bottom') }} />
@@ -304,6 +280,12 @@ export function Magazine({
         const shade = (k: string, v: number) => bx.querySelector<HTMLElement>(`[data-shade="${k}"]`)?.style.setProperty('opacity', v.toFixed(3))
         shade('spine', 0.6 * (1 - sin))
         shade('cover', 0.5 * (1 - cos))
+        // A band of light sweeps across the cover while it turns, brightest halfway.
+        const glare = bx.querySelector<HTMLElement>('[data-glare]')
+        if (glare) {
+          glare.style.opacity = (Math.sin(Math.PI * turn) * 0.9).toFixed(3)
+          glare.style.backgroundPosition = `${(100 - 100 * turn).toFixed(1)}% 0`
+        }
       }
       // Its shadow on the surface: the outline it shows, turned with it. Held up close it falls far
       // below it, soft and faint; set down it lies just under it, tighter and darker.
