@@ -32,6 +32,7 @@ const FOLD = 2 // the gutter between the two pages of a spread
 const GAP = 16 // between spreads
 const CAPTION_H = 22
 const CREDIT_GAP = 12 // between a page and its credit
+const MARK_INSET = 16 // the brand's mark, in from the spread's corner
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
@@ -283,16 +284,8 @@ export function ModelSheet({
       {/* Top rail: name | stats in one line | close */}
       <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8 md:py-0">
         <div className="flex items-start justify-between gap-4">
-          {/* The brand's symbol, then the name (not set between the marks). */}
+          {/* The name on its own: the brand's mark sits on the spread. */}
           <h1 aria-label={name} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap">
-            <span aria-hidden className="intro-fade relative mr-[0.24em] inline-block align-baseline" style={{ ...at(INTRO_AT), ...(division === 'men' ? { width: '0.3em', height: '0.3em' } : { width: '0.37em', height: '0.7em' }) }}>
-              {division === 'men' ? (
-                <span className="absolute inset-0 bg-current" />
-              ) : (
-                // Hangs from the top of the capitals, as in the logo.
-                <QuoteMark className="absolute left-0 top-0 h-[0.42em] w-auto" />
-              )}
-            </span>
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
           <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
@@ -382,6 +375,10 @@ export function ModelSheet({
                 </p>
               )
             })}
+          {/* The brand's mark in the spread's top left corner, inverting what's under it; it stays put while the pages slide. */}
+          <span aria-hidden className="pointer-events-none absolute z-10 text-white mix-blend-difference" style={{ top: top + MARK_INSET, left: left + MARK_INSET }}>
+            {division === 'men' ? <span className="block size-[clamp(12px,1.1vw,16px)] bg-current" /> : <QuoteMark className="h-[clamp(22px,2.2vw,32px)] w-auto" />}
+          </span>
           {/* Either half of the spread: back / on. */}
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 left-0 w-1/2 cursor-w-resize" onClick={() => !swipe.current.moved && step(-1)} />
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 right-0 w-1/2 cursor-e-resize" onClick={() => !swipe.current.moved && step(1)} />
