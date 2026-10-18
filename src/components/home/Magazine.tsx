@@ -15,6 +15,7 @@
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
+import { rulerTicks } from '@/lib/ruler'
 import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
 
@@ -112,7 +113,7 @@ const CLOSE = 1.9
 /** A page to turn (ms). */
 const TURN_MS = 900
 /** The book's width, the closed magazine's (the cover's) width and height, and its thickness. */
-const BOOK_W = 'min(92vw, 88dvh)'
+const BOOK_W = 'min(94vw, 100dvh)'
 const COVER_H = `(${BOOK_W} / 1.5)`
 const SPINE_T = `(${BOOK_W} * 0.036)`
 const css = (expr: string) => `calc(${expr})`
@@ -122,8 +123,8 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 /** A long, thin arrow. */
 function Arrow({ dir }: { dir: 'left' | 'right' }) {
   return (
-    <svg viewBox="0 0 64 24" aria-hidden className="block h-[clamp(20px,2.4vw,30px)] w-auto" style={dir === 'left' ? { transform: 'scaleX(-1)' } : undefined}>
-      <path d="M1 12h60M50 2l11 10-11 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    <svg viewBox="0 0 64 24" aria-hidden className="block h-[clamp(30px,3.6vw,46px)] w-auto" style={dir === 'left' ? { transform: 'scaleX(-1)' } : undefined}>
+      <path d="M1 12h60M50 2l11 10-11 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }
@@ -405,11 +406,12 @@ export function Magazine({
     }
   }
 
-  // On from the last page closes the magazine again.
+  // Back from the cover or on from the last page does nothing (its arrow is off).
   const step = (d: number) => {
     finishOpening()
     const p = live.current.page
-    ease(p + d > turns ? 0 : Math.max(0, p + d))
+    const to = Math.min(turns, Math.max(0, p + d))
+    if (to !== p) ease(to)
   }
 
   // The hand follows the mouse over the magazine (never on touch), open, or closed while it holds a page.
@@ -524,7 +526,7 @@ export function Magazine({
         ['--surface-mag' as string]: 'color-mix(in srgb, var(--fg) 9%, var(--bg))',
       }}
     >
-      <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip motion-reduce:static motion-reduce:py-20">
+      <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
           className="relative cursor-grab select-none [@media(pointer:fine)]:cursor-none"
@@ -604,12 +606,16 @@ export function Magazine({
 
         </div>
 
-        {/* Back and on, as two big arrows. */}
-        <div ref={controls} className="flex items-center gap-[clamp(40px,6vw,96px)] transition-opacity duration-300" style={{ opacity: 0 }}>
-          <button type="button" aria-label="Previous page" onClick={() => step(-1)} disabled={page === 0} className="p-2 transition-[opacity,transform] duration-200 hover:-translate-x-1 disabled:opacity-20 disabled:hover:translate-x-0">
+        {/* Back | the spread's number on an inch of the INCH” ruler | on. Each arrow is off at its end. */}
+        <div ref={controls} className="mt-[clamp(16px,4vh,48px)] flex items-end gap-[clamp(28px,4vw,64px)] transition-opacity duration-300" style={{ opacity: 0 }}>
+          <button type="button" aria-label="Previous page" onClick={() => step(-1)} disabled={page === 0} className="p-2 transition-[opacity,transform] duration-200 enabled:hover:-translate-x-1 disabled:cursor-default disabled:opacity-15">
             <Arrow dir="left" />
           </button>
-          <button type="button" aria-label={page === turns ? 'Close the magazine' : 'Next page'} onClick={() => step(1)} className="p-2 transition-transform duration-200 hover:translate-x-1">
+          <span aria-hidden className="relative block w-[120px] pb-2">
+            <span className="block text-center text-[clamp(15px,1.3vw,18px)] font-extrabold leading-none tabular-nums">{pad(page)}</span>
+            <span className="mt-2 block h-[18px]" style={rulerTicks(18, 9, 120)} />
+          </span>
+          <button type="button" aria-label="Next page" onClick={() => step(1)} disabled={page === turns} className="p-2 transition-[opacity,transform] duration-200 enabled:hover:translate-x-1 disabled:cursor-default disabled:opacity-15">
             <Arrow dir="right" />
           </button>
           <span aria-live="polite" className="sr-only">
