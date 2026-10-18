@@ -39,11 +39,13 @@ const ZONE_VH = 240
 
 /**
  * Pictures set into the statement (brand artboard 18): gaps held open in the text, a picture in
- * each that opens from its middle as the writing reaches it (and closes again scrolling back).
+ * each that the writing opens left to right, like the letters (and closes again scrolling back).
  * Where they go, as shares of the way through the words: after "boutique" and "with a" in the
  * statement as written, and one more toward the end.
  */
 const PIC_AT = [0.17, 0.5, 0.82]
+/** How many letters' worth of the writing a picture takes to open. */
+const PIC_STEPS = 3
 
 /** The char indices the pictures sit before: the start of the word after each chosen share of the words. */
 function picSlots(text: string, count: number) {
@@ -61,6 +63,7 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
 
   const slots = useMemo(() => picSlots(text, pics.length), [text, pics.length])
   const wrapRef = useRef<HTMLDivElement>(null)
+  const picRefs = useRef<(HTMLSpanElement | null)[]>([])
   const textRef = useRef<HTMLParagraphElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
@@ -105,7 +108,21 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   const splitT = easeOutCubic(dropT)
   const translateY = (1 - splitT) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
-  const cursor = reduced ? text.length : revealP * text.length
+  // The writing runs through the letters and the pictures alike: a picture takes PIC_STEPS letters'
+  // worth of the scroll and opens left to right at the letters' pace, the stroke travelling across it.
+  const units = text.length + PIC_STEPS * slots.length
+  const u = reduced ? units : revealP * units
+  let passed = 0
+  let inPic = -1
+  let picFrac = 0
+  slots.forEach((at, k) => {
+    const from = at + PIC_STEPS * k
+    if (u >= from + PIC_STEPS) passed++
+    else if (u >= from) [inPic, picFrac] = [k, (u - from) / PIC_STEPS]
+  })
+  const opened = (k: number) => (k < passed ? 1 : k === inPic ? picFrac : 0)
+  // How many letters are written.
+  const cursor = inPic >= 0 ? slots[inPic] : Math.min(text.length, Math.max(0, u - PIC_STEPS * passed))
   const leadIdx = Math.min(text.length - 1, Math.max(0, Math.floor(cursor)))
   const leftX = -(markW + sideGap)
 
@@ -125,6 +142,16 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
       const start = leftX + markW + strokeGap
       place(lerp(start, firstRight, splitT), topNudge, true)
       return
+    }
+    // Crossing a picture: the stroke rides its opening edge, on the line of the letter before it.
+    if (inPic >= 0) {
+      const pic = picRefs.current[inPic]
+      const before = charRefs.current[Math.max(0, slots[inPic] - 1)]
+      if (pic && before) {
+        const pr = pic.getBoundingClientRect()
+        place(pr.left - wr.left + picFrac * pr.width + sideGap, before.getBoundingClientRect().top - wr.top + topNudge, true)
+        return
+      }
     }
     // Fully open: the closing stroke stays put after the last character.
     if (reduced || leadIdx >= text.length - 1) {
@@ -160,11 +187,14 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
                 <Fragment key={i}>
                   {k >= 0 && (
                     // The gap is always there (so the lines never reflow); the picture opens in it.
-                    <span aria-hidden className="relative mx-[0.06em] mr-[0.28em] inline-block h-[0.74em] w-[1.25em] align-[-0.02em]">
-                      <span
-                        className="absolute inset-0 overflow-hidden bg-line transition-[clip-path] duration-500 ease-[cubic-bezier(0.45,0,0.25,1)]"
-                        style={{ clipPath: i <= cursor ? 'inset(0 0 0 0)' : 'inset(0 50% 0 50%)' }}
-                      >
+                    <span
+                      aria-hidden
+                      ref={(el) => {
+                        picRefs.current[k] = el
+                      }}
+                      className="relative mx-[0.06em] mr-[0.28em] inline-block h-[0.74em] w-[1.25em] align-[-0.02em]"
+                    >
+                      <span className="absolute inset-0 overflow-hidden bg-line" style={{ clipPath: `inset(0 ${((1 - opened(k)) * 100).toFixed(2)}% 0 0)` }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={pics[k]} alt="" className="size-full object-cover grayscale" loading="lazy" />
                       </span>

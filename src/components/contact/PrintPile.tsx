@@ -4,7 +4,8 @@
  * A pile of white-bordered prints. When the pile comes into view they land one after another, like
  * a stop-motion: each appears at once (a jump cut, no fade) and drops the last few pixels onto the
  * pile, quickly. Then any print can be picked up and moved anywhere on the page with the hand
- * (mouse) or a finger; the one picked up comes to the top.
+ * (mouse) or a finger: caught, it turns a little and nudges aside the prints lying on it as it comes
+ * to the top; moved, it leans with the movement.
  */
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
@@ -35,7 +36,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
   /** Where each print has been moved to (px from where it landed), and the top of the pile. */
   const moved = useRef(shown.map(() => ({ x: 0, y: 0 })))
   const top = useRef(LAYOUT.length)
-  const drag = useRef<{ k: number; x: number; y: number; from: { x: number; y: number } } | null>(null)
+  const drag = useRef<{ k: number; x: number; y: number; from: { x: number; y: number }; grab: number; lastX: number } | null>(null)
 
   // They land once the pile is in view.
   useEffect(() => {
@@ -78,14 +79,48 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
     if (held === false) delete h.dataset.held
   }
 
+  /** The paper inside a print: it takes the shadow and the tilt (so the tilt can ease while the print follows the hand exactly). */
+  const sheet = (k: number) => items.current[k]?.firstElementChild as HTMLElement | null | undefined
+  const tilt = useRef(shown.map(() => 0))
+  const setTilt = (k: number, deg: number) => {
+    tilt.current[k] = deg
+    sheet(k)?.style.setProperty('transform', `rotate(${deg.toFixed(2)}deg)`)
+  }
+
+  // Catching a print: it turns a little in the hand, and any print lying on it is pushed slightly
+  // aside as it is pulled out from under them, so coming to the top makes sense.
   const onDown = (k: number) => (e: React.PointerEvent<HTMLElement>) => {
     e.preventDefault()
     const el = e.currentTarget
     el.setPointerCapture(e.pointerId)
+    const r = el.getBoundingClientRect()
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
+    const z = Number(el.style.zIndex) || 0
+    items.current.forEach((other, j) => {
+      if (!other || j === k || (Number(other.style.zIndex) || 0) < z) return
+      const o = other.getBoundingClientRect()
+      if (o.right < r.left || o.left > r.right || o.bottom < r.top || o.top > r.bottom) return
+      // Away from the caught print's middle, a few pixels, with a touch of turn.
+      const ox = o.left + o.width / 2 - cx
+      const oy = o.top + o.height / 2 - cy
+      const len = Math.hypot(ox, oy) || 1
+      const push = 10 + Math.random() * 8
+      const m = moved.current[j]
+      moved.current[j] = { x: m.x + (ox / len) * push, y: m.y + (oy / len) * push }
+      other.style.transition = 'transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)'
+      other.style.setProperty('--dx', `${moved.current[j].x}px`)
+      other.style.setProperty('--dy', `${moved.current[j].y}px`)
+      setTilt(j, tilt.current[j] + (Math.random() - 0.5) * 3)
+    })
     el.style.zIndex = String(++top.current)
-    el.style.boxShadow = LIFTED
-    el.style.transition = 'box-shadow 0.2s' // follow the hand exactly
-    drag.current = { k, x: e.clientX, y: e.clientY, from: { ...moved.current[k] } }
+    el.style.transition = 'none' // follow the hand exactly
+    const sh = sheet(k)
+    if (sh) sh.style.boxShadow = LIFTED
+    // Caught off-centre, it turns toward the side it is held by.
+    const grab = Math.max(-1, Math.min(1, (e.clientX - cx) / (r.width / 2))) * 3.5
+    drag.current = { k, x: e.clientX, y: e.clientY, from: { ...moved.current[k] }, grab, lastX: e.clientX }
+    setTilt(k, grab)
     handAt(e, true)
   }
   const onMove = (e: React.PointerEvent) => {
@@ -97,12 +132,18 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
     moved.current[d.k] = m
     el.style.setProperty('--dx', `${m.x}px`)
     el.style.setProperty('--dy', `${m.y}px`)
+    // It leans with the movement, a little.
+    const vx = e.clientX - d.lastX
+    d.lastX = e.clientX
+    setTilt(d.k, d.grab + Math.max(-6, Math.min(6, vx * 0.35)))
   }
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current
     if (d) {
-      const el = items.current[d.k]
-      if (el) el.style.boxShadow = SHADOW
+      const sh = sheet(d.k)
+      if (sh) sh.style.boxShadow = SHADOW
+      // Put down where it is, still a little askew.
+      setTilt(d.k, d.grab * 0.4)
       drag.current = null
     }
     handAt(e, false)
@@ -132,7 +173,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
               items.current[k] = n
             }}
             onPointerDown={onDown(k)}
-            className="absolute m-0 bg-white p-[2.4%] touch-none"
+            className="absolute m-0 touch-none"
             style={{
               left: `${l.x}%`,
               top: `${l.y}%`,
@@ -141,13 +182,14 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
               // A jump cut in, then a short, quick drop onto the pile (no scaling).
               opacity: down ? 1 : 0,
               transform: down ? place(k) : `${place(k)} translateY(-14px)`,
-              boxShadow: SHADOW,
               transition: down ? 'transform 0.14s cubic-bezier(0.55, 0, 0.9, 0.4)' : 'none',
             }}
           >
-            <span className="relative block overflow-hidden bg-line" style={{ aspectRatio: l.aspect }}>
-              <Image src={p.src} alt={p.alt} fill draggable={false} sizes="(min-width: 768px) 26vw, 60vw" unoptimized={p.src.endsWith('.svg')} className="pointer-events-none object-cover grayscale contrast-[1.06]" />
-            </span>
+            <div className="bg-white p-[2.4%] transition-[transform,box-shadow] duration-300 ease-out" style={{ boxShadow: SHADOW }}>
+              <span className="relative block overflow-hidden bg-line" style={{ aspectRatio: l.aspect }}>
+                <Image src={p.src} alt={p.alt} fill draggable={false} sizes="(min-width: 768px) 26vw, 60vw" unoptimized={p.src.endsWith('.svg')} className="pointer-events-none object-cover grayscale contrast-[1.06]" />
+              </span>
+            </div>
           </figure>
         )
       })}
