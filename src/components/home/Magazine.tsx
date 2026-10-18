@@ -15,7 +15,6 @@
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
 import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
@@ -38,10 +37,27 @@ function NamePage({ name, n }: { name: string; n: number }) {
   )
 }
 
+/** The page corners away from the spine are a little rounded, as on a printed magazine. */
+const RADIUS = 'clamp(4px, 0.5vw, 7px)'
+
+/** Coated paper: a soft band of light across the page, sliding with the mouse (--gx on the stage). */
+function Gloss({ strength = 0.16 }: { strength?: number }) {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      style={{
+        backgroundImage: `linear-gradient(112deg, transparent calc(var(--gx, 38%) - 26%), rgb(255 255 255 / ${strength}) var(--gx, 38%), transparent calc(var(--gx, 38%) + 22%)), linear-gradient(to bottom, rgb(255 255 255 / ${strength * 0.45}), transparent 35%)`,
+      }}
+    />
+  )
+}
+
 function PhotoPage({ pic }: { pic: Pic }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
       <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.06]" />
+      <Gloss strength={0.1} />
     </div>
   )
 }
@@ -58,8 +74,8 @@ function CoverPage({ pic, division, number, heading }: { pic: Pic; division: Div
           <span>{heading}</span>
         </div>
       </div>
-      {/* The cover's sheen. */}
-      <span aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgb(255_255_255/0.08),transparent_40%)]" />
+      {/* The cover's gloss. */}
+      <Gloss strength={0.2} />
     </div>
   )
 }
@@ -82,11 +98,12 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
       className="absolute inset-y-0 origin-left [transform-style:preserve-3d]"
       style={k === 0 ? { left: 0, width: `${100 / STRIPS}%` } : { left: '100%', width: '100%' }}
     >
-      <div className="absolute inset-y-0 left-0 w-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden]">
+      <div className="absolute inset-y-0 left-0 w-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden]" style={k === STRIPS - 1 ? { borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS } : undefined}>
         <div className="absolute inset-y-0" style={slice(k)}>{front}</div>
         <span aria-hidden className="pointer-events-none absolute inset-0 bg-black" style={{ opacity: 'var(--sf, 0)' }} />
       </div>
-      <div className="absolute inset-y-0 left-0 w-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)]">
+      {/* (Turned over, its left side is the leaf's free edge.) */}
+      <div className="absolute inset-y-0 left-0 w-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden] [transform:rotateY(180deg)]" style={k === STRIPS - 1 ? { borderTopLeftRadius: RADIUS, borderBottomLeftRadius: RADIUS } : undefined}>
         <div className="absolute inset-y-0" style={slice(STRIPS - 1 - k)}>{back}</div>
         <span aria-hidden className="pointer-events-none absolute inset-0 bg-black" style={{ opacity: 'var(--sb, 0)' }} />
       </div>
@@ -168,19 +185,6 @@ function HandIcon({ kind }: { kind: keyof typeof HAND_PATHS }) {
 }
 
 
-/**
- * The grey surface's pattern (brand artboard 18): a small mark every PATTERN_SIZE, the ” for INCH”
- * (the ■ for DOT.), used as a mask so it takes the page's colour, very faint.
- */
-const PATTERN_SIZE = 'clamp(36px, 3vw, 58px) clamp(33px, 2.75vw, 53px)'
-const patternTile = (division: Division) => {
-  const mark =
-    division === 'men'
-      ? `<rect x='2' y='14' width='9' height='9'/>`
-      : `<g transform='scale(${(22.7 / 72).toFixed(4)})'><path d='${LEFT_PATH}'/><path d='${RIGHT_PATH}'/></g>`
-  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='57.6' height='52.84' viewBox='0 0 57.6 52.84'>${mark}</svg>`)}")`
-}
-
 /** The pages' edges, as seen on the side of a closed magazine: fine lines across its thickness. */
 const paper = (dir: 'right' | 'bottom') => `repeating-linear-gradient(to ${dir}, #f6f4ef 0 1px, #e4e0d8 1px 2px)`
 
@@ -199,7 +203,7 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
       style={{ transform: 'rotateZ(-90deg) rotateY(90deg)' }}
     >
       {/* Cover. */}
-      <div className="absolute inset-0 [backface-visibility:hidden]" style={{ transform: `translateZ(${half})` }}>
+      <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]" style={{ transform: `translateZ(${half})`, borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
         <CoverPage pic={cover} division={division} number={number} heading={heading} />
         <span data-shade="cover" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
       </div>
@@ -264,6 +268,8 @@ export function Magazine({
   const hand = useRef<HTMLDivElement>(null)
   const tape = useRef<HTMLSpanElement>(null)
   const tail = useRef<HTMLDivElement>(null)
+  const stackL = useRef<HTMLSpanElement>(null)
+  const stackR = useRef<HTMLSpanElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader is on: 0 = closed, k = k leaves turned.
@@ -329,6 +335,12 @@ export function Magazine({
       }
       if (shadow.current) shadow.current.style.left = `${(50 * (1 - opened) + 1).toFixed(2)}%`
       if (spine.current) spine.current.style.opacity = String(opened)
+      // The page block's thickness on each side, a pair of sheets a pixel each.
+      const sheets = (n: number, dir: 1 | -1) =>
+        Array.from({ length: n }, (_, i) => `${dir * (i + 1)}px ${(i + 1) * 0.6}px 0 ${i % 2 ? '#d9d5cd' : '#f6f4ef'}`).join(', ') || 'none'
+      const left = Math.round(Math.min(at, turns) * 1.6)
+      if (stackL.current) stackL.current.style.boxShadow = sheets(at >= 0.5 ? Math.max(2, Math.min(8, left)) : 0, -1)
+      if (stackR.current) stackR.current.style.boxShadow = sheets(Math.max(2, Math.min(8, Math.round((turns - at) * 1.6) + 2)), 1)
       leaves.current.forEach((leaf, k) => {
         if (!leaf) return
         // Leaf k is k + e turned: a drag (or the turn) sets e straight.
@@ -471,6 +483,9 @@ export function Magazine({
     const h = hand.current
     const st = stage.current
     if (!h || !st || e.pointerType !== 'mouse') return
+    // The light on the glossy pages follows the mouse a little.
+    const sr = st.getBoundingClientRect()
+    st.style.setProperty('--gx', `${(20 + 40 * ((e.clientX - sr.left) / sr.width)).toFixed(1)}%`)
     // Only once the magazine is open: before that, the plain pointer (a click opens it).
     const l = live.current
     if (l.arrive < 1 || (l.at < 0.02 && !drag.current.moved)) {
@@ -585,21 +600,6 @@ export function Magazine({
         ['--surface-mag' as string]: 'color-mix(in srgb, var(--fg) 9%, var(--bg))',
       }}
     >
-      {/* The surface's pattern: rows of small brand marks, barely darker than the grey (brand artboard 18). */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 top-[30vh]"
-        style={{
-          backgroundColor: 'var(--fg)',
-          opacity: 0.028,
-          maskImage: patternTile(division),
-          WebkitMaskImage: patternTile(division),
-          maskSize: PATTERN_SIZE,
-          WebkitMaskSize: PATTERN_SIZE,
-          maskPosition: 'center top',
-          WebkitMaskPosition: 'center top',
-        }}
-      />
       {/* The pinned stretch: the opening, the cover opening, then the magazine scrolls away. */}
       <div ref={section} className="relative motion-reduce:!h-auto" style={{ height: `${ZONE_VH}vh` }}>
       <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
@@ -632,8 +632,13 @@ export function Magazine({
             {/* The book's shadow on the surface: under the cover while closed, under both pages once open. */}
             <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-[40px]" style={{ bottom: '-2%' }} />
 
+            {/* The pages' edges, stacked under each side: as many as are left to turn on the right,
+                as many as are turned on the left (drawn as offset outlines, so they only show at the edges). */}
+            <span ref={stackL} aria-hidden className="absolute inset-y-0 left-0 w-1/2" style={{ borderTopLeftRadius: RADIUS, borderBottomLeftRadius: RADIUS }} />
+            <span ref={stackR} aria-hidden className="absolute inset-y-0 right-0 w-1/2" style={{ borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }} />
+
             {/* Last right page: the last model, under all the leaves. */}
-            <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
+            <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden" style={{ borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
               <PhotoPage pic={spreads[spreads.length - 1].pic} />
               <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
             </div>
