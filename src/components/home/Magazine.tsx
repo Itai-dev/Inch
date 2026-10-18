@@ -94,14 +94,19 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
 }
 
 /**
- * The opening runs while the section is pinned, over its scroll (a share of it): the spine holds,
- * large and close, until TURN_FROM; the magazine turns to its cover and sinks onto the surface
- * until TURN_TO; then it rests there. ZONE_VH is the section's height (vh), so the pinned scroll
- * is ZONE_VH − 100.
+ * While the section is pinned, its scroll (0–1) plays the opening, then opens the cover:
+ * - until INTRO_END, the opening: the spine holds, large and close, until TURN_FROM of it; the
+ *   magazine turns to its cover and sinks onto the surface until TURN_TO of it; then rests;
+ * - from OPEN_FROM to OPEN_TO, the cover opens onto the first spread; then it rests open.
+ * Once the reader turns a page themselves, the scroll leaves the pages alone. ZONE_VH is the
+ * section's height (vh), so the pinned scroll is ZONE_VH − 100.
  */
-const ZONE_VH = 280
+const ZONE_VH = 380
+const INTRO_END = 0.55
 const TURN_FROM = 0.3
 const TURN_TO = 0.82
+const OPEN_FROM = 0.64
+const OPEN_TO = 0.9
 /** How much bigger the spine is when it's close (at most; it also stays inside the screen). */
 const CLOSE = 1.9
 /** A page to turn (ms). */
@@ -114,9 +119,45 @@ const css = (expr: string) => `calc(${expr})`
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
-/** The open hand over the magazine closes while a page is held. */
-const grip = (el: EventTarget, held: boolean) => {
-  ;(el as HTMLElement).style.cursor = held ? 'grabbing' : ''
+/** A long, thin arrow. */
+function Arrow({ dir }: { dir: 'left' | 'right' }) {
+  return (
+    <svg viewBox="0 0 64 24" aria-hidden className="block h-[clamp(20px,2.4vw,30px)] w-auto" style={dir === 'left' ? { transform: 'scaleX(-1)' } : undefined}>
+      <path d="M1 12h60M50 2l11 10-11 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  )
+}
+
+/** The pointer over the magazine: a large open hand that closes on the page while it is held (drawn, so it stays sharp at any size). */
+const HAND_PX = 46
+const HAND_PATHS = {
+  open: [
+    'M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2',
+    'M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2',
+    'M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8',
+    'M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
+  ],
+  held: [
+    'M18 11.5V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1.4',
+    'M14 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2',
+    'M10 9.9V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5',
+    'M6 14a2 2 0 0 0-2-2a2 2 0 0 0-2 2',
+    'M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0',
+  ],
+}
+
+function HandIcon({ kind }: { kind: keyof typeof HAND_PATHS }) {
+  return (
+    <svg viewBox="0 0 24 24" width={HAND_PX} height={HAND_PX} fill="none" strokeLinecap="round" strokeLinejoin="round" className="absolute inset-0 overflow-visible">
+      {/* A white edge under the black line, so it reads on the pictures and on the paper. */}
+      {HAND_PATHS[kind].map((d) => (
+        <path key={`w${d}`} d={d} stroke="#fff" strokeWidth={4.2} />
+      ))}
+      {HAND_PATHS[kind].map((d) => (
+        <path key={d} d={d} stroke="#0a0a0a" strokeWidth={1.7} />
+      ))}
+    </svg>
+  )
 }
 
 
@@ -200,12 +241,13 @@ export function Magazine({
   const box = useRef<HTMLDivElement>(null)
   const boxShadow = useRef<HTMLSpanElement>(null)
   const controls = useRef<HTMLDivElement>(null)
+  const hand = useRef<HTMLDivElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader is on: 0 = closed, k = k leaves turned.
   const [page, setPage] = useState(0)
   /** Where the pages are now (`at`: leaves turned, fractions mid-turn), how far the opening has gone, and the running turn. */
-  const live = useRef({ at: 0, arrive: 0, done: false, page: 0, draw: () => {}, frame: 0 })
+  const live = useRef({ at: 0, arrive: 0, user: false, page: 0, draw: () => {}, frame: 0 })
 
   // Draws the book for the current state, straight on the DOM.
   useEffect(() => {
@@ -297,9 +339,15 @@ export function Magazine({
       raf = requestAnimationFrame(() => {
         const r = el.getBoundingClientRect()
         const p = clamp01(-r.top / Math.max(1, r.height - innerHeight))
-        const a = l.done || l.at > 0 ? 1 : Math.min(1, p / TURN_TO)
-        if (a === l.arrive) return
-        l.arrive = a
+        // Once the reader has turned a page, the scroll leaves the magazine as it is.
+        if (l.user) return
+        l.arrive = Math.min(1, p / INTRO_END)
+        l.at = smooth(clamp01((p - OPEN_FROM) / (OPEN_TO - OPEN_FROM)))
+        const shown = Math.round(l.at)
+        if (shown !== l.page) {
+          l.page = shown
+          setPage(shown)
+        }
         l.draw()
       })
     }
@@ -347,10 +395,10 @@ export function Magazine({
     l.frame = requestAnimationFrame(tick)
   }
 
-  /** Ends the opening at once (a click or a turn during it). */
+  /** The reader takes over: the opening ends at once and the scroll stops turning pages. */
   const finishOpening = () => {
     const l = live.current
-    l.done = true
+    l.user = true
     if (l.arrive < 1) {
       l.arrive = 1
       l.draw()
@@ -362,6 +410,18 @@ export function Magazine({
     finishOpening()
     const p = live.current.page
     ease(p + d > turns ? 0 : Math.max(0, p + d))
+  }
+
+  // The hand follows the mouse over the magazine (never on touch), open, or closed while it holds a page.
+  const handAt = (e: React.PointerEvent, held?: boolean) => {
+    const h = hand.current
+    const st = stage.current
+    if (!h || !st || e.pointerType !== 'mouse') return
+    const r = st.getBoundingClientRect()
+    h.style.opacity = '1'
+    h.style.transform = `translate(${(e.clientX - r.left - HAND_PX / 2).toFixed(1)}px, ${(e.clientY - r.top - HAND_PX / 2).toFixed(1)}px)`
+    if (held === true) h.dataset.held = ''
+    if (held === false) delete h.dataset.held
   }
 
   /** Where the spine is across the stage now (px): the cover's left edge while closed, the middle once open. */
@@ -381,7 +441,7 @@ export function Magazine({
   const drag = useRef<{ x: number; y: number; k: number | null; e0: number; moved: boolean; pressed: boolean }>({ x: 0, y: 0, k: null, e0: 0, moved: false, pressed: false })
   const onDown = (e: React.PointerEvent) => {
     const l = live.current
-    grip(e.currentTarget, true)
+    handAt(e, true)
     drag.current = { x: e.clientX, y: e.clientY, k: null, e0: 0, moved: false, pressed: true }
     if (l.arrive < 1) return
     const st = stage.current!
@@ -397,6 +457,7 @@ export function Magazine({
   }
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current
+    handAt(e)
     if (!d.pressed || d.k === null) return
     const dx = e.clientX - d.x
     if (!d.moved && Math.abs(dx) < 6) return
@@ -422,7 +483,7 @@ export function Magazine({
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current
     d.pressed = false
-    grip(e.currentTarget, false)
+    handAt(e, false)
     if (!d.moved || d.k === null) return
     const e1 = live.current.at - d.k
     // Forward, a third of the way over is enough; back, the same.
@@ -466,15 +527,17 @@ export function Magazine({
       <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
-          className="relative cursor-grab select-none"
+          className="relative cursor-grab select-none [@media(pointer:fine)]:cursor-none"
           style={{ width: BOOK_W, aspectRatio: '3 / 2', perspective: '2600px', touchAction: 'pan-y' }}
           onPointerMove={onMove}
           onPointerDown={onDown}
           onPointerUp={onUp}
           onPointerCancel={(e) => {
             drag.current.pressed = false
-            grip(e.currentTarget, false)
+            handAt(e, false)
           }}
+          onPointerEnter={(e) => handAt(e)}
+          onPointerLeave={() => hand.current && (hand.current.style.opacity = '0')}
           onClick={(e) => {
             if (drag.current.moved) return
             // During the opening, a click skips to the cover.
@@ -529,19 +592,29 @@ export function Magazine({
             <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
           </div>
 
+          {/* The hand (mouse only). */}
+          <div ref={hand} aria-hidden className="group/hand pointer-events-none absolute left-0 top-0 z-[60] opacity-0 transition-opacity duration-150" style={{ width: HAND_PX, height: HAND_PX }}>
+            <span className="absolute inset-0 group-data-[held]/hand:hidden">
+              <HandIcon kind="open" />
+            </span>
+            <span className="absolute inset-0 hidden group-data-[held]/hand:block">
+              <HandIcon kind="held" />
+            </span>
+          </div>
+
         </div>
 
-        {/* Back | where you are | on. */}
-        <div ref={controls} className="label flex items-center gap-6 tabular-nums transition-opacity duration-300" style={{ opacity: 0 }}>
-          <button type="button" onClick={() => step(-1)} disabled={page === 0} className="hover:opacity-60 disabled:opacity-25">
-            ← Back
+        {/* Back and on, as two big arrows. */}
+        <div ref={controls} className="flex items-center gap-[clamp(40px,6vw,96px)] transition-opacity duration-300" style={{ opacity: 0 }}>
+          <button type="button" aria-label="Previous page" onClick={() => step(-1)} disabled={page === 0} className="p-2 transition-[opacity,transform] duration-200 hover:-translate-x-1 disabled:opacity-20 disabled:hover:translate-x-0">
+            <Arrow dir="left" />
           </button>
-          <span aria-live="polite" className="min-w-[7ch] text-center text-muted">
-            {page === 0 ? 'Cover' : `${pad(page)} / ${pad(turns)}`}
+          <button type="button" aria-label={page === turns ? 'Close the magazine' : 'Next page'} onClick={() => step(1)} className="p-2 transition-transform duration-200 hover:translate-x-1">
+            <Arrow dir="right" />
+          </button>
+          <span aria-live="polite" className="sr-only">
+            {page === 0 ? 'Cover' : `Page ${page} of ${turns}`}
           </span>
-          <button type="button" onClick={() => step(1)} className="hover:opacity-60">
-            {page === 0 ? 'Open →' : page === turns ? 'Close' : 'Next →'}
-          </button>
         </div>
       </div>
     </section>
