@@ -2,7 +2,7 @@
  * The pointer for things you pick up and move (the magazine's pages, the contact prints): a large
  * open hand that closes while it holds something, drawn so it stays sharp at any size.
  */
-export const HAND_PX = 46
+export const HAND_PX = 41
 const HAND_PATHS = {
   open: [
     'M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2',

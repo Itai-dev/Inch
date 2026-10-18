@@ -70,11 +70,10 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
 function statementPics(talents: TalentCard[]) {
   // A model at a time (her cover, then her book), so one model doesn't fill all three.
   const own = talents.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
-  const real = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l) => (l[i] ? [l[i]] : [])))
-    .flat()
-    .map((img) => urlFor(img).width(360).height(220).url())
+  const real = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l) => (l[i] ? [l[i]] : []))).flat()
   const stand = talents.filter((t) => !t.cover?.asset && t.coverSrc).map((t) => t.coverSrc!)
-  return [...real, ...stand].slice(0, 3)
+  // The first two upright, the last one across (as TextOpen sets them).
+  return [...real, ...stand].slice(0, 3).map((img, k) => (typeof img === 'string' ? img : (k < 2 ? urlFor(img).width(240).height(320) : urlFor(img).width(360).height(220)).url()))
 }
 
 /** Below the opening, on both sites: the magazine. */

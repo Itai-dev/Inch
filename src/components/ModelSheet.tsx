@@ -135,7 +135,7 @@ export function ModelSheet({
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
-  let pageH = Math.max(0, stage.h - capH - rowH) * (wide ? 0.86 : 1)
+  let pageH = Math.max(0, stage.h - capH - rowH) * (wide ? 0.95 : 1)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
@@ -292,7 +292,7 @@ export function ModelSheet({
   // The books, and the actions: in a row across the foot (or under the spread), or stacked beside a
   // wide spread, each column level with its bottom and in line with the name (left) and close (right).
   const bookTabs = (stacked = false) => (
-    <nav className={`flex ${stacked ? 'flex-col items-end gap-1.5' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
+    <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
       {tabs.map((t) => (
         <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
           {t.title}
@@ -306,7 +306,7 @@ export function ModelSheet({
     </nav>
   )
   const bookActions = (stacked = false) => (
-    <div className={`flex ${stacked ? 'flex-col items-end gap-1.5' : 'gap-5 md:justify-end md:gap-[26px]'}`}>
+    <div className={`flex ${stacked ? 'flex-col items-end gap-2' : 'gap-5 md:justify-end md:gap-[26px]'}`}>
       {book && N > 0 && (
         <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
           {view === 'book' ? 'Thumbnails' : 'Book'}
@@ -324,7 +324,7 @@ export function ModelSheet({
       )}
     </div>
   )
-  const rowCls = 'text-[15px] font-bold uppercase md:text-[16px]'
+  const rowCls = 'text-detail font-bold uppercase'
   const actionsRow = (className: string, style?: React.CSSProperties) => (
     <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
       {bookTabs()}
@@ -380,7 +380,7 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)] md:text-[15px]')}
+          {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-detail md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)]')}
           <div className="hidden items-center justify-end gap-6 md:flex">
             <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
               <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
@@ -523,7 +523,7 @@ export function ModelSheet({
       {wide && (
         <>
           <div ref={leftCol} className="absolute left-[var(--gutter)] z-20 -translate-y-1/2" style={{ top: '50%' }}>
-            {renderStats('flex flex-col items-start gap-1.5 text-[15px]')}
+            {renderStats('text-detail flex flex-col items-start gap-2')}
           </div>
           <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex -translate-y-1/2 flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, top: '50%' }}>
             {bookTabs(true)}

@@ -31,10 +31,10 @@ function kindAt(el: Element | null): Kind {
 
 /** Each kind: its size (px) and where its point is (share of the size). */
 const SHAPE: Record<Kind, { px: number; x: number; y: number }> = {
-  arrow: { px: 36, x: 0.16, y: 0.16 },
-  finger: { px: 42, x: 0.34, y: 0.1 },
-  text: { px: 30, x: 0.5, y: 0.5 },
-  grab: { px: 46, x: 0.5, y: 0.5 },
+  arrow: { px: 32, x: 0.16, y: 0.16 },
+  finger: { px: 38, x: 0.34, y: 0.1 },
+  text: { px: 27, x: 0.5, y: 0.5 },
+  grab: { px: 41, x: 0.5, y: 0.5 },
 }
 
 const halo = { stroke: '#fff', strokeWidth: 4.2 }

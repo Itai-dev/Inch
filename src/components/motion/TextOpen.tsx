@@ -44,8 +44,10 @@ const ZONE_VH = 240
  * statement as written, and one more toward the end.
  */
 const PIC_AT = [0.17, 0.5, 0.82]
-/** How many letters' worth of the writing a picture takes to open. */
-const PIC_STEPS = 3
+/** Each picture's shape: the first two upright, the last across. */
+const PIC_UPRIGHT = [true, true, false]
+/** How many letters' worth of the writing a picture takes to open: about its width in letters, so it opens at their pace. */
+const picSteps = (k: number) => (PIC_UPRIGHT[k] ? 2 : 3)
 
 /** The char indices the pictures sit before: the start of the word after each chosen share of the words. */
 function picSlots(text: string, count: number) {
@@ -108,21 +110,27 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   const splitT = easeOutCubic(dropT)
   const translateY = (1 - splitT) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
-  // The writing runs through the letters and the pictures alike: a picture takes PIC_STEPS letters'
+  // The writing runs through the letters and the pictures alike: a picture takes picSteps letters'
   // worth of the scroll and opens left to right at the letters' pace, the stroke travelling across it.
-  const units = text.length + PIC_STEPS * slots.length
+  const units = text.length + slots.reduce((n, _, k) => n + picSteps(k), 0)
   const u = reduced ? units : revealP * units
   let passed = 0
   let inPic = -1
   let picFrac = 0
+  let before = 0 // the pictures' steps before this one
+  let stepsPassed = 0
   slots.forEach((at, k) => {
-    const from = at + PIC_STEPS * k
-    if (u >= from + PIC_STEPS) passed++
-    else if (u >= from) [inPic, picFrac] = [k, (u - from) / PIC_STEPS]
+    const from = at + before
+    const n = picSteps(k)
+    if (u >= from + n) {
+      passed++
+      stepsPassed += n
+    } else if (u >= from) [inPic, picFrac] = [k, (u - from) / n]
+    before += n
   })
   const opened = (k: number) => (k < passed ? 1 : k === inPic ? picFrac : 0)
   // How many letters are written.
-  const cursor = inPic >= 0 ? slots[inPic] : Math.min(text.length, Math.max(0, u - PIC_STEPS * passed))
+  const cursor = inPic >= 0 ? slots[inPic] : Math.min(text.length, Math.max(0, u - stepsPassed))
   const leadIdx = Math.min(text.length - 1, Math.max(0, Math.floor(cursor)))
   const leftX = -(markW + sideGap)
 
@@ -192,7 +200,8 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
                       ref={(el) => {
                         picRefs.current[k] = el
                       }}
-                      className="relative mx-[0.06em] mr-[0.28em] inline-block h-[0.74em] w-[1.25em] align-[-0.02em]"
+                      // Upright: from the descenders to the top of the capitals; across: the capitals' height.
+                      className={`relative mx-[0.06em] mr-[0.28em] inline-block ${PIC_UPRIGHT[k] ? 'h-[0.92em] w-[0.69em] align-[-0.2em]' : 'h-[0.74em] w-[1.25em] align-[-0.02em]'}`}
                     >
                       <span className="absolute inset-0 overflow-hidden bg-line" style={{ clipPath: `inset(0 ${((1 - opened(k)) * 100).toFixed(2)}% 0 0)` }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}

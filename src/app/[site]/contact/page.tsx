@@ -42,7 +42,7 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
       </div>
     )
   })
-  return <dl className={`flex flex-col gap-[clamp(18px,3vh,32px)] text-[clamp(16px,1.25vw,20px)] ${align === 'right' ? 'md:items-end md:text-right' : ''}`}>{items}</dl>
+  return <dl className={`flex flex-col text-detail gap-[clamp(18px,3vh,32px)] ${align === 'right' ? 'md:items-end md:text-right' : ''}`}>{items}</dl>
 }
 
 /**
