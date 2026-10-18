@@ -2,18 +2,6 @@
 export const DEFAULT_STATEMENT =
   'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image. The perfect fit for your brand.'
 
-/**
- * Example captions for the home page's Selected work, shown under book pictures until the board
- * has real covers and ads (whose own publication and photographer show instead). TODO: demo copy.
- */
-export const DEMO_WORK = [
-  { kind: 'Cover', title: 'Spring issue' },
-  { kind: 'Campaign', title: 'SS27 womenswear' },
-  { kind: 'Editorial', title: 'Twelve pages, Paris' },
-  { kind: 'Lookbook', title: 'Resort 2027' },
-  { kind: 'Beauty', title: 'Fragrance launch' },
-]
-
 /** Contact details shown until the real ones are in the Studio (Site settings). TODO: demo values. */
 export const DEMO_CONTACT = {
   email: 'hello@inch-mgmt.com',
@@ -23,9 +11,6 @@ export const DEMO_CONTACT = {
 }
 export const HOURS = 'Sunday – Thursday, 10:00 – 18:00'
 export const instagramHandle = (url: string) => url.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')
-
-/** The first year on the story's ruler. TODO: the agency's real founding year. */
-export const STORY_FROM = 2016
 
 /** Placeholder story for the home page until it's written in the Studio (Home page › Story). */
 // TODO: the real story from INCH”.

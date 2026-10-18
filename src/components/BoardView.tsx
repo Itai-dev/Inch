@@ -28,7 +28,7 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l)
 }
 
-export function BoardView({ count, grid, list }: { count: number; grid: React.ReactNode; list: React.ReactNode }) {
+export function BoardView({ grid, list }: { grid: React.ReactNode; list: React.ReactNode }) {
   const view = useSyncExternalStore(subscribe, read, () => 'grid' as View)
   const option = (v: View, label: string) => (
     <button type="button" aria-pressed={view === v} onClick={() => write(v)} className={view === v ? 'border-b border-fg' : 'text-muted hover:text-fg'}>
@@ -37,8 +37,7 @@ export function BoardView({ count, grid, list }: { count: number; grid: React.Re
   )
   return (
     <>
-      <div className="label mb-8 flex items-center justify-between gap-6">
-        <span className="text-muted">{count} models</span>
+      <div className="label mb-8 flex items-center justify-end gap-6">
         <div role="group" aria-label="View" className="flex gap-5">
           {option('grid', 'Thumbnails')}
           {option('list', 'List')}

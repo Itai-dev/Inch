@@ -1,22 +1,20 @@
 'use client'
 
 /**
- * A chapter told as a magazine, full screen, on the page itself (no floor of its own, so it can
- * land over what came before). The closed magazine appears a little to the side of the middle,
- * tilted, as soon as it is pinned, and slides into place as you scroll, turning straight; then
- * it opens from its cover: the chapter on the
- * first left page, a model on every right page and her name on the page facing it. Scrolling
- * turns the pages, and they bend as they turn: each leaf is a row of thin strips, each turned
- * a little further than the one before, so the free edge leads and the page curls over. The
- * section is as tall as the book has spreads; the book stays put while it is read. With
- * reduced motion it is simply there and the pages change without turning.
+ * A chapter told as a magazine, on the page itself. When it comes into view the closed magazine
+ * slides in from a little to the side of the middle, tilted, and turns straight. Then the reader
+ * turns the pages: a click or tap on the right page (or the cover) turns on, on the left page
+ * back; also a swipe, or the buttons under it. The cover opens onto the chapter on the first
+ * left page, then a model on every right page and her name on the page facing it. The pages
+ * bend as they turn: each leaf is a row of thin strips, each turned a little further than the
+ * one before, so the free edge leads and the page curls over. Scrolling just goes past it.
+ * With reduced motion it is simply there and the pages change without turning.
  */
 import Image from 'next/image'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { magazineVh } from '@/lib/magazine'
 import type { Division } from '@/sanity/lib/types'
-import type { Pic } from './PrintPile'
+export type Pic = { src: string; alt: string; credit?: string }
 
 export type Spread = { name: string; pic: Pic }
 
@@ -93,8 +91,9 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
   )
 }
 
-/** Share of the section's scroll the closed magazine takes to arrive. */
-const ARRIVE = 0.12
+/** How long the closed magazine takes to arrive once it is in view, and a page to turn (ms). */
+const ARRIVE_MS = 1100
+const TURN_MS = 900
 /** Where it starts, beside the middle: across (vw), down (share of its height) and tilt (deg). */
 const FROM = { x: 14, y: 6, r: 8 }
 
@@ -122,66 +121,107 @@ export function Magazine({
   const leaves = useRef<(HTMLDivElement | null)[]>([])
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
+  // The page the reader asked for: 0 = closed, k = k leaves turned.
+  const [page, setPage] = useState(0)
+  /** Where the pages are now (they ease toward `page`), and how far the magazine has arrived. */
+  const live = useRef({ at: 0, arrive: 0, draw: () => {}, frame: 0 })
 
+  // Draws the book for the current state, straight on the DOM.
   useEffect(() => {
-    const el = section.current
-    if (!el || !turns) return
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
     const strips = leaves.current.map((leaf) => Array.from(leaf?.querySelectorAll<HTMLElement>('[data-strip]') ?? []))
-    let frame = 0
-    const turn = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect()
-        const read = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)))
-        // The closed magazine arrives from beside the middle, then (after a short rest) the cover opens and
-        // the pages turn; a short rest on the last spread.
-        const arrive = reduce ? 1 : smooth(Math.min(1, read / ARRIVE))
-        const at = Math.min(1, Math.max(0, (read - ARRIVE - 0.04) / (0.92 - ARRIVE - 0.04))) * turns
-        const opened = reduce ? Math.round(Math.min(1, Math.max(0, (at - 0.15) / 0.7))) : smooth(Math.min(1, Math.max(0, (at - 0.15) / 0.7)))
-        // Closed, the cover sits in the middle; open, the spine does.
-        const b = book.current
-        if (b) {
-          const x = -25 * (1 - opened)
-          b.style.transform = `translate(calc(${x.toFixed(2)}% + ${(FROM.x * (1 - arrive)).toFixed(2)}vw), ${(FROM.y * (1 - arrive)).toFixed(2)}%) rotate(${(FROM.r * (1 - arrive)).toFixed(2)}deg)`
-          // Not there until it is pinned (so it doesn't rise with the page over what came before).
-          b.style.opacity = reduce || read > 0 ? '1' : '0'
-        }
-        if (shadow.current) shadow.current.style.left = `${(50 * (1 - opened) + 1).toFixed(2)}%`
-        if (spine.current) spine.current.style.opacity = String(opened)
-        leaves.current.forEach((leaf, k) => {
-          if (!leaf) return
-          // Each turn takes the middle of its stretch, so every spread rests a moment.
-          let p = Math.min(1, Math.max(0, (at - k - 0.15) / 0.7))
-          if (reduce) p = Math.round(p)
-          const e = smooth(p)
-          // Turned pages pile on the left, the latest on top; the rest wait on the right, the next on top.
-          leaf.style.zIndex = String(e > 0.5 ? 20 + k : 20 - k)
-          // The page's angle at each strip: the free edge leads by up to CURL degrees mid-turn.
-          const bend = Math.sin(Math.PI * e) * CURL
-          let before = 0
-          strips[k].forEach((strip, i) => {
-            const angle = Math.min(180, 180 * e + bend * ((i + 1) / STRIPS) ** 1.6)
-            strip.style.transform = `rotateY(${(before - angle).toFixed(2)}deg)` // relative to the strip before
-            before = angle
-            // Light from the front: the face shades a touch as it turns away, never so much that the
-            // page looks faded mid-turn.
-            const c = Math.cos((angle * Math.PI) / 180)
-            strip.style.setProperty('--sf', (0.05 * (1 - c)).toFixed(3))
-            strip.style.setProperty('--sb', (0.04 * (1 + c)).toFixed(3))
-          })
+    live.current.draw = () => {
+      const { at, arrive: a } = live.current
+      const arrive = smooth(a)
+      const opened = smooth(Math.min(1, Math.max(0, (at - 0.15) / 0.7)))
+      // Closed, the cover sits in the middle; open, the spine does.
+      const b = book.current
+      if (b) {
+        const x = -25 * (1 - opened)
+        b.style.transform = `translate(calc(${x.toFixed(2)}% + ${(FROM.x * (1 - arrive)).toFixed(2)}vw), ${(FROM.y * (1 - arrive)).toFixed(2)}%) rotate(${(FROM.r * (1 - arrive)).toFixed(2)}deg)`
+        b.style.opacity = String(Math.min(1, a * 2.5))
+      }
+      if (shadow.current) shadow.current.style.left = `${(50 * (1 - opened) + 1).toFixed(2)}%`
+      if (spine.current) spine.current.style.opacity = String(opened)
+      leaves.current.forEach((leaf, k) => {
+        if (!leaf) return
+        // Each turn takes the middle of its stretch.
+        const e = smooth(Math.min(1, Math.max(0, (at - k - 0.15) / 0.7)))
+        // Turned pages pile on the left, the latest on top; the rest wait on the right, the next on top.
+        leaf.style.zIndex = String(e > 0.5 ? 20 + k : 20 - k)
+        // The page's angle at each strip: the free edge leads by up to CURL degrees mid-turn.
+        const bend = Math.sin(Math.PI * e) * CURL
+        let before = 0
+        strips[k].forEach((strip, i) => {
+          const angle = Math.min(180, 180 * e + bend * ((i + 1) / STRIPS) ** 1.6)
+          strip.style.transform = `rotateY(${(before - angle).toFixed(2)}deg)` // relative to the strip before
+          before = angle
+          // Light from the front: the face shades a touch as it turns away.
+          const c = Math.cos((angle * Math.PI) / 180)
+          strip.style.setProperty('--sf', (0.05 * (1 - c)).toFixed(3))
+          strip.style.setProperty('--sb', (0.04 * (1 + c)).toFixed(3))
         })
       })
     }
-    turn()
-    addEventListener('scroll', turn, { passive: true })
-    addEventListener('resize', turn)
-    return () => {
-      cancelAnimationFrame(frame)
-      removeEventListener('scroll', turn)
-      removeEventListener('resize', turn)
-    }
+    live.current.draw()
   }, [turns])
+
+  // It arrives (slides in and turns straight) once it is well in view.
+  useEffect(() => {
+    const el = section.current
+    if (!el) return
+    const l = live.current
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      l.arrive = 1
+      l.draw()
+      return
+    }
+    let raf = 0
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return
+        io.disconnect()
+        const from = performance.now()
+        const tick = (now: number) => {
+          l.arrive = Math.min(1, (now - from) / ARRIVE_MS)
+          l.draw()
+          if (l.arrive < 1) raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+      },
+      { threshold: 0.35 },
+    )
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  // The pages ease toward the asked-for page; going back to the cover from far in flips through faster.
+  useEffect(() => {
+    const l = live.current
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      l.at = page
+      l.draw()
+      return
+    }
+    cancelAnimationFrame(l.frame)
+    const from = l.at
+    const ms = TURN_MS * Math.max(1, Math.sqrt(Math.abs(page - from)))
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / ms)
+      l.at = from + (page - from) * p
+      l.draw()
+      if (p < 1) l.frame = requestAnimationFrame(tick)
+    }
+    l.frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(l.frame)
+  }, [page])
+
+  // On from the last page closes the magazine again.
+  const step = (d: number) => setPage((p) => (p + d > turns ? 0 : Math.max(0, p + d)))
+  const swipe = useRef({ x: 0, y: 0, moved: false })
 
   if (!spreads.length) return null
   // Each leaf's two faces: the cover over the chapter, then a model over the next one's name.
@@ -205,53 +245,78 @@ export function Magazine({
     })),
   ]
   return (
-    <section ref={section} aria-label={`${pad(number)} ${heading}`} className="relative" style={{ height: `${magazineVh(turns)}vh` }}>
-      <div className="sticky top-0 flex h-[100dvh] items-center justify-center overflow-hidden">
-        <div
-          ref={book}
-          className="relative will-change-transform"
-          style={{ width: 'min(92vw, 104dvh)', aspectRatio: '3 / 2', perspective: '2600px', transform: `translate(calc(-25% + ${FROM.x}vw), ${FROM.y}%) rotate(${FROM.r}deg)`, opacity: 0 }}
-        >
-          {/* The book's shadow on the floor: under the cover while closed, under both pages once open. */}
-          <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-2xl" style={{ bottom: '-2%' }} />
+    <section ref={section} aria-label={`${pad(number)} ${heading}`} aria-roledescription="carousel" className="relative flex min-h-[100dvh] flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-hidden py-[clamp(40px,6vh,80px)]">
+      <div
+        ref={book}
+        className="relative cursor-pointer select-none will-change-transform"
+        style={{ width: 'min(92vw, 100dvh)', aspectRatio: '3 / 2', perspective: '2600px', transform: `translate(calc(-25% + ${FROM.x}vw), ${FROM.y}%) rotate(${FROM.r}deg)`, opacity: 0, touchAction: 'pan-y' }}
+        onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY, moved: false })}
+        onPointerUp={(e) => {
+          const dx = e.clientX - swipe.current.x
+          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - swipe.current.y)) {
+            swipe.current.moved = true
+            step(dx < 0 ? 1 : -1)
+          }
+        }}
+        onClick={(e) => {
+          if (swipe.current.moved) return
+          // Closed, a click anywhere opens it; open, the left page goes back and the right one on.
+          const r = e.currentTarget.getBoundingClientRect()
+          step(page === 0 || e.clientX > r.left + r.width / 2 ? 1 : -1)
+        }}
+      >
+        {/* The book's shadow on the floor: under the cover while closed, under both pages once open. */}
+        <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-2xl" style={{ bottom: '-2%' }} />
 
-          {/* Last right page: the last model, under all the leaves. */}
-          <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
-            <PhotoPage pic={spreads[spreads.length - 1].pic} />
-            <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
-          </div>
-
-          {/* The leaves, each cut into strips that bend. */}
-          {faces.map((f, k) => (
-            <div
-              key={k}
-              ref={(n) => {
-                leaves.current[k] = n
-              }}
-              className="absolute inset-y-0 right-0 w-1/2 [transform-style:preserve-3d]"
-              style={{ zIndex: 20 - k }}
-            >
-              <Strip
-                k={0}
-                front={
-                  <>
-                    {f.front}
-                    {k > 0 && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />}
-                  </>
-                }
-                back={
-                  <>
-                    {f.back}
-                    <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
-                  </>
-                }
-              />
-            </div>
-          ))}
-
-          {/* The spine, once open. */}
-          <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
+        {/* Last right page: the last model, under all the leaves. */}
+        <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
+          <PhotoPage pic={spreads[spreads.length - 1].pic} />
+          <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
         </div>
+
+        {/* The leaves, each cut into strips that bend. */}
+        {faces.map((f, k) => (
+          <div
+            key={k}
+            ref={(n) => {
+              leaves.current[k] = n
+            }}
+            className="absolute inset-y-0 right-0 w-1/2 [transform-style:preserve-3d]"
+            style={{ zIndex: 20 - k }}
+          >
+            <Strip
+              k={0}
+              front={
+                <>
+                  {f.front}
+                  {k > 0 && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />}
+                </>
+              }
+              back={
+                <>
+                  {f.back}
+                  <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
+                </>
+              }
+            />
+          </div>
+        ))}
+
+        {/* The spine, once open. */}
+        <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
+      </div>
+
+      {/* Back | where you are | on. */}
+      <div className="label flex items-center gap-6 tabular-nums">
+        <button type="button" onClick={() => step(-1)} disabled={page === 0} className="hover:opacity-60 disabled:opacity-25">
+          ← Back
+        </button>
+        <span aria-live="polite" className="min-w-[7ch] text-center text-muted">
+          {page === 0 ? 'Cover' : `${pad(page)} / ${pad(turns)}`}
+        </span>
+        <button type="button" onClick={() => step(1)} className="hover:opacity-60">
+          {page === 0 ? 'Open →' : page === turns ? 'Close' : 'Next →'}
+        </button>
       </div>
     </section>
   )

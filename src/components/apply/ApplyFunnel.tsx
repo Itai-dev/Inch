@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * Become a model: an opening screen, then four steps — 01 You (and a guardian for
- * under-18s), 02 Measurements, 03 Digitals, 04 Send — with a comp card that fills in as
+ * Become a model: an opening screen, then four steps — 01 You (and a parent or guardian's
+ * consent at 16 and under), 02 Measurements, 03 Digitals, 04 Send — with a comp card that fills in as
  * the form does, and the INCH” ruler as the progress bar. Photos are shrunk in the
  * browser before upload so a whole application fits in one request.
  */
@@ -15,12 +15,13 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
-import { cmToFeet, cmToInches } from '@/lib/units'
+import { cmToFeet } from '@/lib/units'
 import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
+import { CountrySelect } from './CountrySelect'
 import { HeightTape, Tape, type TapeScale } from './Tape'
 import { Silhouette, type Pose } from './Silhouette'
 
@@ -28,15 +29,15 @@ type Data = {
   firstName: string
   lastName: string
   birthdate: string
-  city: string
+  country: string
   email: string
   phone: string
   guardianName: string
   guardianPhone: string
+  guardianConsent: boolean
   height: number | null
-  bust: string
-  waist: string
-  hips: string
+  tshirt: string
+  pants: string
   shoes: string
   hair: string
   eyes: string
@@ -50,15 +51,15 @@ type Step = 'intro' | 'you' | 'guardian' | 'measure' | 'digitals' | 'send' | 'do
 type Photo = { blob: Blob; url: string }
 
 const initial: Data = {
-  firstName: '', lastName: '', birthdate: '', city: '', email: '', phone: '', guardianName: '', guardianPhone: '',
-  height: null, bust: '', waist: '', hips: '', shoes: '', hair: '', eyes: '', instagram: '', tiktok: '', experience: '', consent: false,
+  firstName: '', lastName: '', birthdate: '', country: '', email: '', phone: '', guardianName: '', guardianPhone: '', guardianConsent: false,
+  height: null, tshirt: '', pants: '', shoes: '', hair: '', eyes: '', instagram: '', tiktok: '', experience: '', consent: false,
 }
 
-const SLOTS: { pose: Pose; label: string; hint: string; optional?: boolean }[] = [
-  { pose: 'close-up', label: 'Close-up', hint: 'Face, straight on' },
+const SLOTS: { pose: Pose; label: string; hint: string }[] = [
+  { pose: 'portrait', label: 'Portrait', hint: 'Face, straight on' },
+  { pose: 'medium', label: 'Medium', hint: 'Waist up' },
+  { pose: 'full-body', label: 'Full body', hint: 'Head to toe' },
   { pose: 'profile', label: 'Profile', hint: 'Turn to the side' },
-  { pose: 'full-length', label: 'Full length', hint: 'Head to toe' },
-  { pose: 'style', label: 'Your style', hint: 'An outfit you love', optional: true },
 ]
 
 /** Step numbers on the ruler (the guardian step belongs to 01). */
@@ -83,21 +84,15 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
 
 type Unit = 'in' | 'cm'
 
-/** The sizes on tapes, in cm and in inches (half-inch ticks), with where each tape rests before it's touched (cm). */
-const CM = (min: number, max: number): TapeScale => ({ min, max, px: 12.8, snap: 1, every: 10 })
-const IN = (min: number, max: number): TapeScale => ({ min, max, px: 25.6, snap: 0.5, every: 2 })
-const SIZES = {
-  bust: { cm: CM(60, 140), in: IN(24, 55), start: { women: 84, men: 96 } },
-  waist: { cm: CM(45, 120), in: IN(18, 47), start: { women: 62, men: 78 } },
-  hips: { cm: CM(60, 140), in: IN(24, 55), start: { women: 90, men: 94 } },
-} as const
-const SIZE_KEYS: Size[] = ['bust', 'waist', 'hips', 'shoes']
+/** Sizes: T-shirt as letters; pants and shoes in EU sizes on tapes, each resting on a typical size before it's touched. */
+const TSHIRT = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL']
+const PANTS: TapeScale = { min: 30, max: 60, px: 16, snap: 2, every: 4 }
 const SHOES: TapeScale = { min: 34, max: 48, px: 32, snap: 0.5, every: 1 }
-type Size = keyof typeof SIZES | 'shoes'
+const SIZE_KEYS: Size[] = ['tshirt', 'pants', 'shoes']
+type Size = 'tshirt' | 'pants' | 'shoes'
+const START = { tshirt: { women: 'S', men: 'M' }, pants: { women: 36, men: 48 }, shoes: { women: 39, men: 43 } }
+const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
 
-// Sizes are kept in cm; inches are shown to the nearest half, written 32½.
-const toShown = (cm: string | number, unit: Unit) => (unit === 'cm' ? String(cm) : String(Math.round((Number(cm) / 2.54) * 2) / 2))
-const fromShown = (v: string, unit: Unit) => (unit === 'cm' ? v : String(Math.round(Number(v) * 2.54)))
 const half = (v: string | number) => String(v).replace('.5', '½')
 
 export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
@@ -110,7 +105,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [unit, setUnit] = useState<Unit>('in')
+  const [unit, setUnit] = useState<Unit>('cm')
   const [openSize, setOpenSize] = useState<Size | null>(null)
   const tapeRef = useRef<HTMLDivElement>(null)
   // The open tape takes the keyboard, so the arrow keys move it straight away.
@@ -125,7 +120,8 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
   const age = d.birthdate ? ageFrom(d.birthdate) : NaN
-  const isMinor = age >= 0 && age < GUARDIAN_AGE
+  // A parent or guardian consents for applicants up to GUARDIAN_AGE (16).
+  const isMinor = age >= 0 && age <= GUARDIAN_AGE
   const flow: Step[] = useMemo(() => ['you', ...(isMinor ? (['guardian'] as Step[]) : []), 'measure', 'digitals', 'send'], [isMinor])
   const index = flow.indexOf(step)
   const number = NUMBER[step] ?? 0
@@ -181,30 +177,20 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     else setError(`Something went wrong. Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
   }
 
-  // Sizes in the unit shown (shoes are always EU); kept in cm.
-  const sizeName = (k: Size) => (k === 'bust' ? (division === 'men' ? 'Chest' : 'Bust') : k === 'waist' ? 'Waist' : k === 'hips' ? 'Hips' : 'Shoes')
-  const sizeShown = (k: Size) =>
-    k === 'shoes'
-      ? { value: d.shoes ? Number(d.shoes) : null, start: division === 'men' ? 43 : 39 }
-      : { value: d[k] ? Number(toShown(d[k], unit)) : null, start: Number(toShown(SIZES[k].start[division], unit)) }
-  const setSize = (k: Size, x: number) => set(k, k === 'shoes' ? String(x) : fromShown(String(x), unit))
-
   // What the measurements step still needs.
   const gaps = (
-    [['Height', d.height], [division === 'men' ? 'Chest' : 'Bust', d.bust], ['Waist', d.waist], ['Hips', d.hips], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
+    [['Height', d.height], ['T-shirt', d.tshirt], ['Pants', d.pants], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
   ).filter(([, v]) => !v).map(([k]) => k)
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
-  const inUnit = (cm: string) => (cm && unit === 'in' ? cmToInches(Number(cm)) : cm)
   const stats: CardStat[] = [
     ['Age', Number.isFinite(age) && age > 0 ? age : undefined],
-    ['City', d.city],
+    ['Country', d.country],
     ['Height', d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : undefined],
-    [division === 'men' ? 'Chest' : 'Bust', inUnit(d.bust)],
-    ['Waist', inUnit(d.waist)],
-    ['Hips', inUnit(d.hips)],
-    ['Shoes', d.shoes],
+    ['T-shirt', d.tshirt],
+    ['Pants', d.pants && `${d.pants} EU`],
+    ['Shoes', d.shoes && `${half(d.shoes)} EU`],
     ['Hair', d.hair],
     ['Eyes', d.eyes],
   ]
@@ -236,7 +222,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   // written in one after another: the title, each line, then the button.
   const INTRO = [
     'No experience needed. We look at every application ourselves.',
-    'You’ll need three photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.',
+    'You’ll need four photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.',
   ]
   // The lines type in quickly (6ms a letter) once the title is written; the button grows in, then its note types.
   const INTRO_MS = 6
@@ -333,7 +319,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
             <span className="truncate text-[11px] uppercase text-muted">
-              {[Number.isFinite(age) && age > 0 ? age : null, d.city, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
+              {[Number.isFinite(age) && age > 0 ? age : null, d.country, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
             </span>
           </span>
           <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
@@ -351,19 +337,23 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              <Field label="City"><input required autoComplete="address-level2" className={big} value={d.city} onChange={(e) => set('city', e.target.value)} /></Field>
+              <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} inputClassName={big} />
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-              <p className="sm:col-span-2 text-[13px] text-muted">Under {GUARDIAN_AGE}? We’ll ask for a parent or guardian next.</p>
+              <p className="sm:col-span-2 text-[13px] text-muted">{GUARDIAN_AGE} or younger? We’ll ask for a parent or guardian’s consent next.</p>
               <div className="sm:col-span-2">{nav('Continue →', false, 'Takes about 3 minutes')}</div>
             </form>
           )}
 
           {step === 'guardian' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
-              <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {GUARDIAN_AGE}, so we’ll speak to a parent or guardian first.</p>
+              <p className="sm:col-span-2 text-[16px] leading-snug">You’re {GUARDIAN_AGE} or younger, so a parent or guardian needs to agree to your application. We’ll speak to them first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
+              <label className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
+                <input required type="checkbox" checked={d.guardianConsent} onChange={(e) => set('guardianConsent', e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-current" />
+                <span>I’m {d.firstName ? `${d.firstName}’s` : 'their'} parent or guardian, and I consent to this application to {brand}.</span>
+              </label>
               <div className="sm:col-span-2">{nav()}</div>
             </form>
           )}
@@ -380,7 +370,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
-                  {/* Inches or centimetres, for every size on this step. */}
+                  {/* Centimetres or feet and inches. */}
                   <UnitToggle unit={unit} onChange={setUnit} className="text-[15px]" />
                 </div>
                 <div className="flex items-baseline gap-2.5">
@@ -393,29 +383,29 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 <HeightTape value={d.height} unit={unit} onChange={(cm) => set('height', cm)} />
                 <span className="text-[12px] text-muted">{d.height ? 'Drag the tape, or use the arrow keys.' : 'Drag the tape to your height.'}</span>
               </div>
-              {/* Each size is a closed field; tap one and its tape opens below, full width. */}
+              {/* Each size is a closed field; tap one and its letters or its tape open below, full width. */}
               <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-x-10 gap-y-10 sm:grid-cols-4">
+                <div className="grid grid-cols-3 gap-x-6 gap-y-10 sm:gap-x-10">
                   {SIZE_KEYS.map((k) => {
-                    const shown = sizeShown(k)
+                    const value = d[k]
                     const open = openSize === k
                     return (
                       <div key={k} className="flex min-w-0 flex-col gap-1.5">
                         <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
-                          {sizeName(k)} <span className="text-muted">{k === 'shoes' ? 'EU' : unit}</span>
+                          {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
                         </span>
                         <button
                           type="button"
                           aria-expanded={open}
-                          aria-label={`${sizeName(k)}, ${shown.value ? half(shown.value) : 'not set'}`}
+                          aria-label={`${SIZE_NAME[k]}, ${value ? half(value) : 'not set'}`}
                           onClick={() => {
                             if (open) return setOpenSize(null)
-                            if (!shown.value) setSize(k, shown.start)
+                            if (!value && k !== 'tshirt') set(k, String(START[k][division]))
                             setOpenSize(k)
                           }}
-                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
+                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
                         >
-                          <span className={`min-w-0 flex-1 truncate ${shown.value ? '' : 'text-muted/40'}`}>{half(shown.value ?? shown.start)}</span>
+                          <span className={`min-w-0 flex-1 truncate ${value ? '' : 'text-muted/40'}`}>{half(value || START[k][division])}</span>
                           <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
                             <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
                           </svg>
@@ -428,22 +418,43 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                   <div ref={tapeRef} className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-4">
                       <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
-                        {sizeName(openSize)} <span className="text-muted">{openSize === 'shoes' ? 'EU' : unit}</span>
+                        {SIZE_NAME[openSize]} {openSize !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
                       <button type="button" onClick={() => setOpenSize(null)} className="text-[12px] font-bold uppercase underline" style={narrow}>
                         Done
                       </button>
                     </div>
-                    <Tape
-                      key={`${openSize}-${unit}`}
-                      label={sizeName(openSize)}
-                      value={sizeShown(openSize).value}
-                      start={sizeShown(openSize).start}
-                      scale={openSize === 'shoes' ? SHOES : SIZES[openSize][unit]}
-                      onChange={(x) => setSize(openSize, x)}
-                      valueText={(x) => `${half(x)} ${openSize === 'shoes' ? 'EU' : unit}`}
-                      onDone={() => setOpenSize(null)}
-                    />
+                    {openSize === 'tshirt' ? (
+                      <div role="radiogroup" aria-label="T-shirt size" className="flex flex-wrap gap-2 pt-2">
+                        {TSHIRT.map((x) => (
+                          <button
+                            key={x}
+                            type="button"
+                            role="radio"
+                            aria-checked={d.tshirt === x}
+                            onClick={() => {
+                              set('tshirt', x)
+                              setOpenSize(null)
+                            }}
+                            className={`h-11 min-w-14 border-2 px-3 text-[15px] font-bold uppercase ${d.tshirt === x ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg'}`}
+                            style={narrow}
+                          >
+                            {x}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <Tape
+                        key={openSize}
+                        label={SIZE_NAME[openSize]}
+                        value={d[openSize] ? Number(d[openSize]) : null}
+                        start={START[openSize][division]}
+                        scale={openSize === 'shoes' ? SHOES : PANTS}
+                        onChange={(x) => set(openSize, String(x))}
+                        valueText={(x) => `${half(x)} EU`}
+                        onDone={() => setOpenSize(null)}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -451,13 +462,13 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to open its tape.')}
+              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to set it.')}
             </form>
           )}
 
           {step === 'digitals' && (
             <form className="flex flex-col gap-9" onSubmit={(e) => { e.preventDefault(); next() }}>
-              <p className="max-w-[520px] text-[16px] leading-snug">Three photos taken today. Daylight, no make-up, hair back, fitted clothes, plain wall. Phone photos are perfect.</p>
+              <p className="max-w-[520px] text-[16px] leading-snug">Four photos taken today. Daylight, no make-up, hair back, fitted clothes, plain wall. Phone photos are perfect.</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {SLOTS.map((s) => {
                   const p = photos[s.pose]
@@ -486,7 +497,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                         )}
                       </span>
                       <span className="flex flex-col">
-                        <span className="text-[12px] font-bold uppercase" style={narrow}>{s.label}{s.optional ? ' (optional)' : ''}</span>
+                        <span className="text-[12px] font-bold uppercase" style={narrow}>{s.label}</span>
                         <span className="text-[12px] text-muted">{s.hint}</span>
                       </span>
                       <input type="file" accept="image/*" className="sr-only" onChange={(e) => addPhoto(s.pose, e.target.files?.[0])} />
@@ -497,8 +508,8 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               {photoError && <p className="text-[14px] text-red-600">{photoError}</p>}
               {nav(
                 'Continue →',
-                SLOTS.some((s) => !s.optional && !photos[s.pose]),
-                `${SLOTS.filter((s) => !s.optional && photos[s.pose]).length} of 3 added`,
+                SLOTS.some((s) => !photos[s.pose]),
+                `${SLOTS.filter((s) => photos[s.pose]).length} of ${SLOTS.length} added`,
               )}
             </form>
           )}

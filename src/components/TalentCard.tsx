@@ -103,6 +103,6 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
 
 /** The board with its view switch: thumbnails or list. */
 export function TalentBoard({ talents }: { talents: TalentCardType[] }) {
-  return <BoardView count={talents.length} grid={<TalentGrid talents={talents} />} list={<TalentList talents={talents} />} />
+  return <BoardView grid={<TalentGrid talents={talents} />} list={<TalentList talents={talents} />} />
 }
 

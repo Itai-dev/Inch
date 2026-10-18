@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
-import { NameOpen } from './motion/NameOpen'
+import { QuoteMark } from './brand/Marks'
 import { Ruler } from './motion/Ruler'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
@@ -31,6 +31,7 @@ const EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // the hero's soft ease in-out
 const FOLD = 2 // the gutter between the two pages of a spread
 const GAP = 16 // between spreads
 const CAPTION_H = 22
+const CREDIT_GAP = 12 // between a page and its credit
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
@@ -77,7 +78,7 @@ export function ModelSheet({
   const [segment, setSegment] = useState(initial)
   const book = books.find((b) => b.segment === segment)
   const [view, setView] = useState<View>(book?.view ?? 'book')
-  const [unit, setUnit] = useState<Unit>('in')
+  const [unit, setUnit] = useState<Unit>('cm')
   const slides = book?.slides ?? []
   const N = slides.length
   const showBook = !!book && view === 'book' && N > 0
@@ -114,8 +115,10 @@ export function ModelSheet({
     i += pair ? 2 : 1
   }
   const S = Math.max(1, spreads.length)
-  const peek = per === 2 ? 24 : 12 // minimum breathing room each side of the frame
-  let pageH = Math.max(0, stage.h - CAPTION_H)
+  // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
+  const capH = per === 2 ? 0 : CAPTION_H
+  const peek = per === 2 ? 44 : 12 // minimum breathing room each side of the frame
+  let pageH = Math.max(0, stage.h - capH)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
@@ -124,7 +127,7 @@ export function ModelSheet({
   // Every spread takes the same frame, so the margins never change.
   const frameW = pageW * per + FOLD * (per - 1)
   const left = (stage.w - frameW) / 2
-  const top = Math.max(0, (stage.h - pageH - CAPTION_H) / 2)
+  const top = Math.max(0, (stage.h - pageH - capH) / 2)
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -262,7 +265,7 @@ export function ModelSheet({
             </div>
           ))}
         </dl>
-        <div className="intro-write" style={write('IN CM')}>
+        <div className="intro-write" style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
@@ -278,9 +281,20 @@ export function ModelSheet({
       className="model-sheet fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg"
     >
       {/* Top rail: name | stats in one line | close */}
-      <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-8 md:py-0">
+      <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8 md:py-0">
         <div className="flex items-start justify-between gap-4">
-          <NameOpen name={name} division={division} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap" />
+          {/* The brand's symbol, then the name (not set between the marks). */}
+          <h1 aria-label={name} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap">
+            <span aria-hidden className="intro-fade relative mr-[0.24em] inline-block align-baseline" style={{ ...at(INTRO_AT), ...(division === 'men' ? { width: '0.3em', height: '0.3em' } : { width: '0.37em', height: '0.7em' }) }}>
+              {division === 'men' ? (
+                <span className="absolute inset-0 bg-current" />
+              ) : (
+                // Hangs from the top of the capitals, as in the logo.
+                <QuoteMark className="absolute left-0 top-0 h-[0.42em] w-auto" />
+              )}
+            </span>
+            <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
+          </h1>
           <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
             <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
               <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
@@ -311,7 +325,7 @@ export function ModelSheet({
           style={{ touchAction: 'pan-y' }}
         >
           {/* The frame clips its own track: the neighbouring spreads only show while sliding in or out. */}
-          <div className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H, ...at(INTRO_AT) }}>
+          <div className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + capH, ...at(INTRO_AT) }}>
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
@@ -340,7 +354,7 @@ export function ModelSheet({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                       </div>
-                      {o === 0 && s.caption && (
+                      {o === 0 && per === 1 && s.caption && (
                         <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
                       )}
                     </figure>
@@ -350,6 +364,24 @@ export function ModelSheet({
             )
           })}
           </div>
+          {/* The credits, set vertically: up the left edge of the left page, down the right edge of the right one. */}
+          {per === 2 &&
+            visible.map((i, j) => {
+              const caption = slides[i]?.caption
+              if (!caption) return null
+              const onLeft = visible.length === 2 && j === 0
+              const w = visible.length === 1 && slides[i].landscape ? frameW : pageW
+              const x = onLeft ? left - CREDIT_GAP : left + (visible.length === 2 ? frameW : (frameW + w) / 2) + CREDIT_GAP
+              return (
+                <p
+                  key={`${cur}-${i}`}
+                  className="credit-in pointer-events-none absolute truncate text-[10px] uppercase leading-none tracking-[0.2em] text-muted [writing-mode:vertical-rl]"
+                  style={{ top, height: pageH, left: x, transform: onLeft ? 'translateX(-100%) rotate(180deg)' : undefined }}
+                >
+                  {caption}
+                </p>
+              )
+            })}
           {/* Either half of the spread: back / on. */}
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 left-0 w-1/2 cursor-w-resize" onClick={() => !swipe.current.moved && step(-1)} />
           <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 right-0 w-1/2 cursor-e-resize" onClick={() => !swipe.current.moved && step(1)} />

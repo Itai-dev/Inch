@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { ageFrom, meetsCriteria } from '@/lib/apply-criteria'
+import { ageFrom, GUARDIAN_AGE, meetsCriteria } from '@/lib/apply-criteria'
 import { getWriteClient } from '@/sanity/lib/client'
 
 const num = z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional())
@@ -11,13 +11,16 @@ const Body = z.object({
   firstName: z.string().min(1).max(60),
   lastName: z.string().min(1).max(60),
   birthdate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  city: z.string().max(120),
+  country: z.string().min(1).max(120),
   email: z.email(),
   phone: z.string().max(40),
   guardianName: opt(120),
   guardianPhone: opt(40),
+  guardianConsent: z.enum(['true', 'false']).optional(),
   height: z.coerce.number().min(100).max(230),
-  bust: num, waist: num, hips: num, shoes: num,
+  tshirt: z.enum(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL']),
+  pants: num,
+  shoes: num,
   hair: opt(40),
   eyes: opt(40),
   instagram: opt(60),
@@ -29,7 +32,8 @@ const Body = z.object({
   startedAt: z.coerce.number().optional(),
 })
 
-const MIN_FILES = 3
+// Portrait, medium, full body and profile.
+const MIN_FILES = 4
 const MAX_FILES = 4
 // Photos are shrunk in the browser (~0.3–0.8 MB each); a request is capped at ~4.5 MB on Vercel.
 const MAX_BYTES = 2.5 * 1024 * 1024
@@ -49,6 +53,11 @@ export async function POST(req: Request) {
 
   const age = ageFrom(d.birthdate)
   if (!(age >= 10 && age <= 80)) return NextResponse.json({ error: 'Invalid date of birth' }, { status: 400 })
+  // At GUARDIAN_AGE or younger, a parent or guardian consents.
+  const minor = age <= GUARDIAN_AGE
+  if (minor && (!d.guardianName || !d.guardianPhone || d.guardianConsent !== 'true')) {
+    return NextResponse.json({ error: 'Parent or guardian consent needed' }, { status: 400 })
+  }
 
   const files = form.getAll('digitals').filter((f): f is File => f instanceof File).slice(0, MAX_FILES)
   const total = files.reduce((n, f) => n + f.size, 0)
@@ -73,11 +82,12 @@ export async function POST(req: Request) {
     name,
     birthdate: d.birthdate,
     age,
-    city: d.city,
+    country: d.country,
     email: d.email,
     phone: d.phone,
-    guardian: d.guardianName ? { name: d.guardianName, phone: d.guardianPhone } : undefined,
-    measurements: { height: d.height, bust: d.bust, waist: d.waist, hips: d.hips, shoes: d.shoes, hair: d.hair, eyes: d.eyes },
+    guardian: minor ? { name: d.guardianName, phone: d.guardianPhone, consent: true } : undefined,
+    measurements: { height: d.height, shoes: d.shoes, hair: d.hair, eyes: d.eyes },
+    sizes: { tshirt: d.tshirt, pants: d.pants },
     digitals: assets.map((a) => ({ _type: 'image', _key: key(), asset: { _type: 'reference', _ref: a._id } })),
     instagram: d.instagram,
     tiktok: d.tiktok,
@@ -87,8 +97,8 @@ export async function POST(req: Request) {
   })
 
   await notify(`New application: ${name}`, [
-    `${name}, ${age}, ${d.city}`,
-    `${d.height} cm${outsideCriteria ? ' (outside current criteria)' : ''}`,
+    `${name}, ${age}, ${d.country}${minor ? ' (parent or guardian consented)' : ''}`,
+    `${d.height} cm · T-shirt ${d.tshirt}${d.pants ? ` · pants ${d.pants} EU` : ''}${d.shoes ? ` · shoes ${d.shoes} EU` : ''}${outsideCriteria ? ' (outside current criteria)' : ''}`,
     `${d.email} · ${d.phone}`,
     d.instagram ? `Instagram: ${d.instagram}` : '',
     'Open the Studio → Applications to see the photos.',
