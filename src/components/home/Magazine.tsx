@@ -15,7 +15,7 @@
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { rulerTicks } from '@/lib/ruler'
+import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
 import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
 
@@ -120,6 +120,11 @@ const css = (expr: string) => `calc(${expr})`
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+/** The tape between the arrows: an inch a spread (00 the cover), seen through a window a little wider than an inch, with blank inches before and after. */
+const INCH_PX = 120
+const TAPE_WIN = 200
+const TAPE_FROM = -2
+
 /** A long, thin arrow. */
 function Arrow({ dir }: { dir: 'left' | 'right' }) {
   return (
@@ -243,6 +248,7 @@ export function Magazine({
   const boxShadow = useRef<HTMLSpanElement>(null)
   const controls = useRef<HTMLDivElement>(null)
   const hand = useRef<HTMLDivElement>(null)
+  const tape = useRef<HTMLSpanElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader is on: 0 = closed, k = k leaves turned.
@@ -291,6 +297,14 @@ export function Magazine({
         sh.style.transform = `translate(-50%, -50%) translate(${(coverW * 0.02 + lift * W * 0.03).toFixed(1)}px, ${(coverH * 0.02 + lift * coverH * 0.22).toFixed(1)}px) rotate(${(-deg).toFixed(2)}deg)`
       }
       if (controls.current) controls.current.style.opacity = a >= 1 ? '1' : '0'
+      // The tape under the arrows follows the pages; the number in the middle is at full strength.
+      const tp = tape.current
+      if (tp) {
+        tp.style.transform = `translateX(${(TAPE_WIN / 2 - (at - TAPE_FROM + 0.5) * INCH_PX).toFixed(1)}px)`
+        tp.querySelectorAll<HTMLElement>('[data-n]').forEach((n) => {
+          n.style.opacity = (1 - 0.7 * Math.min(1, Math.abs(Number(n.dataset.n) - at))).toFixed(3)
+        })
+      }
 
       // Closed, the cover sits in the middle; open, the spine does. The real book shows once the box faces you.
       const b = book.current
@@ -419,6 +433,14 @@ export function Magazine({
     const h = hand.current
     const st = stage.current
     if (!h || !st || e.pointerType !== 'mouse') return
+    // Only once the magazine is open: before that, the plain pointer (a click opens it).
+    const l = live.current
+    if (l.arrive < 1 || (l.at < 0.02 && !drag.current.moved)) {
+      h.style.opacity = '0'
+      st.style.cursor = l.arrive < 1 ? '' : 'pointer'
+      return
+    }
+    st.style.cursor = 'none'
     const r = st.getBoundingClientRect()
     h.style.opacity = '1'
     h.style.transform = `translate(${(e.clientX - r.left - HAND_PX / 2).toFixed(1)}px, ${(e.clientY - r.top - HAND_PX / 2).toFixed(1)}px)`
@@ -529,7 +551,7 @@ export function Magazine({
       <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
-          className="relative cursor-grab select-none [@media(pointer:fine)]:cursor-none"
+          className="relative select-none"
           style={{ width: BOOK_W, aspectRatio: '3 / 2', perspective: '2600px', touchAction: 'pan-y' }}
           onPointerMove={onMove}
           onPointerDown={onDown}
@@ -611,9 +633,21 @@ export function Magazine({
           <button type="button" aria-label="Previous page" onClick={() => step(-1)} disabled={page === 0} className="p-2 transition-[opacity,transform] duration-200 enabled:hover:-translate-x-1 disabled:cursor-default disabled:opacity-15">
             <Arrow dir="left" />
           </button>
-          <span aria-hidden className="relative block w-[120px] pb-2">
-            <span className="block text-center text-[clamp(15px,1.3vw,18px)] font-extrabold leading-none tabular-nums">{pad(page)}</span>
-            <span className="mt-2 block h-[18px]" style={rulerTicks(18, 9, 120)} />
+          {/* The tape slides with the pages (and with a page held mid-turn), as on the hero. */}
+          <span aria-hidden className="relative block overflow-hidden pb-2" style={{ width: TAPE_WIN, maskImage: 'linear-gradient(to right, transparent, #000 30%, #000 70%, transparent)' }}>
+            <span ref={tape} className="flex w-max will-change-transform" style={{ transform: `translateX(${TAPE_WIN / 2 - (0 - TAPE_FROM + 0.5) * INCH_PX}px)` }}>
+              {Array.from({ length: turns + 1 - 2 * TAPE_FROM }, (_, j) => {
+                const i = j + TAPE_FROM
+                return (
+                  <span key={i} className="block shrink-0" style={{ width: INCH_PX }}>
+                    <span data-n={i} className="block h-[1.2em] text-center text-[clamp(15px,1.3vw,18px)] font-extrabold leading-none tabular-nums" style={{ opacity: i === 0 ? 1 : 0.3 }}>
+                      {i >= 0 && i <= turns ? pad(i) : ''}
+                    </span>
+                    <span className="mt-1 block h-[18px]" style={{ ...rulerTicks(18, 9, INCH_PX), width: `calc(100% + ${SEG_OVERLAP})` }} />
+                  </span>
+                )
+              })}
+            </span>
           </span>
           <button type="button" aria-label="Next page" onClick={() => step(1)} disabled={page === turns} className="p-2 transition-[opacity,transform] duration-200 enabled:hover:translate-x-1 disabled:cursor-default disabled:opacity-15">
             <Arrow dir="right" />
