@@ -60,10 +60,21 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
   return (
     <>
       <QuoteVideoHero videos={videos} opening={hero} />
-      <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
+      <TextOpen text={home?.statement || DEFAULT_STATEMENT} pics={statementPics(withPlaceholders(models, division))} />
       <Story site={site} home={home} talents={withPlaceholders(models, division)} />
     </>
   )
+}
+
+/** Three pictures for the statement: the real models' pictures, else the board's placeholder covers. */
+function statementPics(talents: TalentCard[]) {
+  // A model at a time (her cover, then her book), so one model doesn't fill all three.
+  const own = talents.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
+  const real = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l) => (l[i] ? [l[i]] : [])))
+    .flat()
+    .map((img) => urlFor(img).width(360).height(220).url())
+  const stand = talents.filter((t) => !t.cover?.asset && t.coverSrc).map((t) => t.coverSrc!)
+  return [...real, ...stand].slice(0, 3)
 }
 
 /** Below the opening, on both sites: the magazine. */

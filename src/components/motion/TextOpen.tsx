@@ -7,7 +7,7 @@
  * while staying clear of the header, so the header logo doesn't sink into the big type while
  * it is held.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/Marks'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useScrollProgress } from '@/hooks/useScrollProgress'
@@ -37,13 +37,29 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 /** The zone's own length (vh) before any `holdVh`: written, then held, over its scroll of 140vh. */
 const ZONE_VH = 240
 
-/** `holdVh` keeps the written statement pinned for that much more scroll (something can play over it). */
-export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }) {
+/**
+ * Pictures set into the statement (brand artboard 18): gaps held open in the text, a picture in
+ * each that opens from its middle as the writing reaches it (and closes again scrolling back).
+ * Where they go, as shares of the way through the words: after "boutique" and "with a" in the
+ * statement as written, and one more toward the end.
+ */
+const PIC_AT = [0.17, 0.5, 0.82]
+
+/** The char indices the pictures sit before: the start of the word after each chosen share of the words. */
+function picSlots(text: string, count: number) {
+  const starts = [...text.matchAll(/\S+/g)].map((m) => m.index ?? 0)
+  const slots = PIC_AT.slice(0, count).map((f) => starts[Math.min(starts.length - 1, Math.max(1, Math.round(f * starts.length)))])
+  return [...new Set(slots)].filter((i) => i > 0)
+}
+
+/** `holdVh` keeps the written statement pinned for that much more scroll (something can play over it). `pics` opens in the text as it is written. */
+export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh?: number; pics?: string[] }) {
   const reduced = useReducedMotion()
   const { ref: zoneRef, progress: rawProgress } = useScrollProgress<HTMLDivElement>()
   // The timeline runs over the zone's own scroll; any hold comes after it.
   const progress = reduced ? 1 : Math.min(1, (rawProgress * (ZONE_VH - 100 + holdVh)) / (ZONE_VH - 100))
 
+  const slots = useMemo(() => picSlots(text, pics.length), [text, pics.length])
   const wrapRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLParagraphElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
@@ -138,16 +154,28 @@ export function TextOpen({ text, holdVh = 0 }: { text: string; holdVh?: number }
             <QuoteStroke side="right" height={markH} />
           </div>
           <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text}>
-            {text.split('').map((c, i) => (
-              <span
-                key={i}
-                aria-hidden
-                ref={(el) => { charRefs.current[i] = el }}
-                style={{ opacity: i < cursor ? 1 : 0 }}
-              >
-                {c}
-              </span>
-            ))}
+            {text.split('').map((c, i) => {
+              const k = slots.indexOf(i)
+              return (
+                <Fragment key={i}>
+                  {k >= 0 && (
+                    // The gap is always there (so the lines never reflow); the picture opens in it.
+                    <span aria-hidden className="relative mx-[0.06em] mr-[0.28em] inline-block h-[0.74em] w-[1.25em] align-[-0.02em]">
+                      <span
+                        className="absolute inset-0 overflow-hidden bg-line transition-[clip-path] duration-500 ease-[cubic-bezier(0.45,0,0.25,1)]"
+                        style={{ clipPath: i <= cursor ? 'inset(0 0 0 0)' : 'inset(0 50% 0 50%)' }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={pics[k]} alt="" className="size-full object-cover grayscale" loading="lazy" />
+                      </span>
+                    </span>
+                  )}
+                  <span aria-hidden ref={(el) => { charRefs.current[i] = el }} style={{ opacity: i < cursor ? 1 : 0 }}>
+                    {c}
+                  </span>
+                </Fragment>
+              )
+            })}
           </p>
         </div>
       </div>
