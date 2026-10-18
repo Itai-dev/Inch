@@ -172,15 +172,44 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   letter-spacing: -0.1em;
   margin-right: 0.1em;
 }
-/* The other site's box (DOT. / INCH”): grows slightly on hover and press. */
+/* The other site's box (SiteSwitch): on its side, centred in the right margin, halfway down the
+   screen. The translate lands its centre there whatever its size; it grows slightly on hover and press. */
+.site-switch-tab {
+  --tab: clamp(13px, 1.35vw, 26px);
+  position: fixed;
+  z-index: 40;
+  top: 50%;
+  right: calc(var(--gutter) / 2);
+  font-size: var(--tab);
+  transform: translate(50%, -50%) rotate(-90deg);
+}
 .site-switch {
   transition: transform 0.35s var(--ease-out);
 }
-.site-switch:hover {
+.site-switch-tab:hover .site-switch,
+.site-switch-tab:focus-visible .site-switch {
   transform: scale(1.08);
 }
-.site-switch:active {
+.site-switch-tab:active .site-switch {
   transform: scale(1.12);
+}
+/* Its note slides out to the left of it on hover or keyboard focus (mouse only: a tap just goes). */
+.site-switch-note {
+  position: fixed;
+  z-index: 40;
+  top: 50%;
+  right: calc(var(--gutter) / 2 + 0.6 * clamp(13px, 1.35vw, 26px) + 12px);
+  pointer-events: none;
+  /* A faint edge, so it still shows over a background of its own colour (the black footer). */
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 30%, transparent);
+  opacity: 0;
+  transform: translate(8px, -50%);
+  transition: opacity 0.25s var(--ease-out), transform 0.35s var(--ease-out);
+}
+.site-switch-tab:hover + .site-switch-note,
+.site-switch-tab:focus-visible + .site-switch-note {
+  opacity: 1;
+  transform: translate(0, -50%);
 }
 
 /* ── Model page (ModelSheet): a full-screen sheet over the site ───────────── */
@@ -264,11 +293,9 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   [data-type-scroll] .type-char { animation: none; opacity: 0; }
 }
 
-/* The colour just above the footer, for its dip (FooterDip): the page, or on the home page the
-   magazine's grey surface, which runs straight into the footer. */
+/* On the home page the magazine's grey surface runs straight into the footer. */
 :root { --surface-mag: color-mix(in srgb, var(--fg) 9%, var(--bg)); }
-footer { --above: var(--bg); }
-main:has([data-magazine]) + footer { margin-top: 0; --above: var(--surface-mag); }
+main:has([data-magazine]) + footer { margin-top: 0; }
 
 /* The site's own pointer (Cursor) replaces the system's for the mouse. */
 @media (pointer: fine) {

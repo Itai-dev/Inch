@@ -6,6 +6,7 @@ import { Header } from '@/components/Header'
 import { RouteMemory } from '@/components/RouteMemory'
 import { SelectionProvider } from '@/components/selection/SelectionProvider'
 import { SelectionTray } from '@/components/selection/SelectionTray'
+import { SiteSwitch } from '@/components/SiteSwitch'
 import { isSite, SITE_KEYS, SITES } from '@/lib/sites'
 import { siteUrl } from '@/sanity/env'
 import '@fontsource-variable/archivo/wdth.css'
@@ -37,6 +38,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<'/[si
           <Header site={site} />
           <main className="min-h-dvh">{children}</main>
           <Footer site={site} />
+          <SiteSwitch site={site} />
           <SelectionTray site={site} />
           <RouteMemory />
         </SelectionProvider>
