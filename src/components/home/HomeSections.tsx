@@ -1,15 +1,13 @@
-import Link from 'next/link'
 import { isPlaceholder } from '@/lib/placeholders'
 import { creditLine } from '@/lib/slides'
-import { sitePath, SITES, type Site } from '@/lib/sites'
+import { SITES, type Site } from '@/lib/sites'
 import { DEFAULT_STORY } from '@/lib/copy'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, TalentCard as TalentCardType } from '@/sanity/lib/types'
 import { Magazine, type Pic, type Spread } from './Magazine'
 
 /**
- * The home page below the statement: the agency's story as a magazine you leaf through, then a
- * way in for new faces.
+ * The home page below the statement: the agency's story as a magazine you leaf through.
  */
 
 export type Chapter = { _key?: string; heading: string; text: string; images?: SanityImage[] | null }
@@ -50,19 +48,4 @@ export function StoryMagazine(props: StoryProps) {
   if (!hasMagazine || !cover) return null
   const c = story[MAGAZINE_AT]
   return <Magazine number={MAGAZINE_AT + 1} heading={c.heading} text={c.text} brand={brand} division={division} cover={cover} spreads={spreads} />
-}
-
-/** The last word: a way in for new faces. */
-export function ApplyCallout({ site }: { site: Site }) {
-  return (
-    <section className="mx-[var(--gutter)] flex justify-end border-t-2 border-fg pb-[clamp(56px,7vw,120px)] pt-5">
-      <Link href={sitePath(site, '/apply')} className="group block w-fit text-right">
-        <span className="wordmark text-[clamp(40px,5.5vw,96px)] uppercase leading-[0.8] transition-[letter-spacing] duration-500 ease-[var(--ease-out)] group-hover:tracking-[0.02em]">
-          Get scouted{' '}
-          {/* The arrow gives under the pointer, like a key pressed. */}
-          <span className="inline-block transition-transform duration-200 ease-[var(--ease-out)] group-hover:translate-x-[0.04em] group-hover:translate-y-[0.03em] group-hover:scale-[0.9] group-active:scale-[0.82]">→</span>
-        </span>
-      </Link>
-    </section>
-  )
 }

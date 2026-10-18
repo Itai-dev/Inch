@@ -114,9 +114,11 @@ const css = (expr: string) => `calc(${expr})`
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+/** The open hand over the magazine closes while a page is held. */
+const grip = (el: EventTarget, held: boolean) => {
+  ;(el as HTMLElement).style.cursor = held ? 'grabbing' : ''
+}
 
-/** The hand that turns the pages (a cut-paper hand), its size and where it holds the page. */
-const HAND = { src: '/hand.png', w: 82, h: 120, x: 34, y: 14 }
 
 /** The pages' edges, as seen on the side of a closed magazine: fine lines across its thickness. */
 const paper = (dir: 'right' | 'bottom') => `repeating-linear-gradient(to ${dir}, #f6f4ef 0 1px, #e4e0d8 1px 2px)`
@@ -198,8 +200,6 @@ export function Magazine({
   const box = useRef<HTMLDivElement>(null)
   const boxShadow = useRef<HTMLSpanElement>(null)
   const controls = useRef<HTMLDivElement>(null)
-  const hand = useRef<HTMLDivElement>(null)
-  const handImg = useRef<HTMLImageElement>(null)
   // The cover is the first leaf; then one leaf per spread but the last.
   const turns = spreads.length
   // The page the reader is on: 0 = closed, k = k leaves turned.
@@ -259,7 +259,7 @@ export function Magazine({
       if (spine.current) spine.current.style.opacity = String(opened)
       leaves.current.forEach((leaf, k) => {
         if (!leaf) return
-        // Leaf k is k + e turned: the hand (or the turn) sets e straight.
+        // Leaf k is k + e turned: a drag (or the turn) sets e straight.
         const e = clamp01(at - k)
         // Turned pages pile on the left, the latest on top; the rest wait on the right, the next on top.
         leaf.style.zIndex = String(e > 0.5 ? 20 + k : 20 - k)
@@ -364,21 +364,6 @@ export function Magazine({
     ease(p + d > turns ? 0 : Math.max(0, p + d))
   }
 
-  // The hand: it follows the mouse over the magazine, holds the page where it is, and turns over
-  // (mirrored) on the left page. Pressing, it closes a little on the page.
-  const handAt = (e: React.PointerEvent, pressed = false) => {
-    const h = hand.current
-    const st = stage.current
-    if (!h || !st || e.pointerType !== 'mouse') return
-    const r = st.getBoundingClientRect()
-    const x = e.clientX - r.left
-    const y = e.clientY - r.top
-    h.style.opacity = '1'
-    h.style.transform = `translate(${(x - HAND.x).toFixed(1)}px, ${(y - HAND.y).toFixed(1)}px)`
-    const left = live.current.at > 0.5 && x < spineX()
-    if (handImg.current) handImg.current.style.transform = `scaleX(${left ? -1 : 1}) ${pressed ? 'scale(0.9) rotate(-7deg)' : ''}`
-  }
-
   /** Where the spine is across the stage now (px): the cover's left edge while closed, the middle once open. */
   const spineX = () => {
     const W = stage.current?.offsetWidth ?? 0
@@ -391,12 +376,12 @@ export function Magazine({
     return W / 2 - 0.25 * W * (1 - opened) + Math.cos(Math.PI * e) * (W / 2)
   }
 
-  // Dragging a page: the hand catches the page where it was pressed and its edge follows the
-  // hand, forward or back, as far as you drag; let go and it falls the way it was going.
+  // Dragging a page: it is caught where it was pressed and its edge follows the pointer, forward
+  // or back, as far as you drag; let go and it falls the way it was going.
   const drag = useRef<{ x: number; y: number; k: number | null; e0: number; moved: boolean; pressed: boolean }>({ x: 0, y: 0, k: null, e0: 0, moved: false, pressed: false })
   const onDown = (e: React.PointerEvent) => {
     const l = live.current
-    handAt(e, true)
+    grip(e.currentTarget, true)
     drag.current = { x: e.clientX, y: e.clientY, k: null, e0: 0, moved: false, pressed: true }
     if (l.arrive < 1) return
     const st = stage.current!
@@ -412,7 +397,6 @@ export function Magazine({
   }
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current
-    handAt(e, d.pressed)
     if (!d.pressed || d.k === null) return
     const dx = e.clientX - d.x
     if (!d.moved && Math.abs(dx) < 6) return
@@ -422,7 +406,7 @@ export function Magazine({
     }
     d.moved = true
     finishOpening()
-    // The edge goes where the hand goes: find how far the leaf is turned for that.
+    // The edge goes where the pointer goes: find how far the leaf is turned for that.
     const target = edgeX(d.k, d.e0) + dx
     let best = 0
     let gap = Infinity
@@ -438,7 +422,7 @@ export function Magazine({
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current
     d.pressed = false
-    handAt(e)
+    grip(e.currentTarget, false)
     if (!d.moved || d.k === null) return
     const e1 = live.current.at - d.k
     // Forward, a third of the way over is enough; back, the same.
@@ -482,14 +466,15 @@ export function Magazine({
       <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
-          className="relative select-none [@media(pointer:fine)]:cursor-none"
+          className="relative cursor-grab select-none"
           style={{ width: BOOK_W, aspectRatio: '3 / 2', perspective: '2600px', touchAction: 'pan-y' }}
-          onPointerEnter={(e) => handAt(e)}
           onPointerMove={onMove}
           onPointerDown={onDown}
           onPointerUp={onUp}
-          onPointerCancel={() => (drag.current.pressed = false)}
-          onPointerLeave={() => hand.current && (hand.current.style.opacity = '0')}
+          onPointerCancel={(e) => {
+            drag.current.pressed = false
+            grip(e.currentTarget, false)
+          }}
           onClick={(e) => {
             if (drag.current.moved) return
             // During the opening, a click skips to the cover.
@@ -544,18 +529,6 @@ export function Magazine({
             <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
           </div>
 
-          {/* The hand that turns the pages (mouse only). */}
-          <div ref={hand} aria-hidden className="pointer-events-none absolute left-0 top-0 z-[60] opacity-0 transition-opacity duration-150" style={{ width: HAND.w, height: HAND.h }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              ref={handImg}
-              src={HAND.src}
-              alt=""
-              draggable={false}
-              className="block size-full drop-shadow-[2px_6px_6px_rgb(0_0_0/0.25)] transition-transform duration-150 ease-out"
-              style={{ transformOrigin: `${HAND.x}px ${HAND.y}px` }}
-            />
-          </div>
         </div>
 
         {/* Back | where you are | on. */}

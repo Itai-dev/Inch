@@ -2,7 +2,7 @@ import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotStatement } from '@/components/motion/DotStatement'
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { ApplyCallout, StoryMagazine, type Chapter } from './HomeSections'
+import { StoryMagazine, type Chapter } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
@@ -56,7 +56,7 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
     )
   }
 
-  // INCH”: ” opens to full-screen video → statement on scroll → the magazine → Get scouted.
+  // INCH”: ” opens to full-screen video → statement on scroll → the magazine.
   return (
     <>
       <QuoteVideoHero videos={videos} opening={hero} />
@@ -66,12 +66,11 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
   )
 }
 
-/** Below the opening, on both sites: the magazine, then Get scouted. */
+/** Below the opening, on both sites: the magazine. */
 function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
   return (
     <>
       <StoryMagazine site={site} chapters={home?.story} talents={talents} />
-      <ApplyCallout site={site} />
     </>
   )
 }
