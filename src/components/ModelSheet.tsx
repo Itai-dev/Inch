@@ -34,6 +34,8 @@ const CAPTION_H = 22
 const CREDIT_GAP = 12 // between a page and its credit
 const MARK_INSET = 16 // the brand's mark, in from the spread's corner
 const ROW_H = 46 // the books and actions under a two-page spread, with the gap above them
+const BESIDE_FROM = 1000 // from this stage width, they stand beside the spread instead
+const SIDE_W = 190 // the room kept each side of the spread for them
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
@@ -120,9 +122,11 @@ export function ModelSheet({
   // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
   const capH = per === 2 ? 0 : CAPTION_H
   // Two pages: the books and actions sit just under the spread, so leave room for them.
-  const underSpread = showBook && per === 2
+  // Wide screens: the books and actions stand beside the spread; else they run under it.
+  const beside = showBook && per === 2 && stage.w >= BESIDE_FROM
+  const underSpread = showBook && per === 2 && !beside
   const rowH = underSpread ? ROW_H : 0
-  const peek = per === 2 ? 44 : 12 // minimum breathing room each side of the frame
+  const peek = per === 2 ? (beside ? SIDE_W : 44) : 12 // minimum room each side of the frame
   let pageH = Math.max(0, stage.h - capH - rowH)
   let pageW = pageH * 0.75
   if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
@@ -277,37 +281,46 @@ export function ModelSheet({
     ) : null
 
   // Books | actions: under the spread, edge to edge with it, when the book shows two pages; else across the foot.
+  // The books, and the actions: in a row across the foot (or under the spread), or stacked beside a
+  // wide spread, each column level with its bottom and in line with the name (left) and close (right).
+  const bookTabs = (stacked = false) => (
+    <nav className={`flex ${stacked ? 'flex-col items-start gap-1.5' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
+      {tabs.map((t) => (
+        <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
+          {t.title}
+        </button>
+      ))}
+      {handle && (
+        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
+          IG
+        </a>
+      )}
+    </nav>
+  )
+  const bookActions = (stacked = false) => (
+    <div className={`flex ${stacked ? 'flex-col items-end gap-1.5' : 'gap-5 md:justify-end md:gap-[26px]'}`}>
+      {book && N > 0 && (
+        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
+          {view === 'book' ? 'Thumbnails' : 'Book'}
+        </button>
+      )}
+      {compCard && (
+        <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
+          Comp card
+        </a>
+      )}
+      {talent && (
+        <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
+          {selected ? 'Selected' : '+ Selection'}
+        </button>
+      )}
+    </div>
+  )
+  const rowCls = 'text-[15px] font-bold uppercase md:text-[16px]'
   const actionsRow = (className: string, style?: React.CSSProperties) => (
-<div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[15px] font-bold uppercase md:text-[16px] ${className}`} style={{ ...narrow, ...style }}>
-      <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
-        {tabs.map((t) => (
-          <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
-            {t.title}
-          </button>
-        ))}
-        {handle && (
-          <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
-            IG
-          </a>
-        )}
-      </nav>
-      <div className="flex gap-5 md:justify-end md:gap-[26px]">
-        {book && N > 0 && (
-          <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
-            {view === 'book' ? 'Thumbnails' : 'Book'}
-          </button>
-        )}
-        {compCard && (
-          <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
-            Comp card
-          </a>
-        )}
-        {talent && (
-          <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
-            {selected ? 'Selected' : '+ Selection'}
-          </button>
-        )}
-      </div>
+    <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
+      {bookTabs()}
+      {bookActions()}
     </div>
   )
 
@@ -427,12 +440,22 @@ export function ModelSheet({
               )
             })}
           {/* Either half of the spread: back / on. */}
-          <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 left-0 w-1/2 cursor-w-resize" onClick={() => !swipe.current.moved && step(-1)} />
-          <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 right-0 w-1/2 cursor-e-resize" onClick={() => !swipe.current.moved && step(1)} />
+          <button type="button" tabIndex={-1} aria-hidden data-cursor="grab" className="absolute inset-y-0 left-0 w-1/2" onClick={() => !swipe.current.moved && step(-1)} />
+          <button type="button" tabIndex={-1} aria-hidden data-cursor="grab" className="absolute inset-y-0 right-0 w-1/2" onClick={() => !swipe.current.moved && step(1)} />
           <p className="sr-only" aria-live="polite">
             {visible.map((i) => `${pad2(i + 1)} ${slides[i].caption || slides[i].alt}`).join(', ')} of {pad2(N)}
           </p>
           {underSpread && actionsRow('absolute z-20 items-end', { top: top + pageH, height: ROW_H, left, width: frameW })}
+          {beside && (
+            <>
+              <div className={`absolute z-20 ${rowCls}`} style={{ ...narrow, left: 'var(--gutter)', bottom: stage.h - (top + pageH) }}>
+                {bookTabs(true)}
+              </div>
+              <div className={`absolute z-20 ${rowCls}`} style={{ ...narrow, right: 'var(--gutter)', bottom: stage.h - (top + pageH) }}>
+                {bookActions(true)}
+              </div>
+            </>
+          )}
         </section>
       )}
 
@@ -472,7 +495,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        {!underSpread && actionsRow('px-gutter')}
+        {!underSpread && !beside && actionsRow('px-gutter')}
 
         {segment === 'bio' && bioParts.length > 1 && (
           <div className="intro-fade" style={at(INTRO_AT + 200)}>

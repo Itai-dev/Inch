@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { Cursor } from '@/components/Cursor'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { RouteMemory } from '@/components/RouteMemory'
@@ -39,6 +40,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<'/[si
           <SelectionTray site={site} />
           <RouteMemory />
         </SelectionProvider>
+        <Cursor />
       </body>
     </html>
   )

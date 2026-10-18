@@ -16,7 +16,6 @@ import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
 import { rulerTicks, SEG_OVERLAP } from '@/lib/ruler'
-import { HAND_PX, HandIcon } from '@/components/HandCursor'
 import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
 
@@ -241,7 +240,6 @@ export function Magazine({
   const box = useRef<HTMLDivElement>(null)
   const boxShadow = useRef<HTMLSpanElement>(null)
   const controls = useRef<HTMLDivElement>(null)
-  const hand = useRef<HTMLDivElement>(null)
   const tape = useRef<HTMLSpanElement>(null)
   const tail = useRef<HTMLDivElement>(null)
   const stackL = useRef<HTMLSpanElement>(null)
@@ -460,27 +458,16 @@ export function Magazine({
     if (to !== p) ease(to)
   }
 
-  // The hand follows the mouse over the magazine (never on touch), open, or closed while it holds a page.
-  const handAt = (e: React.PointerEvent, held?: boolean) => {
-    const h = hand.current
+  // The pointer over the magazine (drawn by Cursor): a finger while it is closed (a click opens it),
+  // the open hand once it is open, closing on a page while it holds it.
+  const handAt = (e: React.PointerEvent) => {
     const st = stage.current
-    if (!h || !st || e.pointerType !== 'mouse') return
+    if (!st || e.pointerType !== 'mouse') return
     // The light on the glossy pages follows the mouse a little.
     const sr = st.getBoundingClientRect()
     st.style.setProperty('--gx', `${(20 + 40 * ((e.clientX - sr.left) / sr.width)).toFixed(1)}%`)
-    // Only once the magazine is open: before that, the plain pointer (a click opens it).
     const l = live.current
-    if (l.arrive < 1 || (l.at < 0.02 && !drag.current.moved)) {
-      h.style.opacity = '0'
-      st.style.cursor = l.arrive < 1 ? '' : 'pointer'
-      return
-    }
-    st.style.cursor = 'none'
-    const r = st.getBoundingClientRect()
-    h.style.opacity = '1'
-    h.style.transform = `translate(${(e.clientX - r.left - HAND_PX / 2).toFixed(1)}px, ${(e.clientY - r.top - HAND_PX / 2).toFixed(1)}px)`
-    if (held === true) h.dataset.held = ''
-    if (held === false) delete h.dataset.held
+    st.dataset.cursor = l.arrive < 1 ? 'arrow' : l.at < 0.02 && !drag.current.moved ? 'finger' : 'grab'
   }
 
   /** Where the spine is across the stage now (px): the cover's left edge while closed, the middle once open. */
@@ -500,7 +487,7 @@ export function Magazine({
   const drag = useRef<{ x: number; y: number; k: number | null; e0: number; moved: boolean; pressed: boolean }>({ x: 0, y: 0, k: null, e0: 0, moved: false, pressed: false })
   const onDown = (e: React.PointerEvent) => {
     const l = live.current
-    handAt(e, true)
+    handAt(e)
     drag.current = { x: e.clientX, y: e.clientY, k: null, e0: 0, moved: false, pressed: true }
     if (l.arrive < 1) return
     const st = stage.current!
@@ -542,7 +529,7 @@ export function Magazine({
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current
     d.pressed = false
-    handAt(e, false)
+    handAt(e)
     if (!d.moved || d.k === null) return
     const e1 = live.current.at - d.k
     // Forward, a third of the way over is enough; back, the same.
@@ -594,10 +581,9 @@ export function Magazine({
           onPointerUp={onUp}
           onPointerCancel={(e) => {
             drag.current.pressed = false
-            handAt(e, false)
+            handAt(e)
           }}
           onPointerEnter={(e) => handAt(e)}
-          onPointerLeave={() => hand.current && (hand.current.style.opacity = '0')}
           onClick={(e) => {
             if (drag.current.moved) return
             // During the opening, a click skips to the cover.
@@ -657,15 +643,6 @@ export function Magazine({
             <span ref={spine} aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-px -translate-x-1/2 bg-black/20" style={{ opacity: 0 }} />
           </div>
 
-          {/* The hand (mouse only). */}
-          <div ref={hand} aria-hidden className="group/hand pointer-events-none absolute left-0 top-0 z-[60] opacity-0 transition-opacity duration-150" style={{ width: HAND_PX, height: HAND_PX }}>
-            <span className="absolute inset-0 group-data-[held]/hand:hidden">
-              <HandIcon kind="open" />
-            </span>
-            <span className="absolute inset-0 hidden group-data-[held]/hand:block">
-              <HandIcon kind="held" />
-            </span>
-          </div>
 
         </div>
 

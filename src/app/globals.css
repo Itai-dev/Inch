@@ -264,5 +264,18 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   [data-type-scroll] .type-char { animation: none; opacity: 0; }
 }
 
-/* The home page ends on the magazine's grey surface, straight into the footer. */
-main:has([data-magazine]) + footer { margin-top: 0; }
+/* The colour just above the footer, for its dip (FooterDip): the page, or on the home page the
+   magazine's grey surface, which runs straight into the footer. */
+:root { --surface-mag: color-mix(in srgb, var(--fg) 9%, var(--bg)); }
+footer { --above: var(--bg); }
+main:has([data-magazine]) + footer { margin-top: 0; --above: var(--surface-mag); }
+
+/* The site's own pointer (Cursor) replaces the system's for the mouse. */
+@media (pointer: fine) {
+  html[data-cursor-on], html[data-cursor-on] * { cursor: none !important; }
+}
+/* Marked text, focus rings and taps in the page's ink, never the system blue. */
+::selection { background: var(--fg); color: var(--bg); }
+:focus-visible { outline-color: var(--fg); }
+html { -webkit-tap-highlight-color: transparent; }
+

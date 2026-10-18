@@ -65,9 +65,16 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   const real = talents.filter((t) => !isPlaceholder(t))
   const own = real.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
   const interleaved = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l, m) => (l[i] ? [{ img: l[i], name: real[m].name }] : []))).flat()
+  // Eight prints: the real pictures, round again if there are fewer (a different crop each time round).
+  const PRINTS = 8
   const prints: Print[] = interleaved.length
-    ? interleaved.map(({ img, name }) => ({ src: urlFor(img).width(900).url(), alt: img.alt || name }))
-    : [1, 3, 5, 7, 2, 9].map((n) => ({ src: `/placeholders/look-${String(n).padStart(2, '0')}.svg`, alt: '' }))
+    ? Array.from({ length: Math.max(interleaved.length, PRINTS) }, (_, i) => {
+        const { img, name } = interleaved[i % interleaved.length]
+        const round = Math.floor(i / interleaved.length)
+        const shot = urlFor(img).width(900)
+        return { src: (round ? shot.height(1100).focalPoint(0.5, round % 2 ? 0.25 : 0.7).fit('crop') : shot).url(), alt: img.alt || name }
+      })
+    : [1, 3, 5, 7, 2, 9, 4, 6].map((n) => ({ src: `/placeholders/look-${String(n).padStart(2, '0')}.svg`, alt: '' }))
 
   const left: Row[] = [
     { label: 'Bookings', text: email, href: `mailto:${email}` },

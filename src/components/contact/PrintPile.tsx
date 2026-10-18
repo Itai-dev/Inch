@@ -4,12 +4,11 @@
  * A pile of white-bordered prints. When the pile comes into view they land one after another, like
  * a stop-motion: each appears at once (a jump cut, no fade) and drops the last few pixels onto the
  * pile, quickly. Then any print can be picked up and moved anywhere on the page with the hand
- * (mouse) or a finger: caught, it turns a little and nudges aside the prints lying on it as it comes
+ * (the site's grab cursor) or a finger: caught, it turns a little and nudges aside the prints lying on it as it comes
  * to the top; moved, it leans with the movement.
  */
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
-import { HAND_PX, HandIcon } from '@/components/HandCursor'
 
 export type Print = { src: string; alt: string }
 
@@ -20,15 +19,17 @@ const LAYOUT = [
   { w: 58, aspect: '3 / 4', x: 74, y: 52, r: 0.8 },
   { w: 76, aspect: '4 / 3', x: 47, y: 72, r: -0.4 },
   { w: 56, aspect: '3 / 4', x: 38, y: 47, r: 0.5 },
+  { w: 70, aspect: '4 / 3', x: 52, y: 38, r: 0.6 },
+  { w: 54, aspect: '3 / 4', x: 66, y: 46, r: -0.8 },
   { w: 64, aspect: '3 / 4', x: 57, y: 50, r: 0 },
 ]
-const LAND_MS = 280
+/** A print every so often: quick, one after another (tuck, tuck, tuck). */
+const LAND_MS = 120
 const SHADOW = '0 1px 2px rgb(0 0 0 / 0.08), 4px 12px 24px -12px rgb(0 0 0 / 0.35)'
 const LIFTED = '0 2px 4px rgb(0 0 0 / 0.08), 14px 30px 46px -16px rgb(0 0 0 / 0.4)'
 
 export function PrintPile({ prints, className = '' }: { prints: Print[]; className?: string }) {
   const pile = useRef<HTMLDivElement>(null)
-  const hand = useRef<HTMLDivElement>(null)
   const items = useRef<(HTMLElement | null)[]>([])
   const shown = prints.slice(0, LAYOUT.length)
   const count = shown.length
@@ -51,7 +52,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
       ([e]) => {
         if (!e.isIntersecting) return
         io.disconnect()
-        for (let k = 0; k < count; k++) timers.push(window.setTimeout(() => setLanded(k + 1), 150 + k * LAND_MS))
+        for (let k = 0; k < count; k++) timers.push(window.setTimeout(() => setLanded(k + 1), 80 + k * LAND_MS))
       },
       { threshold: 0.3 },
     )
@@ -65,19 +66,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
   // Where a print has been moved to lives in --dx/--dy, set while it is dragged.
   const place = (k: number) => `translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, 0px)) rotate(${LAYOUT[k].r}deg)`
 
-  // The hand shows over a print (and while one is held), the open hand closing on it when pressed.
-  const handAt = (e: React.PointerEvent, held?: boolean) => {
-    const h = hand.current
-    const el = pile.current
-    if (!h || !el || e.pointerType !== 'mouse') return
-    const over = !!(e.target as Element).closest?.('[data-print]') || !!drag.current
-    el.style.cursor = over ? 'none' : ''
-    h.style.opacity = over ? '1' : '0'
-    const r = el.getBoundingClientRect()
-    h.style.transform = `translate(${(e.clientX - r.left - HAND_PX / 2).toFixed(1)}px, ${(e.clientY - r.top - HAND_PX / 2).toFixed(1)}px)`
-    if (held === true) h.dataset.held = ''
-    if (held === false) delete h.dataset.held
-  }
+
 
   /** The paper inside a print: it takes the shadow and the tilt (so the tilt can ease while the print follows the hand exactly). */
   const sheet = (k: number) => items.current[k]?.firstElementChild as HTMLElement | null | undefined
@@ -121,10 +110,8 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
     const grab = Math.max(-1, Math.min(1, (e.clientX - cx) / (r.width / 2))) * 3.5
     drag.current = { k, x: e.clientX, y: e.clientY, from: { ...moved.current[k] }, grab, lastX: e.clientX }
     setTilt(k, grab)
-    handAt(e, true)
   }
   const onMove = (e: React.PointerEvent) => {
-    handAt(e)
     const d = drag.current
     const el = d && items.current[d.k]
     if (!d || !el) return
@@ -137,7 +124,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
     d.lastX = e.clientX
     setTilt(d.k, d.grab + Math.max(-6, Math.min(6, vx * 0.35)))
   }
-  const onUp = (e: React.PointerEvent) => {
+  const onUp = () => {
     const d = drag.current
     if (d) {
       const sh = sheet(d.k)
@@ -146,7 +133,6 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
       setTilt(d.k, d.grab * 0.4)
       drag.current = null
     }
-    handAt(e, false)
   }
 
   return (
@@ -156,11 +142,6 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
-      onPointerLeave={() => {
-        if (drag.current || !hand.current || !pile.current) return
-        hand.current.style.opacity = '0'
-        pile.current.style.cursor = ''
-      }}
     >
       {shown.map((p, k) => {
         const l = LAYOUT[k]
@@ -169,6 +150,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
           <figure
             key={k}
             data-print
+            data-cursor="grab"
             ref={(n) => {
               items.current[k] = n
             }}
@@ -194,15 +176,6 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
         )
       })}
 
-      {/* The hand (mouse only). */}
-      <div ref={hand} aria-hidden className="group/hand pointer-events-none absolute left-0 top-0 z-[999] opacity-0 transition-opacity duration-150" style={{ width: HAND_PX, height: HAND_PX }}>
-        <span className="absolute inset-0 group-data-[held]/hand:hidden">
-          <HandIcon kind="open" />
-        </span>
-        <span className="absolute inset-0 hidden group-data-[held]/hand:block">
-          <HandIcon kind="held" />
-        </span>
-      </div>
     </div>
   )
 }

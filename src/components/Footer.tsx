@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { FooterDip } from './FooterDip'
 import { DEMO_CONTACT, HOURS, instagramHandle } from '@/lib/copy'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -62,7 +63,8 @@ export async function Footer({ site }: { site: Site }) {
   const cut = (at: number) => ({ '--at': `${at}ms` }) as React.CSSProperties
 
   return (
-    <footer className="mt-24 overflow-hidden border-t border-white/15 bg-ink pt-[clamp(64px,8vw,140px)] text-paper [--fg:var(--paper)]">
+    <footer className="relative mt-24 overflow-hidden bg-ink pt-[clamp(64px,8vw,140px)] text-paper [--fg:var(--paper)]">
+      <FooterDip />
       <TypeOnView className="px-gutter">
         <div className="grid gap-y-14 md:grid-cols-12 md:gap-x-6">
           <div className="flex flex-col gap-4 md:col-span-5">
