@@ -121,7 +121,11 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
 
             {/* The other site, and how to reach the agency. */}
             <div className="flex shrink-0 flex-col gap-6 px-gutter pb-[max(28px,env(safe-area-inset-bottom))]" style={type(links.length + 1)}>
-              <SiteSwitchLink href={sitePath(other)} toInch={other === 'inch'} label={`${SITES[other].brand} — ${SITES[other].label}`} className="flex items-center gap-3 self-start text-[26px]">
+              {/* Who it is for, above the box; on DOT. the way back to INCH” is the larger. */}
+              <SiteSwitchLink href={sitePath(other)} toInch={other === 'inch'} label={`${SITES[other].brand} — ${SITES[other].label}`} className={`flex flex-col items-start gap-2 self-start ${other === 'inch' ? 'text-[42px]' : 'text-[26px]'}`}>
+                <span className={`font-bold uppercase leading-none ${other === 'inch' ? 'text-[16px]' : 'text-[13px]'}`} style={narrow}>
+                  For {SITES[other].label.toLowerCase()}
+                </span>
                 {other === 'dot' ? (
                   <DotBox />
                 ) : (
@@ -129,9 +133,6 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                     <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
                   </span>
                 )}
-                <span className="text-[15px] font-bold uppercase" style={narrow}>
-                  {SITES[other].label}
-                </span>
               </SiteSwitchLink>
               <div className="flex flex-col gap-1 text-[16px]">
                 <a href={`mailto:${email}`} className="font-bold">{email}</a>

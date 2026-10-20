@@ -38,8 +38,13 @@ export function SiteSwitch({ site }: { site: Site }) {
   }, [path])
 
   return (
-    <div ref={box} className="site-switch-tab hidden text-paper mix-blend-difference md:block">
-      <SiteSwitchLink href={sitePath(toInch ? 'inch' : 'dot')} toInch={toInch} label={toInch ? 'INCH” — Women' : 'DOT. — Men'} className="block">
+    // On DOT. the way back to INCH” is the larger of the two: INCH” is the house.
+    <div ref={box} className={`site-switch-tab hidden text-paper mix-blend-difference md:block ${toInch ? 'site-switch-tab--lead' : ''}`}>
+      <SiteSwitchLink href={sitePath(toInch ? 'inch' : 'dot')} toInch={toInch} label={toInch ? 'INCH” — Women' : 'DOT. — Men'} className="flex flex-col items-start gap-[0.45em]">
+        {/* Who it is for, above the box. */}
+        <span className="site-switch-for font-bold uppercase leading-none tracking-[0.04em]" style={{ fontStretch: '80%' }}>
+          {toInch ? 'For women' : 'For men'}
+        </span>
         <span className="site-switch block origin-bottom-left text-[length:var(--tab)]">
           {toInch ? (
             <span className="flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-ink">

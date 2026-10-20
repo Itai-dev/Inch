@@ -38,12 +38,19 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
   const isDot = site === 'dot'
 
   const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
-  const videos = (home?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
-    m?._type === 'heroImage'
-      ? m.asset ? [{ kind: 'image', src: urlFor(m).width(2400).url() }] : []
-      : m?.src ? [{ kind: 'video', src: m.src, poster: posterUrl(m.poster) }] : [],
-  )
-  if (!videos.length && home?.heroVideo) videos.push({ kind: 'video', src: home.heroVideo, poster: posterUrl(home.heroPoster) })
+  const heroMedia = (h: Home) => {
+    const list = (h?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
+      m?._type === 'heroImage'
+        ? m.asset ? [{ kind: 'image', src: urlFor(m).width(2400).url() }] : []
+        : m?.src ? [{ kind: 'video', src: m.src, poster: posterUrl(m.poster) }] : [],
+    )
+    if (!list.length && h?.heroVideo) list.push({ kind: 'video', src: h.heroVideo, poster: posterUrl(h.heroPoster) })
+    return list
+  }
+  let videos = heroMedia(home)
+  // DOT. without videos of its own yet: INCH”'s, until DOT.'s Home page has some.
+  // TODO: DOT.'s own hero videos in the Studio (DOT. › Home page › Hero videos & images).
+  if (isDot && !videos.length) videos = heroMedia(await sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', 'inch') }, null, ['homePage']))
 
   if (isDot) {
     const slides = talentSlides(featured.length ? featured : talents.slice(0, 12))

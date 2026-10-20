@@ -190,6 +190,9 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   pointer-events: none;
   transition: opacity 0.2s var(--ease-out), transform 0.3s var(--ease-out);
 }
+.site-switch-tab--lead { --tab: clamp(32px, 2.7vw, 50px); }
+.site-switch-for { font-size: clamp(12px, 0.85vw, 15px); }
+.site-switch-tab--lead .site-switch-for { font-size: clamp(14px, 1.05vw, 19px); }
 .site-switch-tab[data-shown] {
   opacity: 1;
   transform: none;
