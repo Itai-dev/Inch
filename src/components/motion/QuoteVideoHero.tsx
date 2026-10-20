@@ -14,7 +14,7 @@
  * the video fading in inside it, into its left stroke until the video fills the screen.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Logo } from '@/components/brand/Logo'
 import { LEFT_PATH, QuoteMark, QuoteStroke, RIGHT_PATH, STROKE_GAP_RATIO } from '@/components/brand/Marks'
 import { SKIP_HERO_LOADER } from '@/components/SiteSwitchLink'
@@ -25,6 +25,7 @@ export type HeroMedia = { kind: 'video' | 'image'; src: string; poster?: string 
 type Stage = 'intro' | 'open' | 'over' | 'past'
 
 const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080) — keep in sync with the 6.5dvh loader mark
+const DOT_VH = 0.045 // DOT.'s blinking ■, as a share of viewport height
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
@@ -86,8 +87,10 @@ function placeLogo(el: HTMLElement | null) {
   return big
 }
 
-export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos: HeroMedia[]; opening?: 'split' | 'grow' }) {
-  const grow = openWith === 'grow'
+export function QuoteVideoHero({ videos, opening: openWith = 'split', division = 'women' }: { videos: HeroMedia[]; opening?: 'split' | 'grow'; division?: 'women' | 'men' }) {
+  // DOT.: the same hero, with its ■ for the ” (the window grows out of it) and its own logo.
+  const dot = division === 'men'
+  const grow = openWith === 'grow' && !dot
   const N = videos.length
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
@@ -169,6 +172,17 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     r.style.left = `${winW / 2 + gap}px`
   }
 
+  // DOT.: the window starts as the blinking ■ and grows to full screen, height leading width.
+  const layoutDot = (p: number) => {
+    const win = winRef.current
+    if (!win) return
+    const W = window.innerWidth
+    const H = window.innerHeight
+    const s0 = H * DOT_VH
+    win.style.width = `${s0 + (W - s0) * easeInOut(p)}px`
+    win.style.height = `${s0 + (H - s0) * easeInOut(Math.min(1, p / 0.8))}px`
+  }
+
   // The "grow" opening: the video, full screen, seen through the ” as it grows (mask size and
   // place), with a black cover over the video that lifts so it fades in inside the mark.
   const layoutGrow = (p: number) => {
@@ -209,7 +223,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     const wait = typeof t === 'number' ? (BLINK_MS - (t % BLINK_MS)) % BLINK_MS : 0
     const timer = setTimeout(() => {
       blinkAnim.current?.cancel()
-      const draw = grow ? layoutGrow : layout
+      const draw = dot ? layoutDot : grow ? layoutGrow : layout
       const total = grow ? GROW_MS : OPEN_MS
       draw(0)
       setStage('open')
@@ -235,7 +249,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
       cancelAnimationFrame(raf)
       if (!done) openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
     }
-  }, [opening, grow])
+  }, [opening, grow, dot])
 
   const settled = skip || stage === 'over' || stage === 'past'
 
@@ -304,15 +318,59 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
   const showVideo = stage !== 'intro' || skip
+  // Sound: on unless turned off, and only while the video is on screen. Browsers only let a page
+  // play sound once it has been touched, so until then the video plays silently and the first
+  // tap, click or key anywhere turns the sound on.
+  const [soundOn, setSoundOn] = useState(true)
+  const [audible, setAudible] = useState(false)
+  const unlocked = useRef(false)
+  const wantSound = soundOn && stage !== 'past'
+  const sync = useCallback(() => {
+    const v = els.current[current]
+    if (!(v instanceof HTMLVideoElement)) return setAudible(false)
+    const on = wantSound && unlocked.current
+    v.muted = !on
+    setAudible(on && !v.paused)
+  }, [current, wantSound])
   useEffect(() => {
     els.current.forEach((v, i) => {
       if (!(v instanceof HTMLVideoElement)) return
       if (i === current && showVideo) {
         v.currentTime = 0
-        v.play().catch(() => {})
+        // With sound if the browser allows it; else silently, until the first touch.
+        v.muted = !wantSound
+        v.play()
+          .then(() => {
+            if (!v.muted) unlocked.current = true
+            sync()
+          })
+          .catch(() => {
+            v.muted = true
+            v.play().catch(() => {})
+            sync()
+          })
       } else v.pause()
     })
+    // Only a new video restarts playback; sound changes are applied by sync below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, showVideo])
+  useEffect(() => {
+    sync()
+  }, [sync])
+  useEffect(() => {
+    const touch = (e: Event) => {
+      // The sound button decides for itself.
+      if ((e.target as Element | null)?.closest?.('[data-sound]')) return
+      unlocked.current = true
+      sync()
+    }
+    addEventListener('pointerdown', touch, { passive: true })
+    addEventListener('keydown', touch)
+    return () => {
+      removeEventListener('pointerdown', touch)
+      removeEventListener('keydown', touch)
+    }
+  }, [sync])
 
   const step = (d: number) => N > 1 && setIdx((i) => i + d)
 
@@ -364,7 +422,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
           <div>
             {/* Sized in CSS (dvh), not from JS, so it's right from the first frame — no jump on load. */}
             <span ref={blinkRef} className="block [&>svg]:h-[6.5dvh] [&>svg]:w-auto">
-              <QuoteMark />
+              {dot ? <span className="block size-[4.5dvh] bg-fg" /> : <QuoteMark />}
             </span>
           </div>
         </div>
@@ -434,7 +492,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
         {/* "grow": the ” is black until the video fades in inside it. */}
         {grow && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
       </div>
-      {!settled && !grow && (
+      {!settled && !grow && !dot && (
         <div
           ref={strokesRef}
           aria-hidden
@@ -458,14 +516,43 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
           className="hero-logo pointer-events-none fixed top-0 z-30 origin-top-left text-paper"
           style={{ lineHeight: 0.9 }}
         >
-          <Logo as="div" className="whitespace-nowrap" />
+          <Logo as="div" division={division} className="whitespace-nowrap" />
         </div>
       )}
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
         <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-blink 0.4s steps(1, end) ${RULER_IN_MS}ms both` }}>
-          <div ref={rulerRef}>
+          <div ref={rulerRef} className="relative">
+            {/* Sound on / off, over the ruler's right end. */}
+            {videos.some((v) => v.kind === 'video') && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  unlocked.current = true
+                  if (audible) setSoundOn(false)
+                  else {
+                    setSoundOn(true)
+                    // Straight away, inside the tap, so the browser lets it play.
+                    const v = els.current[current]
+                    if (v instanceof HTMLVideoElement) {
+                      v.muted = false
+                      v.play().catch(() => {})
+                      setAudible(true)
+                    }
+                  }
+                }}
+                data-sound
+                aria-pressed={audible}
+                aria-label={audible ? 'Sound off' : 'Sound on'}
+                className="absolute bottom-[calc(100%+clamp(10px,1.4vw,22px))] right-[var(--gutter)] -m-2 flex items-center gap-2 p-2 text-[clamp(12px,0.9vw,15px)] font-bold uppercase leading-none"
+                style={{ fontStretch: '80%' }}
+              >
+                <SoundIcon on={audible} />
+                {audible ? 'Sound on' : 'Sound off'}
+              </button>
+            )}
             <Ruler
               count={N}
               pos={idx}
@@ -490,5 +577,15 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
         </div>
       )}
     </section>
+  )
+}
+
+/** A speaker, with its waves when the sound is on, crossed out when it is off. */
+function SoundIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="size-[1.4em]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
+      {on ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="M17 9l5 6M22 9l-5 6" />}
+    </svg>
   )
 }

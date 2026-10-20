@@ -49,6 +49,8 @@ export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 's
     const slides = talentSlides(featured.length ? featured : talents.slice(0, 12))
     return (
       <>
+        {/* As on INCH”: the full-screen video carousel, its own videos (DOT.'s Home page in the Studio). */}
+        <QuoteVideoHero videos={videos} division="men" />
         <DotStatement text={home?.statement || DEFAULT_DOT_STATEMENT} />
         {slides.length > 0 && <DotIndexCarousel slides={slides} height="90dvh" />}
         <Story site={site} home={home} talents={withPlaceholders(talents, division)} />

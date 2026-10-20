@@ -65,61 +65,83 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid photos' }, { status: 400 })
   }
 
-  const client = getWriteClient()
-  if (!client) return NextResponse.json({ error: 'CMS not configured' }, { status: 503 })
-
-  const assets = await Promise.all(
-    files.map((f) => client.assets.upload('image', f, { filename: f.name, contentType: f.type })),
-  )
-
   const name = `${d.firstName} ${d.lastName}`
   // Everyone's application is kept; the ones outside the current criteria are flagged for the scouts.
   const outsideCriteria = !meetsCriteria(d.division, age, d.height)
-  await client.create({
-    _type: 'application',
-    status: 'new',
-    division: d.division,
-    name,
-    birthdate: d.birthdate,
-    age,
-    country: d.country,
-    email: d.email,
-    phone: d.phone,
-    guardian: minor ? { name: d.guardianName, phone: d.guardianPhone, consent: true } : undefined,
-    measurements: { height: d.height, shoes: d.shoes, hair: d.hair, eyes: d.eyes },
-    sizes: { tshirt: d.tshirt, pants: d.pants },
-    digitals: assets.map((a) => ({ _type: 'image', _key: key(), asset: { _type: 'reference', _ref: a._id } })),
-    instagram: d.instagram,
-    tiktok: d.tiktok,
-    experience: d.experience,
-    outsideCriteria,
-    consent: true,
-  })
 
-  await notify(`New application: ${name}`, [
-    `${name}, ${age}, ${d.country}${minor ? ' (parent or guardian consented)' : ''}`,
-    `${d.height} cm · T-shirt ${d.tshirt}${d.pants ? ` · pants ${d.pants} EU` : ''}${d.shoes ? ` · shoes ${d.shoes} EU` : ''}${outsideCriteria ? ' (outside current criteria)' : ''}`,
-    `${d.email} · ${d.phone}`,
-    d.instagram ? `Instagram: ${d.instagram}` : '',
-    'Open the Studio → Applications to see the photos.',
-  ])
+  // Kept in the Studio when it can write (SANITY_API_WRITE_TOKEN), and emailed to the scouts
+  // with the photos attached. Either is enough; with neither, the applicant is told to try again.
+  const client = getWriteClient()
+  const saved = client
+    ? await (async () => {
+        const assets = await Promise.all(files.map((f) => client.assets.upload('image', f, { filename: f.name, contentType: f.type })))
+        await client.create({
+          _type: 'application',
+          status: 'new',
+          division: d.division,
+          name,
+          birthdate: d.birthdate,
+          age,
+          country: d.country,
+          email: d.email,
+          phone: d.phone,
+          guardian: minor ? { name: d.guardianName, phone: d.guardianPhone, consent: true } : undefined,
+          measurements: { height: d.height, shoes: d.shoes, hair: d.hair, eyes: d.eyes },
+          sizes: { tshirt: d.tshirt, pants: d.pants },
+          digitals: assets.map((a) => ({ _type: 'image', _key: key(), asset: { _type: 'reference', _ref: a._id } })),
+          instagram: d.instagram,
+          tiktok: d.tiktok,
+          experience: d.experience,
+          outsideCriteria,
+          consent: true,
+        })
+        return true
+      })().catch(() => false)
+    : false
 
+  const board = d.division === 'men' ? 'DOT. Men' : 'INCH” Women'
+  const emailed = await notify(
+    `New application (${board}): ${name}`,
+    [
+      `${name}, ${age}, ${d.country}${minor ? ` (parent or guardian: ${d.guardianName}, ${d.guardianPhone}, consented)` : ''}`,
+      `Born ${d.birthdate}`,
+      `${d.height} cm · T-shirt ${d.tshirt}${d.pants ? ` · pants ${d.pants} EU` : ''}${d.shoes ? ` · shoes ${d.shoes} EU` : ''}${outsideCriteria ? ' (outside current criteria)' : ''}`,
+      [d.hair && `Hair ${d.hair}`, d.eyes && `Eyes ${d.eyes}`].filter(Boolean).join(' · '),
+      `${d.email} · ${d.phone}`,
+      d.instagram ? `Instagram: ${d.instagram}` : '',
+      d.tiktok ? `TikTok: ${d.tiktok}` : '',
+      d.experience ? `\nExperience:\n${d.experience}` : '',
+      '',
+      saved ? 'Also in the Studio → Applications.' : 'The four photos are attached.',
+    ],
+    d.email,
+    await Promise.all(files.map(async (f, i) => ({ filename: f.name || `photo-${i + 1}.jpg`, content: Buffer.from(await f.arrayBuffer()).toString('base64') }))),
+  )
+
+  if (!saved && !emailed) return NextResponse.json({ error: 'Could not send' }, { status: 503 })
   return NextResponse.json({ ok: true })
 }
 
-/** Emails the scouts through Resend, once RESEND_API_KEY and APPLY_NOTIFY_EMAIL are set. */
-async function notify(subject: string, lines: string[]) {
+/** Where applications go until the agency's own address is set in APPLY_NOTIFY_EMAIL (Vercel). */
+// TODO: the agency's scouting address.
+const DEFAULT_TO = 'itaiagami@gmail.com'
+
+/** Emails the scouts through Resend (RESEND_API_KEY), with the photos attached. True once sent. */
+async function notify(subject: string, lines: string[], replyTo: string, attachments: { filename: string; content: string }[]) {
   const apiKey = process.env.RESEND_API_KEY
-  const to = process.env.APPLY_NOTIFY_EMAIL
-  if (!apiKey || !to) return
-  await fetch('https://api.resend.com/emails', {
+  if (!apiKey) return false
+  const to = (process.env.APPLY_NOTIFY_EMAIL || DEFAULT_TO).split(',').map((s) => s.trim())
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: process.env.APPLY_FROM_EMAIL || 'INCH” Applications <onboarding@resend.dev>',
-      to: to.split(',').map((s) => s.trim()),
+      to,
+      reply_to: replyTo,
       subject,
-      text: lines.filter(Boolean).join('\n'),
+      text: lines.filter((l, i) => l || lines[i - 1]).join('\n'),
+      attachments,
     }),
-  }).catch(() => {})
+  }).catch(() => null)
+  return !!res?.ok
 }

@@ -218,6 +218,23 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   }
 }
 
+/* Apply (ApplyFunnel): while the card turns over and moves aside, the page waits unseen; then the
+   ruler draws and the form writes in, field by field; sending fades it all as the card goes. */
+[data-apply-phase="opening"] .apply-in,
+[data-apply-phase="opening"] .apply-card,
+[data-apply-phase="posting"] .apply-card { visibility: hidden; }
+[data-apply-phase="writing"] .apply-ruler { animation: ruler-draw 0.7s steps(12) both; }
+[data-apply-phase="writing"] details.apply-in { animation: menu-type 0.4s steps(6) 0.1s both; }
+[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.4s steps(6) both; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 0.08s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 0.16s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 0.24s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 0.32s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.4s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.48s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.56s; }
+[data-apply-phase="posting"] .apply-in { opacity: 0; transition: opacity 0.35s var(--ease-out); }
+
 /* Detail text (contact details, the model page's sizes, books and actions): one size across the site. */
 .text-detail {
   font-size: clamp(16px, 1.25vw, 20px);

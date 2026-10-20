@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { TypeText, typeEnd } from '@/components/motion/TypeText'
+import { TypeText } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
@@ -20,6 +20,7 @@ import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
+import { CardOpening, CardPost, type Place } from './CardMotion'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { CountrySelect } from './CountrySelect'
 import { HeightTape, Tape, type TapeScale } from './Tape'
@@ -95,10 +96,31 @@ const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', sho
 
 const half = (v: string | number) => String(v).replace('.5', '½')
 
-export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
+export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
   const { brand, division } = SITES[site]
   const reduced = useReducedMotion()
-  const [step, setStep] = useState<Step>('intro')
+  const [step, setStep] = useState<Step>('you')
+  // The page opens on the card turning over and moving aside (opening), then the ruler and the
+  // form write in (writing); sending drops the card through a slot (posting) before the thanks.
+  const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
+  const asideRef = useRef<HTMLElement>(null)
+  const stripRef = useRef<HTMLDetailsElement>(null)
+  /** The card beside the form when it shows (desktop), else the strip it folds into. */
+  const cardPlace = (): Place => {
+    const a = asideRef.current
+    if (a && a.offsetParent) return { el: a, card: true }
+    return stripRef.current ? { el: stripRef.current, card: false } : null
+  }
+  useEffect(() => {
+    startedAt.current = Date.now()
+  }, [])
+  /** With reduced motion, no card moments: the page is simply there. */
+  const shownPhase = reduced && phase !== 'posting' ? 'ready' : phase
+  useEffect(() => {
+    if (phase !== 'writing') return
+    const id = setTimeout(() => setPhase('ready'), 1300)
+    return () => clearTimeout(id)
+  }, [phase])
   const [furthest, setFurthest] = useState(0)
   const [d, setD] = useState<Data>(initial)
   const [photos, setPhotos] = useState<Partial<Record<Pose, Photo>>>({})
@@ -133,7 +155,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     sheetRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
   }
   const next = () => go(flow[index + 1])
-  const started = step !== 'intro' && step !== 'done'
+  const started = step !== 'done' && (Object.values(d).some(Boolean) || Object.keys(photos).length > 0)
   const close = useCallback(() => {
     if (started && !window.confirm('Leave your application? What you’ve filled in will be lost.')) return
     if (hasSitePageBehind()) router.back()
@@ -144,7 +166,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
-  const back = () => go(index > 0 ? flow[index - 1] : 'intro')
+  const back = () => (index > 0 ? go(flow[index - 1]) : close())
 
   async function addPhoto(pose: Pose, file?: File) {
     if (!file) return
@@ -173,7 +195,9 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     })
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
     setSending(false)
-    if (res?.ok) go('done')
+    // Sent: the card goes through the slot (CardPost), then the thanks.
+    if (res?.ok) setPhase(reduced ? 'ready' : 'posting')
+    if (res?.ok && reduced) go('done')
     else setError(`Something went wrong. Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
   }
 
@@ -218,65 +242,21 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   )
 
   let body: React.ReactNode = null
-  // The opening screen: a picture filling the left half (as on a sign-in page), and the words
-  // written in one after another: the title, each line, then the button.
-  const INTRO = [
-    'No experience needed. We look at every application ourselves.',
-    'You’ll need four photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.',
-  ]
-  // The lines type in quickly (6ms a letter) once the title is written; the button grows in, then its note types.
-  const INTRO_MS = 6
-  const introAt = [650, typeEnd(INTRO[0], 650, INTRO_MS) + 100]
-  const startAt = typeEnd(INTRO[1], introAt[1], INTRO_MS) + 120
-  const NOTE = 'Takes about 3 minutes'
-  if (step === 'intro')
-    body = (
-      <div className={`grid ${image ? 'md:fixed md:inset-0 md:grid-cols-2' : 'md:min-h-[calc(100dvh-84px)]'}`}>
-        {image && (
-          <div className="relative h-[46dvh] overflow-hidden bg-line md:h-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[50%_15%]" />
-          </div>
-        )}
-        <div className="flex flex-col justify-center gap-7 px-gutter py-10 md:px-[clamp(40px,6vw,120px)] md:py-24">
-          <h1 className="wordmark text-[clamp(56px,7vw,112px)] uppercase">
-            <TypeText text="Get scouted" at={0} ms={45} />
-          </h1>
-          <div className="flex max-w-[520px] flex-col gap-3 text-[17px] leading-snug">
-            <p><TypeText text={INTRO[0]} at={introAt[0]} ms={INTRO_MS} /></p>
-            <p className="text-muted"><TypeText text={INTRO[1]} at={introAt[1]} ms={INTRO_MS} /></p>
-          </div>
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => {
-                startedAt.current = Date.now()
-                go('you')
-              }}
-              className="scale-in h-14 origin-left bg-fg px-8 text-[15px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85"
-              style={{ ...narrow, '--at': `${startAt}ms` } as React.CSSProperties}
-            >
-              Start →
-            </button>
-            <span className="text-[13px] text-muted">
-              <TypeText text={NOTE} at={startAt + 260} ms={18} />
-            </span>
-          </div>
-        </div>
-      </div>
-    )
-
+  /** What to know before starting, at the top of the first step. */
+  const BEFORE = 'No experience needed: we look at every application ourselves. You’ll need four photos taken today; phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes. About 3 minutes.'
+  // The thanks, in the middle of the screen once the card has gone through the slot.
   if (step === 'done')
     body = (
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,560px)_minmax(0,480px)] md:items-center md:justify-center">
-        <div className="flex flex-col gap-6">
-          <p className="label text-muted">Application sent</p>
-          <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">Thank you{d.firstName ? `, ${d.firstName}` : ''}.</h1>
-          <p className="text-[17px] leading-snug">Our scouts look at every application. If there’s a fit, we’ll contact you by email or phone.</p>
-          {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-          <button type="button" onClick={close} className="self-start text-[14px] font-bold uppercase underline" style={narrow}>Back to {brand}</button>
-        </div>
-        {card()}
+      <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
+        <p className="label text-muted"><TypeText text="Application received" at={100} ms={20} /></p>
+        <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
+          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={500} ms={45} />
+        </h1>
+        <p className="text-[17px] leading-snug">
+          <TypeText text="We’ve received your application. Our scouts look at every one, and we’ll get back to you by email or phone." at={1100} ms={10} />
+        </p>
+        {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
+        <button type="button" onClick={close} className="scale-in self-start text-[14px] font-bold uppercase underline" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
@@ -293,11 +273,22 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   )
 
   if (!body) body = (
-    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
+    <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
+      {shownPhase === 'opening' && <CardOpening front={card()} title="Get scouted" division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
+      {phase === 'posting' && (
+        <CardPost
+          front={card()}
+          from={cardPlace}
+          onDone={() => {
+            setPhase('ready')
+            go('done')
+          }}
+        />
+      )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
-      <div className="mx-auto w-full max-w-[620px]">
+      <div className="apply-ruler apply-in mx-auto w-full max-w-[620px]">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}
@@ -308,7 +299,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
       <h1 className="sr-only">{TITLE[step]}</h1>
 
       {/* Phones: the comp card folds into a strip above the form. */}
-      <details className="border border-line bg-surface md:hidden">
+      <details ref={stripRef} className="apply-in border border-line bg-surface md:hidden">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">
           <span className="flex shrink-0 gap-0.5">
             {SLOTS.slice(0, 3).map((s) => (
@@ -331,9 +322,10 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
 
       {/* The form and the card, centred in the space under the ruler. */}
       <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,680px)_minmax(0,480px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(72px,9vw,160px)] md:py-10">
-        <div className="flex flex-col gap-12">
+        <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+              <p className="text-[15px] leading-snug text-muted sm:col-span-2">{BEFORE}</p>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
               <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
@@ -537,7 +529,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
         </div>
 
-        <aside aria-label="Your comp card" className="hidden self-start md:block">{card()}</aside>
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start md:block">{card()}</aside>
       </div>
     </div>
   )
@@ -545,9 +537,8 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
   return (
     <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
       {/* Top bar, as on the model page: the logo, and close. */}
-      {/* Over the opening picture the bar is see-through and the logo white. */}
-      <div className={`sticky top-0 z-10 flex shrink-0 items-center justify-between px-gutter pb-3 pt-[clamp(16px,2vw,28px)] ${step === 'intro' && image ? 'md:bg-transparent' : ''} bg-bg`}>
-        <Logo division={division} className={`text-[48px] md:text-[70px] ${step === 'intro' && image ? 'md:text-white' : ''}`} />
+      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
+        <Logo division={division} className="text-[48px] md:text-[70px]" />
         <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
             <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
