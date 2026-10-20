@@ -238,16 +238,17 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 [data-apply-phase="opening"] .apply-in,
 [data-apply-phase="opening"] .apply-card,
 [data-apply-phase="posting"] .apply-card { visibility: hidden; }
-[data-apply-phase="writing"] .apply-ruler { animation: ruler-draw 0.7s steps(12) both; }
-[data-apply-phase="writing"] details.apply-in { animation: menu-type 0.4s steps(6) 0.1s both; }
-[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.4s steps(6) both; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 0.08s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 0.16s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 0.24s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 0.32s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.4s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.48s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.56s; }
+/* First the ruler rolls in; then the form opens, field after field. (The phone strip is already
+   in place: the card turned into it.) */
+[data-apply-phase="writing"] .apply-ruler { animation: ruler-draw 0.8s cubic-bezier(0.65, 0, 0.35, 1) both; }
+[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.4s steps(6) 0.95s both; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 1.03s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 1.11s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 1.19s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 1.27s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 1.35s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 1.43s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 1.51s; }
 /* Phones: opening the card strip unfolds the card from under it. */
 .apply-strip[open] > :not(summary) { animation: strip-open 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes strip-open { from { clip-path: inset(0 0 100% 0); transform: scale(0.96); } to { clip-path: inset(0 0 0 0); transform: none; } }

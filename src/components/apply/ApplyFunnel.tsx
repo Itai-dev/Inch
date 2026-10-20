@@ -118,7 +118,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const shownPhase = reduced && phase !== 'posting' ? 'ready' : phase
   useEffect(() => {
     if (phase !== 'writing') return
-    const id = setTimeout(() => setPhase('ready'), 1300)
+    const id = setTimeout(() => setPhase('ready'), 2100)
     return () => clearTimeout(id)
   }, [phase])
   const [furthest, setFurthest] = useState(0)
