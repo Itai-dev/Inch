@@ -241,6 +241,34 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     </form>
   )
 
+  /** The folded strip's row (phones): the three photos small, the name, a line of details. */
+  const stripRow = (
+    <>
+      <span className="flex shrink-0 gap-0.5">
+        {SLOTS.slice(0, 3).map((s) => (
+          <span key={s.pose} className="relative block h-[29px] w-[22px] overflow-hidden border border-dashed border-muted/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {photos[s.pose] && <img src={photos[s.pose]!.url} alt="" className="absolute inset-0 size-full object-cover" />}
+          </span>
+        ))}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
+        <span className="truncate text-[11px] uppercase text-muted">
+          {[Number.isFinite(age) && age > 0 ? age : null, d.country, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
+        </span>
+      </span>
+      <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
+    </>
+  )
+  /** The strip as the opening card turns into it (phones). */
+  const compact = (
+    <div className="paper border border-[#d3d0c9] text-[#0a0a0a]">
+      <div className="flex items-center gap-3 px-3.5 py-3">{stripRow}</div>
+      <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
+    </div>
+  )
+
   let body: React.ReactNode = null
   /** What to know before starting, at the top of the first step. */
   const BEFORE = 'No experience needed: we look at every application ourselves. You’ll need four photos taken today; phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes. About 3 minutes.'
@@ -275,7 +303,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (!body) body = (
     <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
-      {shownPhase === 'opening' && <CardOpening front={card()} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
+      {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
       {phase === 'posting' && (
         <CardPost
           front={card()}
@@ -301,23 +329,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
 
       {/* Phones: the comp card folds into a strip above the form. */}
       <details ref={stripRef} className="apply-in apply-strip paper border border-[#d3d0c9] text-[#0a0a0a] md:hidden">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">
-          <span className="flex shrink-0 gap-0.5">
-            {SLOTS.slice(0, 3).map((s) => (
-              <span key={s.pose} className="relative block h-[29px] w-[22px] overflow-hidden border border-dashed border-muted/40">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {photos[s.pose] && <img src={photos[s.pose]!.url} alt="" className="absolute inset-0 size-full object-cover" />}
-              </span>
-            ))}
-          </span>
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
-            <span className="truncate text-[11px] uppercase text-muted">
-              {[Number.isFinite(age) && age > 0 ? age : null, d.country, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
-            </span>
-          </span>
-          <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
-        </summary>
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">{stripRow}</summary>
         <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
       </details>
 
