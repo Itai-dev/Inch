@@ -6,6 +6,7 @@ import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
 import type { SiteSettings } from '@/sanity/lib/types'
 import { Logo } from './brand/Logo'
 import { MobileMenu } from './MobileMenu'
+import { SiteSwitchLink } from './SiteSwitchLink'
 import { SelectionCount } from './selection/SelectionCount'
 import { NavLink } from './NavLink'
 
@@ -32,6 +33,12 @@ export async function Header({ site }: { site: Site }) {
         className="flex items-center gap-[var(--nav-gap)] text-[clamp(13px,3.4vw,15px)] font-bold md:text-[clamp(12px,1.333vw,25.6px)] uppercase leading-none [--nav-gap:1.65em]"
         style={{ fontStretch: '80%' }}
       >
+        {/* DOT.: the way back to INCH”, the house, first in the menu (a white box, inverting with the header). */}
+        {site === 'dot' && (
+          <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="site-switch flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-[1.9em] text-ink">
+            <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
+          </SiteSwitchLink>
+        )}
         <NavLink href={sitePath(site, '/models')} className="hidden md:inline">Models</NavLink>
         <NavLink href={sitePath(site, '/apply')} className="hidden md:inline">Apply</NavLink>
         <NavLink href={sitePath(site, '/contact')} className="hidden md:inline">Contact</NavLink>

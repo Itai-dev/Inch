@@ -57,7 +57,6 @@ function Headline({ division }: { division: Division }) {
         <br />
         Application
       </p>
-      <span aria-hidden data-sheen className="paper-sheen pointer-events-none absolute inset-0" />
       <span className="mb-[4%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
         {s.brand} Model Management
       </span>
@@ -79,14 +78,12 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
             <path d="M0 100 L46 62 M100 100 L54 62" stroke="rgb(0 0 0 / 0.1)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" fill="none" />
             <path d="M0 100.6 L46 62.6 M100 100.6 L54 62.6" stroke="rgb(255 255 255 / 0.7)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" fill="none" />
           </svg>
-          <span data-sheen className="paper-sheen absolute inset-0" />
         </div>
       </div>
       {/* The flap: closed over the top, the mark pressed into its tip; it opens up and back, showing its inside. */}
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
         <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
           <div className="paper absolute inset-0" style={{ clipPath: FLAP }}>
-            <span data-sheen className="paper-sheen absolute inset-0" />
           </div>
           <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
             <DivisionMark division={division} size={26} />
@@ -152,7 +149,7 @@ export function CardOpening({
     el.style.width = `${w}px`
     const h = el.offsetHeight
     // Whole on screen in the middle, with room round it for the turn (never cut off).
-    const fit = Math.min(1, (innerHeight - 150) / h, (innerWidth * 0.9) / w)
+    const fit = Math.min(1, (innerHeight - 190) / h, (innerWidth - 56) / w)
     const place = (scale: number) => at((innerWidth - w * scale) / 2, (innerHeight - h * scale) / 2 + 10, scale)
     const tx = r ? r.left : (innerWidth - w) / 2
     const ty = r ? r.top : (innerHeight - h) / 2
@@ -183,13 +180,9 @@ export function CardOpening({
       opts,
     )
     const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, easing: EASE_OUT, fill: 'both' })
-    // The light runs across the stock as it comes in and as it turns.
-    const sheens = [...(stage.current?.querySelectorAll<HTMLElement>('[data-sheen]') ?? [])].map((s) =>
-      s.animate([{ backgroundPosition: '160% 0' }, { backgroundPosition: '-60% 0' }], { duration: 1400, delay: s.closest('[data-face]') ? 1700 : 200, easing: EASE, fill: 'both' }),
-    )
     card.onfinish = () => done.current()
     return () => {
-      ;[card, turn, show, ...sheens].forEach((a) => a?.cancel())
+      ;[card, turn, show].forEach((a) => a?.cancel())
     }
     // Plays once, from where the page is when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,7 +195,6 @@ export function CardOpening({
           <div data-face className="relative [backface-visibility:hidden]">
             <div ref={desk}>{front}</div>
             <div ref={phone}>{compact}</div>
-            <span aria-hidden data-sheen className="paper-sheen pointer-events-none absolute inset-0" />
           </div>
           <Headline division={division} />
         </div>

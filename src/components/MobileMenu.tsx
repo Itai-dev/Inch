@@ -14,12 +14,14 @@ import { sitePath, SITES, type Site } from '@/lib/sites'
 import { DotBox, Logo } from './brand/Logo'
 import { NavLabel } from './NavLabel'
 import { useSelection } from './selection/SelectionProvider'
+import { useFitWidth } from './SiteSwitch'
 import { SiteSwitchLink } from './SiteSwitchLink'
 
 const narrow = { fontStretch: '80%' } as const
 
 export function MobileMenu({ site, email, instagram }: { site: Site; email: string; instagram: string }) {
   const [open, setOpen] = useState(false)
+  const [forLabel, forBox] = useFitWidth<HTMLSpanElement, HTMLSpanElement>(open)
   const { items, setOpen: openSelection } = useSelection()
   const path = usePathname().replace(/^\/inch(?=\/|$)/, '') || '/'
   const s = SITES[site]
@@ -121,19 +123,21 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
 
             {/* The other site, and how to reach the agency. */}
             <div className="flex shrink-0 flex-col gap-6 px-gutter pb-[max(28px,env(safe-area-inset-bottom))]" style={type(links.length + 1)}>
-              {/* Who it is for, above the box; on DOT. the way back to INCH” is the larger. */}
-              <SiteSwitchLink href={sitePath(other)} toInch={other === 'inch'} label={`${SITES[other].brand} — ${SITES[other].label}`} className={`flex flex-col items-start gap-2 self-start ${other === 'inch' ? 'text-[42px]' : 'text-[26px]'}`}>
-                <span className={`font-bold uppercase leading-none ${other === 'inch' ? 'text-[16px]' : 'text-[13px]'}`} style={narrow}>
-                  For {SITES[other].label.toLowerCase()}
-                </span>
-                {other === 'dot' ? (
-                  <DotBox />
-                ) : (
-                  <span className="flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-ink">
-                    <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
+              {/* INCH”: DOT.'s box, "For men:" above it as wide as the box. DOT.: INCH”'s box, larger, on its own. */}
+              {other === 'dot' ? (
+                <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="flex flex-col items-start gap-2 self-start text-[30px]">
+                  <span ref={forLabel} className="whitespace-nowrap font-bold uppercase leading-none" style={narrow}>
+                    For men:
                   </span>
-                )}
-              </SiteSwitchLink>
+                  <span ref={forBox} className="block">
+                    <DotBox />
+                  </span>
+                </SiteSwitchLink>
+              ) : (
+                <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="flex items-center self-start bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-[44px] text-ink">
+                  <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
+                </SiteSwitchLink>
+              )}
               <div className="flex flex-col gap-1 text-[16px]">
                 <a href={`mailto:${email}`} className="font-bold">{email}</a>
                 <a href={instagram} target="_blank" rel="noreferrer" className="text-paper/60">

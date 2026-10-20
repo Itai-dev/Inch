@@ -221,9 +221,10 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     ['Hair', d.hair],
     ['Eyes', d.eyes],
   ]
-  const card = (className = '', flat = false) => (
+  const card = (className = '', flat = false, still = false) => (
     <CompCard
       flat={flat}
+      still={still}
       brand={brand}
       division={division}
       name={fullName}
@@ -307,10 +308,10 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (!body) body = (
     <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
-      {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
+      {shownPhase === 'opening' && <CardOpening front={card('', false, true)} compact={compact} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
       {phase === 'posting' && (
         <CardPost
-          front={card()}
+          front={card('', false, true)}
           division={division}
           from={cardPlace}
           onDone={() => {
@@ -338,7 +339,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       </details>
 
       {/* The form and the card, centred in the space under the ruler. */}
-      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,680px)_minmax(0,480px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(72px,9vw,160px)] md:py-10">
+      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,640px)_minmax(0,560px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(48px,6vw,120px)] md:py-10">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>

@@ -29,7 +29,7 @@ const DOT_VH = 0.045 // DOT.'s blinking ■, as a share of viewport height
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
-const BLINK_MS = 900 // one soft blink (a slight fade out and back, eased); the open always starts at the top of one
+const BLINK_MS = 900 // one blink, as the text cursor's: on half the time, off half, hard cuts; the open always starts at the top of one
 const MIN_BLINKS = 2 // even when the video is cached
 const MAX_WAIT_MS = 4000 // open anyway if the video is slow
 const OPEN_MS = 2400
@@ -119,7 +119,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     return () => window.removeEventListener('resize', on)
   }, [])
 
-  // Smooth blink (on the compositor, so loading work can't make it stutter).
+  // The blink, hard on and off like a text cursor (on the compositor, so loading work can't make it stutter).
   useEffect(() => {
     if (seen) {
       try {
@@ -129,11 +129,15 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     }
     if (reduced || fast) return
     blinkAnim.current =
-      blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.4 }, { opacity: 1 }], {
-        duration: BLINK_MS,
-        iterations: Infinity,
-        easing: 'ease-in-out',
-      }) ?? null
+      blinkRef.current?.animate(
+        [
+          { opacity: 1, offset: 0 },
+          { opacity: 1, offset: 0.5 },
+          { opacity: 0, offset: 0.5 },
+          { opacity: 0, offset: 1 },
+        ],
+        { duration: BLINK_MS, iterations: Infinity },
+      ) ?? null
     const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
     const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
     return () => {
@@ -181,6 +185,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     const s0 = H * DOT_VH
     win.style.width = `${s0 + (W - s0) * easeInOut(p)}px`
     win.style.height = `${s0 + (H - s0) * easeInOut(Math.min(1, p / 0.8))}px`
+    // The ■ grows as itself, and the video comes up through it softly as it does.
+    win.style.setProperty('--cover', String(1 - smooth(Math.max(0, Math.min(1, (p - 0.08) / 0.8)))))
   }
 
   // The "grow" opening: the video, full screen, seen through the ” as it grows (mask size and
@@ -490,7 +496,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
           )
         })}
         {/* "grow": the ” is black until the video fades in inside it. */}
-        {grow && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
+        {(grow || dot) && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
       </div>
       {!settled && !grow && !dot && (
         <div

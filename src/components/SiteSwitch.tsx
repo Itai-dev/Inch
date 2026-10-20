@@ -1,21 +1,46 @@
 'use client'
 
 /**
- * The other site's box (DOT. on INCH”, INCH” on DOT.), upright in the bottom-left corner. It pops
- * up once the home page's video has scrolled away (straight away on other pages), and goes again
- * when the footer arrives (the footer carries its own). White + difference blend like the header,
- * so it inverts against whatever is behind it. Not on phones, where it would sit over the page:
- * there it is in the menu (MobileMenu).
+ * The other site's box. INCH”: DOT.'s, in the bottom-left corner (SiteSwitch). DOT.: INCH”'s, in the
+ * header (Header). On phones both are in the menu (MobileMenu).
  */
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { sitePath, type Site } from '@/lib/sites'
-import { DotBox, Logo } from './brand/Logo'
+import { DotBox } from './brand/Logo'
 import { SiteSwitchLink } from './SiteSwitchLink'
 
+/** A label line sized to be exactly as wide as a box: returns refs for the two (refit while `active` changes). */
+export function useFitWidth<L extends HTMLElement, B extends HTMLElement>(active: unknown = true) {
+  const label = useRef<L>(null)
+  const box = useRef<B>(null)
+  useLayoutEffect(() => {
+    const l = label.current
+    const b = box.current
+    if (!l || !b) return
+    const fit = () => {
+      l.style.fontSize = '12px'
+      const lw = l.scrollWidth
+      if (lw && b.offsetWidth) l.style.fontSize = `${(12 * b.offsetWidth) / lw}px`
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(b)
+    return () => ro.disconnect()
+  }, [active])
+  return [label, box] as const
+}
+
+/**
+ * INCH” only: DOT.'s box in the bottom-left corner, "For men:" above it, as wide as the box. It
+ * pops up once the home page's video has scrolled away (straight away on other pages), and goes
+ * again when the footer arrives. (On DOT. the way back to INCH” is in the header.) White +
+ * difference blend like the header, so it inverts against whatever is behind it. Not on phones,
+ * where it is in the menu.
+ */
 export function SiteSwitch({ site }: { site: Site }) {
-  const toInch = site === 'dot'
   const box = useRef<HTMLDivElement>(null)
+  const [label, dot] = useFitWidth<HTMLSpanElement, HTMLSpanElement>()
   const path = usePathname()
 
   useEffect(() => {
@@ -37,22 +62,15 @@ export function SiteSwitch({ site }: { site: Site }) {
     }
   }, [path])
 
+  if (site === 'dot') return null
   return (
-    // On DOT. the way back to INCH” is the larger of the two: INCH” is the house.
-    <div ref={box} className={`site-switch-tab hidden text-paper mix-blend-difference md:block ${toInch ? 'site-switch-tab--lead' : ''}`}>
-      <SiteSwitchLink href={sitePath(toInch ? 'inch' : 'dot')} toInch={toInch} label={toInch ? 'INCH” — Women' : 'DOT. — Men'} className="flex flex-col items-start gap-[0.45em]">
-        {/* Who it is for, above the box. */}
-        <span className="site-switch-for font-bold uppercase leading-none tracking-[0.04em]" style={{ fontStretch: '80%' }}>
-          {toInch ? 'For women' : 'For men'}
+    <div ref={box} className="site-switch-tab hidden text-paper mix-blend-difference md:block">
+      <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="flex flex-col items-start gap-[0.4em]">
+        <span ref={label} className="whitespace-nowrap font-bold uppercase leading-none" style={{ fontStretch: '80%' }}>
+          For men:
         </span>
-        <span className="site-switch block origin-bottom-left text-[length:var(--tab)]">
-          {toInch ? (
-            <span className="flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-ink">
-              <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
-            </span>
-          ) : (
-            <DotBox />
-          )}
+        <span ref={dot} className="site-switch block origin-bottom-left text-[length:var(--tab)]">
+          <DotBox />
         </span>
       </SiteSwitchLink>
     </div>
