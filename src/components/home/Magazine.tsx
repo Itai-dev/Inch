@@ -117,10 +117,9 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
  * - until INTRO_END, the opening: the spine holds, large and close, until TURN_FROM of it; the
  *   magazine turns to its cover and sinks onto the surface until TURN_TO of it; then rests;
  * - from OPEN_FROM to OPEN_TO, the cover opens onto the first spread; then it rests open.
- * Once the reader turns a page themselves, the scroll leaves the pages alone. ZONE_VH is the
- * section's height (vh), so the pinned scroll is ZONE_VH − 100.
+ * Once the reader turns a page themselves, the scroll leaves the pages alone. The section is
+ * 380vh tall (pinned for 280vh of scroll); on phones 220vh, so it doesn't take a long thumb to get past.
  */
-const ZONE_VH = 380
 const INTRO_END = 0.55
 const TURN_FROM = 0.3
 const TURN_TO = 0.82
@@ -571,7 +570,7 @@ export function Magazine({
       }}
     >
       {/* The pinned stretch: the opening, the cover opening, then the magazine scrolls away. */}
-      <div ref={section} className="relative motion-reduce:!h-auto" style={{ height: `${ZONE_VH}vh` }}>
+      <div ref={section} className="relative h-[220vh] md:h-[380vh] motion-reduce:!h-auto">
       <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}

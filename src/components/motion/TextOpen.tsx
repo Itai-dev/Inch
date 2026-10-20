@@ -200,7 +200,8 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   })
 
   return (
-    <div ref={zoneRef} style={{ height: reduced ? 'auto' : `${ZONE_VH + holdVh}vh` }} className="relative">
+    // Without a hold, phones get a shorter zone (190vh), so the statement doesn't take a long thumb to get past.
+    <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[190vh] md:h-[240vh]'}`}>
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
           <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">

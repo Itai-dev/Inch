@@ -124,6 +124,10 @@ body {
   50% { opacity: 0; }
   70%, 100% { opacity: 1; }
 }
+@keyframes menu-type {
+  from { clip-path: inset(-25% 100% -25% -10%); }
+  to { clip-path: inset(-25% -10% -25% -10%); }
+}
 @keyframes hero-type {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
@@ -201,6 +205,17 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 }
 .site-switch-tab:active .site-switch {
   transform: scale(1.12);
+}
+
+/* Phones: the header steps aside on the footer (MobileMenu sets data-at-footer). */
+[data-site-header] {
+  transition: opacity 0.3s var(--ease-out);
+}
+@media (max-width: 767px) {
+  html[data-at-footer] [data-site-header] {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 /* Detail text (contact details, the model page's sizes, books and actions): one size across the site. */

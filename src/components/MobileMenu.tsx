@@ -25,6 +25,28 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
   const s = SITES[site]
   const other: Site = site === 'dot' ? 'inch' : 'dot'
 
+  // Phones: the header steps aside once the footer reaches it (the footer has the logo and links).
+  useEffect(() => {
+    const root = document.documentElement
+    let raf = 0
+    const read = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const footer = document.querySelector('body footer')
+        root.toggleAttribute('data-at-footer', !!footer && footer.getBoundingClientRect().top < 72)
+      })
+    }
+    read()
+    addEventListener('scroll', read, { passive: true })
+    addEventListener('resize', read)
+    return () => {
+      cancelAnimationFrame(raf)
+      removeEventListener('scroll', read)
+      removeEventListener('resize', read)
+      root.removeAttribute('data-at-footer')
+    }
+  }, [path])
+
   // While open: no scrolling behind, and Escape closes.
   useEffect(() => {
     if (!open) return
@@ -44,7 +66,8 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
     { text: 'Apply', href: sitePath(site, '/apply') },
     { text: 'Contact', href: sitePath(site, '/contact') },
   ]
-  const type = (k: number) => ({ animation: `hero-type 0.45s steps(6) ${120 + k * 70}ms both` })
+  // Typed in left to right; the clip leaves room round the letters, so none is cut once in (Safari draws past the box).
+  const type = (k: number) => ({ animation: `menu-type 0.45s steps(6) ${120 + k * 70}ms both` })
 
   return (
     <>
@@ -77,7 +100,7 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                   href={l.href}
                   onClick={() => setOpen(false)}
                   aria-current={path === l.href || path.startsWith(`${l.href}/`) ? 'page' : undefined}
-                  className="wordmark self-start text-[clamp(52px,16vw,88px)] uppercase leading-[0.95] aria-[current=page]:opacity-40"
+                  className="wordmark self-start text-[clamp(52px,16vw,88px)] uppercase leading-[1] aria-[current=page]:opacity-40"
                   style={type(k)}
                 >
                   {l.text}
@@ -89,7 +112,7 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                   setOpen(false)
                   openSelection(true)
                 }}
-                className="wordmark self-start text-left text-[clamp(52px,16vw,88px)] uppercase leading-[0.95]"
+                className="wordmark self-start text-left text-[clamp(52px,16vw,88px)] uppercase leading-[1]"
                 style={type(links.length)}
               >
                 Selection<sup className="ml-[0.08em] align-[0.9em] text-[0.36em] tabular-nums">({items.length})</sup>
