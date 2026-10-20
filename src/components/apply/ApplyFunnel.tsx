@@ -275,10 +275,11 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (!body) body = (
     <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
-      {shownPhase === 'opening' && <CardOpening front={card()} title="Get scouted" division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
+      {shownPhase === 'opening' && <CardOpening front={card()} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
       {phase === 'posting' && (
         <CardPost
           front={card()}
+          division={division}
           from={cardPlace}
           onDone={() => {
             setPhase('ready')
@@ -299,7 +300,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       <h1 className="sr-only">{TITLE[step]}</h1>
 
       {/* Phones: the comp card folds into a strip above the form. */}
-      <details ref={stripRef} className="apply-in border border-line bg-surface md:hidden">
+      <details ref={stripRef} className="apply-in apply-strip paper border border-[#d3d0c9] text-[#0a0a0a] md:hidden">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">
           <span className="flex shrink-0 gap-0.5">
             {SLOTS.slice(0, 3).map((s) => (
