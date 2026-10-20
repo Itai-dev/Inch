@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ageFrom, GUARDIAN_AGE, meetsCriteria } from '@/lib/apply-criteria'
+import { applicationEmail } from '@/lib/application-email'
 import { getWriteClient } from '@/sanity/lib/client'
 
 const num = z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional())
@@ -72,9 +73,12 @@ export async function POST(req: Request) {
   // Kept in the Studio when it can write (SANITY_API_WRITE_TOKEN), and emailed to the scouts
   // with the photos attached. Either is enough; with neither, the applicant is told to try again.
   const client = getWriteClient()
+  // The Studio's copies of the photos, when it saved them (their URLs go in the email).
+  let studioUrls: string[] = []
   const saved = client
     ? await (async () => {
         const assets = await Promise.all(files.map((f) => client.assets.upload('image', f, { filename: f.name, contentType: f.type })))
+        studioUrls = assets.map((a) => a.url)
         await client.create({
           _type: 'application',
           status: 'new',
@@ -103,23 +107,43 @@ export async function POST(req: Request) {
     : false
 
   const board = d.division === 'men' ? 'DOT. Men' : 'INCH” Women'
-  const emailed = await notify(
-    `New application (${board}): ${name}`,
-    [
-      `${name}, ${age}, ${d.country}${minor ? ` (parent or guardian: ${d.guardianName}, ${d.guardianPhone}, consented)` : ''}`,
-      `Born ${d.birthdate}`,
-      `${d.height} cm · T-shirt ${d.tshirt}${d.pants ? ` · pants ${d.pants} EU` : ''}${d.shoes ? ` · shoes ${d.shoes} EU` : ''}${outsideCriteria ? ' (outside current criteria)' : ''}`,
-      [d.hair && `Hair ${d.hair}`, d.eyes && `Eyes ${d.eyes}`].filter(Boolean).join(' · '),
-      `${d.email} · ${d.phone}`,
-      d.instagram ? `Instagram: ${d.instagram}` : '',
-      d.tiktok ? `TikTok: ${d.tiktok}` : '',
-      d.experience ? `\nExperience:\n${d.experience}` : '',
-      '',
-      saved ? 'Also in the Studio → Applications.' : 'The four photos are attached.',
-    ],
-    d.email,
-    await Promise.all(files.map(async (f, i) => ({ filename: f.name || `photo-${i + 1}.jpg`, content: Buffer.from(await f.arrayBuffer()).toString('base64') }))),
+  const POSES: Record<string, string> = { portrait: 'Portrait', medium: 'Medium', 'full-body': 'Full body', profile: 'Profile' }
+  const photos = await Promise.all(
+    files.map(async (f, i) => {
+      const pose = (f.name || '').replace(/\.[a-z]+$/i, '')
+      return {
+        label: POSES[pose] ?? `Photo ${i + 1}`,
+        filename: f.name || `photo-${i + 1}.jpg`,
+        content: Buffer.from(await f.arrayBuffer()).toString('base64'),
+        url: studioUrls[i],
+      }
+    }),
   )
+  const mail = applicationEmail({
+    board,
+    name,
+    rows: [
+      ['Board', board],
+      ['Age', `${age} (born ${d.birthdate})`],
+      ['Country', d.country],
+      ['Email', d.email],
+      ['Phone', d.phone],
+      ['Parent or guardian', minor ? `${d.guardianName}, ${d.guardianPhone} — consented` : undefined],
+      ['Height', `${d.height} cm`],
+      ['T-shirt', d.tshirt],
+      ['Pants', d.pants ? `${d.pants} EU` : undefined],
+      ['Shoes', d.shoes ? `${d.shoes} EU` : undefined],
+      ['Hair', d.hair],
+      ['Eyes', d.eyes],
+      ['Instagram', d.instagram],
+      ['TikTok', d.tiktok],
+    ],
+    experience: d.experience,
+    flags: [outsideCriteria ? 'Outside current criteria' : '', minor ? 'Minor — guardian consented' : ''].filter(Boolean),
+    photos,
+    savedInStudio: saved && studioUrls.length === photos.length,
+  })
+  const emailed = await notify(`New application (${board}): ${name}`, mail, d.email)
 
   // No email set up yet (no RESEND_API_KEY) and the Studio didn't take it: the site isn't live, so
   // finish the flow and say plainly that it wasn't delivered, rather than an error nobody can act on.
@@ -132,8 +156,8 @@ export async function POST(req: Request) {
 // TODO: the agency's scouting address.
 const DEFAULT_TO = 'itaiagami@gmail.com'
 
-/** Emails the scouts through Resend (RESEND_API_KEY), with the photos attached. True once sent. */
-async function notify(subject: string, lines: string[], replyTo: string, attachments: { filename: string; content: string }[]) {
+/** Emails the scouts through Resend (RESEND_API_KEY): the form laid out, the photos with it. True once sent. */
+async function notify(subject: string, mail: ReturnType<typeof applicationEmail>, replyTo: string) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return false
   const to = (process.env.APPLY_NOTIFY_EMAIL || DEFAULT_TO).split(',').map((s) => s.trim())
@@ -145,8 +169,9 @@ async function notify(subject: string, lines: string[], replyTo: string, attachm
       to,
       reply_to: replyTo,
       subject,
-      text: lines.filter((l, i) => l || lines[i - 1]).join('\n'),
-      attachments,
+      text: mail.text,
+      html: mail.html,
+      attachments: mail.attachments,
     }),
   }).catch((e) => {
     console.error('[apply] Resend request failed', e)

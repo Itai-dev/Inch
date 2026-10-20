@@ -107,7 +107,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const stripRef = useRef<HTMLDetailsElement>(null)
   /** The card beside the form when it shows (desktop), else the strip it folds into. */
   const cardPlace = (): Place => {
-    const a = asideRef.current
+    // The card itself, inside the aside's room for its tilt.
+    const a = asideRef.current?.firstElementChild as HTMLElement | null | undefined
     if (a && a.offsetParent) return { el: a, card: true }
     return stripRef.current ? { el: stripRef.current, card: false } : null
   }
@@ -308,7 +309,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (!body) body = (
     <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
-      {shownPhase === 'opening' && <CardOpening front={card('', false, true)} compact={compact} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
+      {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
       {phase === 'posting' && (
         <CardPost
           front={card('', false, true)}
@@ -322,7 +323,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
-      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px]">
+      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px] overflow-hidden pb-1">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}
@@ -339,7 +340,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       </details>
 
       {/* The form and the card, centred in the space under the ruler. */}
-      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,640px)_minmax(0,560px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(48px,6vw,120px)] md:py-10">
+      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,600px)_minmax(0,720px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(24px,3vw,64px)] md:py-10">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
@@ -547,7 +548,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           )}
         </div>
 
-        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start md:block">{card()}</aside>
+        {/* Room round the card for its tilt and shadow, so neither is cut off. */}
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start p-[clamp(20px,2.8vw,48px)] md:block">{card()}</aside>
       </div>
     </div>
   )

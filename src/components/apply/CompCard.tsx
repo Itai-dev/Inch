@@ -76,7 +76,7 @@ export function CompCard({
       ref={card}
       // Light grey, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
       style={flat ? undefined : ({ '--bg': '#efede8', '--fg': '#0a0a0a', '--muted': '#6b6965', '--line': '#dedbd4' } as React.CSSProperties)}
-      className={`flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'paper border border-[#d3d0c9] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]'} ${flat || still ? '' : 'will-change-transform'} ${className}`}
+      className={`flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'paper border border-[#d3d0c9] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]'} ${className}`}
     >
       <div className="label flex items-start justify-between text-[11px] text-muted">
         <span>{brand} — Application</span>

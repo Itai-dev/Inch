@@ -229,10 +229,10 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 [data-apply-phase="opening"] .apply-in,
 [data-apply-phase="opening"] .apply-card,
 [data-apply-phase="posting"] .apply-card { visibility: hidden; }
-/* First the ruler slides in from the left (as the hero's moves); then the form opens, field after field. (The phone strip is already
+/* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
    in place: the card turned into it.) */
-[data-apply-phase="writing"] .apply-ruler { animation: ruler-slide 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-@keyframes ruler-slide { from { transform: translateX(-70vw); opacity: 0; } 30% { opacity: 1; } to { transform: none; opacity: 1; } }
+[data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 1s cubic-bezier(0.45, 0, 0.25, 1) both; }
+@keyframes ruler-slide { from { transform: translateX(100%); } to { transform: none; } }
 [data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.4s steps(6) 0.95s both; }
 [data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 1.03s; }
 [data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 1.11s; }
