@@ -140,13 +140,14 @@ const easeOut = (t: number) => 1 - (1 - t) ** 3
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 /** The tape between the arrows: an inch a spread (00 the cover), seen through a window a little wider than an inch, with blank inches before and after. */
 const INCH_PX = 120
-const TAPE_WIN = 200
+/** The window's width: a little wider than an inch, narrower on phones so the arrows keep their room. */
+const TAPE_WIN = 'min(200px, 34vw)'
 const TAPE_FROM = -2
 
 /** A long, thin arrow. */
 function Arrow({ dir }: { dir: 'left' | 'right' }) {
   return (
-    <svg viewBox="0 0 64 24" aria-hidden className="block h-[clamp(30px,3.6vw,46px)] w-auto" style={dir === 'left' ? { transform: 'scaleX(-1)' } : undefined}>
+    <svg viewBox="0 0 64 24" aria-hidden className="block h-[clamp(24px,3.6vw,46px)] w-auto" style={dir === 'left' ? { transform: 'scaleX(-1)' } : undefined}>
       <path d="M1 12h60M50 2l11 10-11 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
     </svg>
   )
@@ -301,7 +302,7 @@ export function Magazine({
       // The tape under the arrows follows the pages; the number in the middle is at full strength.
       const tp = tape.current
       if (tp) {
-        tp.style.transform = `translateX(${(TAPE_WIN / 2 - (at - TAPE_FROM + 0.5) * INCH_PX).toFixed(1)}px)`
+        tp.style.transform = `translateX(${(-(at - TAPE_FROM + 0.5) * INCH_PX).toFixed(1)}px)`
         tp.querySelectorAll<HTMLElement>('[data-n]').forEach((n) => {
           n.style.opacity = (1 - 0.7 * Math.min(1, Math.abs(Number(n.dataset.n) - at))).toFixed(3)
         })
@@ -647,13 +648,14 @@ export function Magazine({
         </div>
 
         {/* Back | the spread's number on an inch of the INCH” ruler | on. Each arrow is off at its end. */}
-        <div ref={controls} className="mt-[clamp(16px,4vh,48px)] flex items-end gap-[clamp(28px,4vw,64px)] transition-opacity duration-300" style={{ opacity: 0 }}>
+        <div ref={controls} className="mt-[clamp(16px,4vh,48px)] flex max-w-full items-end gap-[clamp(10px,4vw,64px)] transition-opacity duration-300" style={{ opacity: 0 }}>
           <button type="button" aria-label="Previous page" onClick={() => step(-1)} disabled={page === 0} className="p-2 transition-[opacity,transform] duration-200 enabled:hover:-translate-x-1 disabled:cursor-default disabled:opacity-15">
             <Arrow dir="left" />
           </button>
           {/* The tape slides with the pages (and with a page held mid-turn), as on the hero. */}
           <span aria-hidden className="relative block overflow-hidden pb-2" style={{ width: TAPE_WIN, maskImage: 'linear-gradient(to right, transparent, #000 30%, #000 70%, transparent)' }}>
-            <span ref={tape} className="flex w-max will-change-transform" style={{ transform: `translateX(${TAPE_WIN / 2 - (0 - TAPE_FROM + 0.5) * INCH_PX}px)` }}>
+            {/* Starts at the window's middle (left: 50%); the transform brings the current inch to it. */}
+            <span ref={tape} className="relative left-1/2 flex w-max will-change-transform" style={{ transform: `translateX(${-(0 - TAPE_FROM + 0.5) * INCH_PX}px)` }}>
               {Array.from({ length: turns + 1 - 2 * TAPE_FROM }, (_, j) => {
                 const i = j + TAPE_FROM
                 return (

@@ -4,7 +4,8 @@
  * The other site's box (DOT. on INCH”, INCH” on DOT.), upright in the bottom-left corner. It pops
  * up once the home page's video has scrolled away (straight away on other pages), and goes again
  * when the footer arrives (the footer carries its own). White + difference blend like the header,
- * so it inverts against whatever is behind it.
+ * so it inverts against whatever is behind it. Not on phones, where it would sit over the page:
+ * there it is in the menu (MobileMenu).
  */
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
@@ -37,7 +38,7 @@ export function SiteSwitch({ site }: { site: Site }) {
   }, [path])
 
   return (
-    <div ref={box} className="site-switch-tab text-paper mix-blend-difference">
+    <div ref={box} className="site-switch-tab hidden text-paper mix-blend-difference md:block">
       <SiteSwitchLink href={sitePath(toInch ? 'inch' : 'dot')} toInch={toInch} label={toInch ? 'INCH” — Women' : 'DOT. — Men'} className="block">
         <span className="site-switch block origin-bottom-left text-[length:var(--tab)]">
           {toInch ? (
