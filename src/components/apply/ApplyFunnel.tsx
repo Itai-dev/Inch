@@ -97,6 +97,37 @@ type Size = 'tshirt' | 'pants' | 'shoes'
 const START = { tshirt: { women: 'S', men: 'M' }, pants: { women: 36, men: 48 }, shoes: { women: 39, men: 43 } }
 const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
 
+/** A small (i) that opens a note under it; a tap anywhere else closes it. */
+function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('pointerdown', away)
+    return () => document.removeEventListener('pointerdown', away)
+  }, [open])
+  return (
+    <span ref={root} className="relative block">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex size-[18px] items-center justify-center rounded-full border text-[11px] font-bold italic leading-none transition-colors ${open ? 'border-fg bg-fg text-bg' : 'border-muted text-muted hover:border-fg hover:text-fg'}`}
+        style={{ fontFamily: 'Georgia, serif' }}
+      >
+        i
+      </button>
+      {open && (
+        <span role="note" className="absolute right-0 top-full mt-2 block w-[min(300px,calc(100vw-48px))] border border-line bg-bg p-4 text-[14px] leading-snug text-muted shadow-[0_14px_34px_-14px_rgb(0_0_0/0.3)]">
+          {children}
+        </span>
+      )}
+    </span>
+  )
+}
+
 /** A handle without its @ (or the profile link round it). */
 const handleOf = (v: string) => v.trim().replace(/^https?:\/\/(www\.)?(instagram\.com|tiktok\.com)\/@?/i, '').replace(/^@+/, '').replace(/[/?#].*$/, '')
 const half = (v: string | number) => String(v).replace('.5', '½')
@@ -124,7 +155,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const shownPhase = reduced && phase !== 'posting' ? 'ready' : phase
   useEffect(() => {
     if (phase !== 'writing') return
-    const id = setTimeout(() => setPhase('ready'), 2100)
+    const id = setTimeout(() => setPhase('ready'), 1300)
     return () => clearTimeout(id)
   }, [phase])
   const [furthest, setFurthest] = useState(0)
@@ -359,8 +390,11 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       <div className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,600px)_minmax(0,720px)] lg:content-center lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-10">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
-              <p className="text-[15px] leading-snug text-muted sm:col-span-2">{BEFORE}</p>
+            <form className="relative grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+              {/* What you'll need: a small (i), opened when wanted, so the form can be filled straight away. */}
+              <span className="absolute right-0 top-0 z-10">
+                <InfoTip label="What you’ll need">{BEFORE}</InfoTip>
+              </span>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
               <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>

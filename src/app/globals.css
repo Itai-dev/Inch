@@ -231,16 +231,16 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 [data-apply-phase="posting"] .apply-card { visibility: hidden; }
 /* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
    in place: the card turned into it.) */
-[data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 1s cubic-bezier(0.45, 0, 0.25, 1) both; }
+[data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 0.7s cubic-bezier(0.45, 0, 0.25, 1) both; }
 @keyframes ruler-slide { from { transform: translateX(100%); } to { transform: none; } }
-[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.4s steps(6) 0.95s both; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 1.03s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 1.11s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 1.19s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 1.27s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 1.35s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 1.43s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 1.51s; }
+[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.3s steps(5) 0.5s both; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 0.55s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 0.6s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 0.65s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 0.7s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.75s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.8s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.85s; }
 /* Phones: opening the card strip unfolds the card from under it. */
 .apply-strip[open] > :not(summary) { animation: strip-open 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes strip-open { from { clip-path: inset(0 0 100% 0); transform: scale(0.96); } to { clip-path: inset(0 0 0 0); transform: none; } }

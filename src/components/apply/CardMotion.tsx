@@ -148,23 +148,26 @@ export function CardOpening({
     const w = cardWidth(r)
     el.style.width = `${w}px`
     const h = el.offsetHeight
-    // Whole on screen in the middle, with room round it for the turn (never cut off).
-    const fit = Math.min(1, (innerHeight - 190) / h, (innerWidth - 56) / w)
-    const place = (scale: number) => at((innerWidth - w * scale) / 2, (innerHeight - h * scale) / 2 + 10, scale)
+    // Whole on screen in the middle, with room round it for the turn: sized to what is actually
+    // visible (on phones the browser's own bars take part of the window), never cut off.
+    const vh = window.visualViewport?.height ?? innerHeight
+    const top = window.visualViewport?.offsetTop ?? 0
+    const fit = Math.min(1, (vh * 0.66) / h, (innerWidth - 56) / w)
+    const place = (scale: number) => at((innerWidth - w * scale) / 2, top + (vh - h * scale) / 2 + 12, scale)
     const tx = r ? r.left : (innerWidth - w) / 2
     const ty = r ? r.top : (innerHeight - h) / 2
     // Phones: cut to the strip's folded height as it lands, so it is the strip.
-    const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height)}px 0)` : 'inset(0 0 0 0)'
+    const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : 'inset(0 0 0 0)'
 
-    const T = 3700
+    const T = 2500
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
-    // It grows in from small, turning slightly as it comes; rests; turns over; goes to its place.
+    // It grows in from small, turning slightly as it comes; rests a moment; turns over; goes to its place.
     const card = el.animate(
       [
         { transform: place(fit * 0.55), clipPath: 'inset(0 0 0 0)', offset: 0, easing: EASE_OUT },
-        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1100) },
-        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(2500), easing: EASE },
+        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(750) },
+        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1650), easing: EASE },
         { transform: at(tx, ty), clipPath: clipTo, offset: 1 },
       ],
       opts,
@@ -172,14 +175,14 @@ export function CardOpening({
     const turn = fl.animate(
       [
         { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: EASE_OUT },
-        { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(1100), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(1500), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(2300) },
+        { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(750), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(1000), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(1550) },
         { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: 1 },
       ],
       opts,
     )
-    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, easing: EASE_OUT, fill: 'both' })
+    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: EASE_OUT, fill: 'both' })
     card.onfinish = () => done.current()
     return () => {
       ;[card, turn, show].forEach((a) => a?.cancel())
