@@ -96,7 +96,10 @@ export async function POST(req: Request) {
           consent: true,
         })
         return true
-      })().catch(() => false)
+      })().catch((e) => {
+        console.error('[apply] Saving to the Studio failed', e)
+        return false
+      })
     : false
 
   const board = d.division === 'men' ? 'DOT. Men' : 'INCH” Women'
@@ -118,6 +121,9 @@ export async function POST(req: Request) {
     await Promise.all(files.map(async (f, i) => ({ filename: f.name || `photo-${i + 1}.jpg`, content: Buffer.from(await f.arrayBuffer()).toString('base64') }))),
   )
 
+  // No email set up yet (no RESEND_API_KEY) and the Studio didn't take it: the site isn't live, so
+  // finish the flow and say plainly that it wasn't delivered, rather than an error nobody can act on.
+  if (!saved && !process.env.RESEND_API_KEY) return NextResponse.json({ ok: true, unsent: true })
   if (!saved && !emailed) return NextResponse.json({ error: 'Could not send' }, { status: 503 })
   return NextResponse.json({ ok: true })
 }
@@ -142,6 +148,11 @@ async function notify(subject: string, lines: string[], replyTo: string, attachm
       text: lines.filter((l, i) => l || lines[i - 1]).join('\n'),
       attachments,
     }),
-  }).catch(() => null)
+  }).catch((e) => {
+    console.error('[apply] Resend request failed', e)
+    return null
+  })
+  // Shown in the deployment's logs, e.g. a sender Resend won't allow yet.
+  if (res && !res.ok) console.error('[apply] Resend refused the email', res.status, await res.text().catch(() => ''))
   return !!res?.ok
 }

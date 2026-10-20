@@ -42,10 +42,10 @@ export function StepRuler({
                   className={`flex w-full flex-col items-center gap-1.5 text-center transition-opacity duration-500 disabled:cursor-default ${tone}`}
                 >
                   <span className="flex items-baseline justify-center gap-1.5 leading-none">
-                    <span className="text-[10px] font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                    <span className={`text-[11px] uppercase tracking-[0.08em] max-sm:hidden ${i === current ? 'font-bold' : ''}`} style={{ fontStretch: '80%' }}>{name}</span>
+                    <span className="text-[12px] font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                    <span className={`text-[13px] uppercase tracking-[0.06em] max-sm:hidden ${i === current ? 'font-bold' : ''}`} style={{ fontStretch: '80%' }}>{name}</span>
                   </span>
-                  <span aria-hidden className="block h-2 self-start" style={{ width: `calc(100% + ${SEG_OVERLAP})`, ...rulerTicks(8, 9) }} />
+                  <span aria-hidden className="block h-3 self-start" style={{ width: `calc(100% + ${SEG_OVERLAP})`, ...rulerTicks(12, 9) }} />
                 </button>
               </li>
             )
@@ -53,7 +53,7 @@ export function StepRuler({
         </ol>
       </div>
       {/* Phones: the current step's name under its inch, centred on it (it may run past either side). */}
-      <p aria-hidden className="mt-1.5 whitespace-nowrap text-center text-[11px] font-bold uppercase tracking-[0.08em] sm:hidden" style={{ marginLeft: `${((current + 0.5) / n) * 100}%`, transform: 'translateX(-50%)', width: 'max-content', fontStretch: '80%' }}>
+      <p aria-hidden className="mt-2 whitespace-nowrap text-center text-[13px] font-bold uppercase tracking-[0.06em] sm:hidden" style={{ marginLeft: `${((current + 0.5) / n) * 100}%`, transform: 'translateX(-50%)', width: 'max-content', fontStretch: '80%' }}>
         {steps[current]}
       </p>
     </nav>

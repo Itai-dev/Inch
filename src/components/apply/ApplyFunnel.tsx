@@ -127,6 +127,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Sent through, but nothing delivers applications yet (email not set up). */
+  const [unsent, setUnsent] = useState(false)
   const [unit, setUnit] = useState<Unit>('cm')
   const [openSize, setOpenSize] = useState<Size | null>(null)
   const tapeRef = useRef<HTMLDivElement>(null)
@@ -195,6 +197,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     })
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
     setSending(false)
+    if (res?.ok) setUnsent(!!(await res.clone().json().catch(() => ({})))?.unsent)
     // Sent: the card goes through the slot (CardPost), then the thanks.
     if (res?.ok) setPhase(reduced ? 'ready' : 'posting')
     if (res?.ok && reduced) go('done')
@@ -283,6 +286,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         <p className="text-[17px] leading-snug">
           <TypeText text="We’ve received your application. Our scouts look at every one, and we’ll get back to you by email or phone." at={1100} ms={10} />
         </p>
+        {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
         <button type="button" onClick={close} className="scale-in self-start text-[14px] font-bold uppercase underline" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
       </div>
@@ -317,7 +321,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
-      <div className="apply-ruler apply-in mx-auto w-full max-w-[620px]">
+      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px]">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}

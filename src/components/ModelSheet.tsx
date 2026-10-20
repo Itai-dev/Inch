@@ -17,7 +17,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
-import { QuoteMark } from './brand/Marks'
+import { Logo } from './brand/Logo'
 import { Ruler } from './motion/Ruler'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
@@ -32,7 +32,6 @@ const FOLD = 2 // the gutter between the two pages of a spread
 const GAP = 16 // between spreads
 const CAPTION_H = 22
 const CREDIT_GAP = 12 // between a page and its credit
-const MARK_INSET = 16 // the brand's mark, in from the spread's corner
 const ROW_H = 46 // the books and actions under a two-page spread, with the gap above them
 const SIDE_W = 215 // on wide screens, the room kept each side of the spread for the sizes and the actions
 const WHEEL_LOCK_MS = 650
@@ -144,7 +143,8 @@ export function ModelSheet({
   // Every spread takes the same frame, so the margins never change.
   const frameW = pageW * per + FOLD * (per - 1)
   const left = (stage.w - frameW) / 2
-  const top = Math.max(0, (stage.h - pageH - capH - rowH) / 2)
+  // Wide: the pictures start right under the name, the same gap below it as above it.
+  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH) / 2)
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -352,9 +352,10 @@ export function ModelSheet({
       className="model-sheet fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg"
     >
       {wide ? (
-        // Top rail, wide: the name alone in the middle, close on the right.
-        <header className="grid min-h-[clamp(104px,8.5vw,140px)] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter">
-          <span />
+        // Top rail, wide: the logo on the left, the name in the middle, close on the right; the same
+        // gap above the name as between it and the pictures.
+        <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter py-[clamp(18px,1.9vw,34px)]">
+          <Logo division={division} className="justify-self-start text-[clamp(48px,3.65vw,70px)]" />
           <h1 aria-label={name} className="wordmark whitespace-nowrap text-[clamp(48px,4.6vw,80px)] uppercase">
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
@@ -367,27 +368,20 @@ export function ModelSheet({
           </div>
         </header>
       ) : (
-        /* Top rail: name | stats in one line | close */
-        <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8 md:py-0">
-          <div className="flex items-start justify-between gap-4">
-            {/* The name on its own: the brand's mark sits on the spread. */}
-            <h1 aria-label={name} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap">
+        /* Top rail: logo | name | close, then the sizes under them */
+        <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <Logo division={division} className="justify-self-start text-[32px] md:text-[48px]" />
+            <h1 aria-label={name} className="wordmark text-center text-[clamp(24px,6.4vw,44px)] uppercase">
               <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
             </h1>
-            <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
-              <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
+            <button type="button" onClick={close} aria-label="Close" className="-m-2 justify-self-end p-2 hover:opacity-60">
+              <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
                 <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
               </svg>
             </button>
           </div>
-          {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-detail md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)]')}
-          <div className="hidden items-center justify-end gap-6 md:flex">
-            <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
-              <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
-                <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
-              </svg>
-            </button>
-          </div>
+          {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]')}
         </header>
       )}
 
@@ -426,25 +420,13 @@ export function ModelSheet({
                   transition: anim,
                 }}
               >
-                {idx.map((i, j) => {
+                {idx.map((i) => {
                   const s = slides[i]
-                  // Where this page starts across the frame, for the mark below.
-                  const pageX = idx.length === 2 ? j * (pageW + FOLD) : (frameW - w) / 2
                   return (
                     <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
                       <div className="relative overflow-hidden bg-line" style={{ width: w, height: pageH }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
-                        {/* The brand's mark, in the frame's top left corner and held still there while the
-                            pages slide (it moves against its page), inverting the picture under it. Each
-                            page carries it, clipped to the page: it shows only where a picture is. */}
-                        <span
-                          aria-hidden
-                          className="intro-hold pointer-events-none absolute z-10 text-white mix-blend-difference"
-                          style={{ top: MARK_INSET, left: MARK_INSET - pageX, transform: `translateX(${-o * (frameW + GAP)}px)`, transition: anim, '--w': `${frameW}px` } as React.CSSProperties}
-                        >
-                          {division === 'men' ? <span className="block size-[clamp(12px,1.1vw,16px)] bg-current" /> : <QuoteMark className="h-[clamp(22px,2.2vw,32px)] w-auto" />}
-                        </span>
                       </div>
                       {o === 0 && per === 1 && s.caption && (
                         <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>

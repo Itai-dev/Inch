@@ -1,12 +1,11 @@
 'use client'
 
 /**
- * The application card's two moments, on heavy letterpress paper, with an envelope.
- * - CardOpening: the page opens on a sealed envelope in the middle of the screen, the mark pressed
- *   into the tip of its flap. The flap opens, the card rises out showing its back (the
- *   application's headline), the envelope drops away, and the card turns over: beside the form
- *   it becomes the comp card (desktop); on phones it turns to the folded strip and shrinks into
- *   it, so it is the strip.
+ * The application card's two moments, on heavy letterpress paper.
+ * - CardOpening: the page opens on the card growing in, in the middle of the screen, turning
+ *   slightly as it comes, its back showing (the application's headline). It turns over: beside
+ *   the form it becomes the comp card (desktop); on phones it turns to the folded strip and
+ *   shrinks into it, so it is the strip.
  * - CardPost: once the application is sent, the card comes to the middle, an open envelope rises
  *   under it, the card goes in, the flap closes, and the envelope drops through a slot.
  * Both draw copies over the page (fixed), so the page under them lays itself out undisturbed.
@@ -49,15 +48,16 @@ function Headline({ division }: { division: Division }) {
     <div className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden]" style={{ transform: 'rotateY(180deg)' }}>
       {/* The plate's impression, a hairline inside the edge. */}
       <span aria-hidden className="pointer-events-none absolute inset-[10px] shadow-[inset_0_1px_1px_rgb(0_0_0/0.07),inset_0_-1px_0_rgb(255_255_255/0.6)]" />
-      {/* The mark at the top shows in the envelope's open V; the headline sits below the pocket's edge and rises into view. */}
+      {/* The mark at the top, the headline in the middle, the house at the foot. */}
       <span className="mt-[10%]" style={blind}>
         <DivisionMark division={division} size={30} />
       </span>
-      <p className="wordmark mb-[7%] mt-auto text-[clamp(44px,4.8vw,72px)] uppercase leading-[0.92]" style={press}>
+      <p className="wordmark my-auto text-[clamp(44px,4.8vw,72px)] uppercase leading-[0.92]" style={press}>
         Model
         <br />
         Application
       </p>
+      <span aria-hidden data-sheen className="paper-sheen pointer-events-none absolute inset-0" />
       <span className="mb-[4%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
         {s.brand} Model Management
       </span>
@@ -130,9 +130,6 @@ export function CardOpening({
   const stage = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const flip = useRef<HTMLDivElement>(null)
-  const back = useRef<HTMLDivElement>(null)
-  const pocket = useRef<HTMLDivElement>(null)
-  const flap = useRef<HTMLDivElement>(null)
   const desk = useRef<HTMLDivElement>(null)
   const phone = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
@@ -154,95 +151,55 @@ export function CardOpening({
     const w = cardWidth(r)
     el.style.width = `${w}px`
     const h = el.offsetHeight
-    const { pad, ew, eh, fh } = envSize(w, h)
-    fit([back.current, pocket.current, flap.current], ew, eh, fh)
-
-    // The envelope in the middle, a little low for the card to rise out of it (smaller if need be).
-    const sc = envScale(ew, eh)
-    const ex = (innerWidth - ew * sc) / 2
-    const ey = Math.min(innerHeight - eh * sc - 24, Math.max(80, (innerHeight - eh * sc) / 2 + h * sc * 0.2))
-    const cx = ex + pad * sc
-    const inY = ey + pad * sc
-    const rise = Math.min(h * sc * 0.6, inY - 70)
-    const cy = Math.max(70, (innerHeight - h) / 2 - innerHeight * 0.02)
-    const mx = (innerWidth - w) / 2
+    // Whole on screen in the middle, with room round it for the turn (never cut off).
+    const fit = Math.min(1, (innerHeight - 150) / h, (innerWidth * 0.9) / w)
+    const place = (scale: number) => at((innerWidth - w * scale) / 2, (innerHeight - h * scale) / 2 + 10, scale)
     const tx = r ? r.left : (innerWidth - w) / 2
-    const ty = r ? r.top : cy
+    const ty = r ? r.top : (innerHeight - h) / 2
     // Phones: cut to the strip's folded height as it lands, so it is the strip.
     const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height)}px 0)` : 'inset(0 0 0 0)'
 
-    const T = 5200
+    const T = 3700
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
+    // It grows in from small, turning slightly as it comes; rests; turns over; goes to its place.
     const card = el.animate(
       [
-        { transform: at(cx, inY + 40, sc), clipPath: 'inset(0 0 0 0)', offset: 0, easing: EASE_OUT },
-        { transform: at(cx, inY, sc), clipPath: 'inset(0 0 0 0)', offset: o(600) },
-        { transform: at(cx, inY, sc), clipPath: 'inset(0 0 0 0)', offset: o(1400), easing: EASE },
-        // Out of the envelope…
-        { transform: at(cx, inY - rise, sc), clipPath: 'inset(0 0 0 0)', offset: o(2400), easing: EASE },
-        // …to the middle, at full size, as the envelope drops away.
-        { transform: at(mx, cy), clipPath: 'inset(0 0 0 0)', offset: o(3200) },
-        { transform: at(mx, cy), clipPath: 'inset(0 0 0 0)', offset: o(4100), easing: EASE },
+        { transform: place(fit * 0.55), clipPath: 'inset(0 0 0 0)', offset: 0, easing: EASE_OUT },
+        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1100) },
+        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(2500), easing: EASE },
         { transform: at(tx, ty), clipPath: clipTo, offset: 1 },
       ],
       opts,
     )
     const turn = fl.animate(
       [
-        { transform: 'perspective(1800px) rotateY(180deg)', offset: 0 },
-        { transform: 'perspective(1800px) rotateY(180deg)', offset: o(3300), easing: EASE },
-        { transform: 'perspective(1800px) rotateY(0deg)', offset: o(4050) },
-        { transform: 'perspective(1800px) rotateY(0deg)', offset: 1 },
+        { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: EASE_OUT },
+        { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(1100), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(1500), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(2300) },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: 1 },
       ],
       opts,
     )
-    const away = innerHeight + 60
-    // The open flap stands up from the envelope's top, so it goes a flap's height further.
-    const flapAway = away + fh * sc
-    const env = [
-      { transform: at(ex, ey + 40, sc), offset: 0, easing: EASE_OUT },
-      { transform: at(ex, ey, sc), offset: o(600) },
-      { transform: at(ex, ey, sc), offset: o(2300), easing: 'cubic-bezier(0.5, 0, 0.75, 0)' },
-      { transform: at(ex, away, sc), offset: o(3100) },
-      { transform: at(ex, away, sc), offset: 1 },
-    ]
-    const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
-    // The flap opens up and back (in front of the card while closed, behind it once open).
-    const flapOpen = flap.current?.animate(
-      [
-        { transform: flapAt(ex, ey + 40, 0, ew, sc), zIndex: 4, offset: 0, easing: EASE_OUT },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(600) },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(700), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(1050) },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(1051), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1400) },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(2300), easing: 'cubic-bezier(0.5, 0, 0.75, 0)' },
-        { transform: flapAt(ex, flapAway, 180, ew, sc), zIndex: 1, offset: o(3100) },
-        { transform: flapAt(ex, flapAway, 180, ew, sc), zIndex: 1, offset: 1 },
-      ],
-      opts,
-    )
-    // The envelope and its card come in together, as one.
-    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, easing: EASE_OUT, fill: 'both' })
-    // The light runs across the stock as the flap opens and as the card turns.
+    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, easing: EASE_OUT, fill: 'both' })
+    // The light runs across the stock as it comes in and as it turns.
     const sheens = [...(stage.current?.querySelectorAll<HTMLElement>('[data-sheen]') ?? [])].map((s) =>
-      s.animate([{ backgroundPosition: '160% 0' }, { backgroundPosition: '-60% 0' }], { duration: 1400, delay: s.closest('[data-card]') ? 3400 : 500, easing: EASE, fill: 'both' }),
+      s.animate([{ backgroundPosition: '160% 0' }, { backgroundPosition: '-60% 0' }], { duration: 1400, delay: s.closest('[data-face]') ? 1700 : 200, easing: EASE, fill: 'both' }),
     )
     card.onfinish = () => done.current()
     return () => {
-      ;[card, turn, flapOpen, show, ...parts, ...sheens].forEach((a) => a?.cancel())
+      ;[card, turn, show, ...sheens].forEach((a) => a?.cancel())
     }
     // Plays once, from where the page is when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
-    <div ref={stage} aria-hidden className="pointer-events-none fixed inset-0 z-30 overflow-hidden" style={{ opacity: 0 }}>
-      <Envelope division={division} back={back} pocket={pocket} flap={flap} />
-      <div ref={box} data-card className="absolute left-0 top-0 z-[2] origin-top-left">
+    <div ref={stage} aria-hidden className="pointer-events-none fixed inset-0 z-30" style={{ opacity: 0 }}>
+      <div ref={box} className="absolute left-0 top-0 origin-top-left">
         <div ref={flip} className="relative [transform-style:preserve-3d]">
-          <div className="relative [backface-visibility:hidden]">
+          <div data-face className="relative [backface-visibility:hidden]">
             <div ref={desk}>{front}</div>
             <div ref={phone}>{compact}</div>
             <span aria-hidden data-sheen className="paper-sheen pointer-events-none absolute inset-0" />
