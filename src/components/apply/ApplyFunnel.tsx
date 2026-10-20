@@ -323,7 +323,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
-      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px] overflow-hidden pb-1">
+      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px] shrink-0 overflow-hidden pb-1">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}
@@ -333,14 +333,14 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       </div>
       <h1 className="sr-only">{TITLE[step]}</h1>
 
-      {/* Phones: the comp card folds into a strip above the form. */}
-      <details ref={stripRef} className="apply-in apply-strip paper border border-[#d3d0c9] text-[#0a0a0a] md:hidden">
+      {/* Phones and tablets: the comp card folds into a strip above the form. */}
+      <details ref={stripRef} className="apply-in apply-strip paper shrink-0 border border-[#d3d0c9] text-[#0a0a0a] lg:hidden">
         <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">{stripRow}</summary>
         <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
       </details>
 
       {/* The form and the card, centred in the space under the ruler. */}
-      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,600px)_minmax(0,720px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(24px,3vw,64px)] md:py-10">
+      <div className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,600px)_minmax(0,720px)] lg:content-center lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-10">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
@@ -549,7 +549,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </div>
 
         {/* Room round the card for its tilt and shadow, so neither is cut off. */}
-        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start p-[clamp(20px,2.8vw,48px)] md:block">{card()}</aside>
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start p-[clamp(20px,2.8vw,48px)] lg:block">{card()}</aside>
       </div>
     </div>
   )
