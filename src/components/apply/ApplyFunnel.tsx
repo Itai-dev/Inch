@@ -71,6 +71,9 @@ const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A pa
 const narrow = { fontStretch: '80%' } as const
 const big =
   'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
+/** A handle field: the @ set in front, the underline under both (dark once filled or focused). */
+const handleRow =
+  'flex items-baseline border-b-2 border-line pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold focus-within:border-fg has-[input:not(:placeholder-shown)]:border-fg'
 const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.7vw,25px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
@@ -94,6 +97,8 @@ type Size = 'tshirt' | 'pants' | 'shoes'
 const START = { tshirt: { women: 'S', men: 'M' }, pants: { women: 36, men: 48 }, shoes: { women: 39, men: 43 } }
 const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
 
+/** A handle without its @ (or the profile link round it). */
+const handleOf = (v: string) => v.trim().replace(/^https?:\/\/(www\.)?(instagram\.com|tiktok\.com)\/@?/i, '').replace(/^@+/, '').replace(/[/?#].*$/, '')
 const half = (v: string | number) => String(v).replace('.5', '½')
 
 export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
@@ -141,6 +146,16 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const [tried, setTried] = useState(false)
   const startedAt = useRef(0)
   const sheetRef = useRef<HTMLDivElement>(null)
+  // The top bar's height, so the step ruler can stick right under it (phones).
+  const barRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const bar = barRef.current
+    const sheet = sheetRef.current
+    if (!bar || !sheet) return
+    const ro = new ResizeObserver(() => sheet.style.setProperty('--bar', `${bar.offsetHeight}px`))
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
   const router = useRouter()
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
@@ -231,7 +246,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       name={fullName}
       stats={stats}
       photos={SLOTS.slice(0, 3).map((s) => ({ label: s.label, url: photos[s.pose]?.url }))}
-      contact={[d.email || 'Email —', d.instagram ? `@${d.instagram.replace('@', '')}` : 'Instagram —']}
+      contact={[d.email || 'Email —', d.instagram ? `@${d.instagram}` : 'Instagram —']}
       className={className}
     />
   )
@@ -323,7 +338,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
-      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px] shrink-0 overflow-hidden pb-1">
+      {/* Phones and tablets: it stays in view under the top bar while the form scrolls, not cut off by it. */}
+      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px] shrink-0 overflow-hidden pb-1 max-lg:sticky max-lg:top-[var(--bar,72px)] max-lg:z-[9] max-lg:-mt-2 max-lg:bg-bg max-lg:pb-3 max-lg:pt-2">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}
@@ -529,8 +545,19 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
 
           {step === 'send' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
-              <Field label="Instagram"><input className={big} placeholder="@handle" value={d.instagram} onChange={(e) => set('instagram', e.target.value)} /></Field>
-              <Field label="TikTok"><input className={big} placeholder="@handle" value={d.tiktok} onChange={(e) => set('tiktok', e.target.value)} /></Field>
+              {/* The @ is always there; only the handle is typed (a pasted @ or profile link is trimmed). */}
+              <Field label="Instagram">
+                <span className={handleRow}>
+                  <span aria-hidden className="pr-0.5">@</span>
+                  <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-muted/40" placeholder="handle" autoCapitalize="none" autoCorrect="off" value={d.instagram} onChange={(e) => set('instagram', handleOf(e.target.value))} />
+                </span>
+              </Field>
+              <Field label="TikTok">
+                <span className={handleRow}>
+                  <span aria-hidden className="pr-0.5">@</span>
+                  <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-muted/40" placeholder="handle" autoCapitalize="none" autoCorrect="off" value={d.tiktok} onChange={(e) => set('tiktok', handleOf(e.target.value))} />
+                </span>
+              </Field>
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">
                 <textarea rows={3} className={`${mid} resize-none`} placeholder="Experience, other agencies, when you’re free…" value={d.experience} onChange={(e) => set('experience', e.target.value)} />
               </Field>
@@ -557,7 +584,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   return (
     <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
       {/* Top bar, as on the model page: the logo, and close. */}
-      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
+      <div ref={barRef} className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
         <Logo division={division} className="text-[48px] md:text-[70px]" />
         <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
