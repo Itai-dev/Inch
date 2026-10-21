@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { PrintPile, type Print } from '@/components/contact/PrintPile'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { DEMO_CONTACT as DEMO, HOURS, instagramHandle } from '@/lib/copy'
+import { enquiryMailto } from '@/lib/enquiry'
 import { isPlaceholder } from '@/lib/placeholders'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -11,7 +12,7 @@ import type { SanityImage, SiteSettings, TalentCard } from '@/sanity/lib/types'
 
 export async function generateMetadata({ params }: PageProps<'/[site]/contact'>): Promise<Metadata> {
   const site = (await params).site as Site
-  return { title: 'Contact', alternates: { canonical: sitePath(site, '/contact') } }
+  return { title: 'Contact', description: `Book ${SITES[site].brand} talent or apply to join the board. Send us the brief: dates, location and usage, and we come back with a shortlist.`, alternates: { canonical: sitePath(site, '/contact') } }
 }
 
 type Row = { label: string; text: string; href?: string; external?: boolean }
@@ -77,8 +78,9 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
     : [1, 3, 5, 7, 2, 9, 4, 6].map((n) => ({ src: `/placeholders/look-${String(n).padStart(2, '0')}.svg`, alt: '' }))
 
   const left: Row[] = [
-    { label: 'Bookings', text: email, href: `mailto:${email}` },
-    { label: 'New faces', text: email, href: `mailto:${email}?subject=New%20faces` },
+    // Bookings: an email with the brief laid out, so the client only fills it in.
+    { label: 'Bookings', text: email, href: enquiryMailto(email, { brand }) },
+    { label: 'New faces', text: 'Apply online →', href: sitePath(site, '/apply') },
     { label: 'Phone', text: phone, href: `tel:${phone.replace(/\s/g, '')}` },
   ]
   const right: Row[] = [

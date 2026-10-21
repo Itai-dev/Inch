@@ -65,6 +65,7 @@ export function ModelSheet({
   initial,
   base,
   compCard,
+  enquiry,
   closeHref,
 }: {
   /** For the selection; null for placeholder models. */
@@ -80,6 +81,8 @@ export function ModelSheet({
   /** Public path of the model page; books live at `${base}/${segment}`. */
   base: string
   compCard: string | null
+  /** A booking enquiry for this model, as an email. */
+  enquiry?: string | null
   closeHref: string
 }) {
   const router = useRouter()
@@ -306,7 +309,7 @@ export function ModelSheet({
     </nav>
   )
   const bookActions = (stacked = false) => (
-    <div className={`flex ${stacked ? 'flex-col items-end gap-2' : 'gap-5 md:justify-end md:gap-[26px]'}`}>
+    <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
       {book && N > 0 && (
         <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
           {view === 'book' ? 'Thumbnails' : 'Book'}
@@ -321,6 +324,11 @@ export function ModelSheet({
         <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
           {selected ? 'Selected' : '+ Selection'}
         </button>
+      )}
+      {enquiry && (
+        <a href={enquiry} className="intro-write uppercase underline decoration-2 underline-offset-[5px] hover:opacity-60" style={write('Book her →')}>
+          {division === 'men' ? 'Book him →' : 'Book her →'}
+        </a>
       )}
     </div>
   )

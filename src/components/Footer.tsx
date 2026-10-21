@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { DEMO_CONTACT, HOURS, instagramHandle } from '@/lib/copy'
+import { enquiryMailto } from '@/lib/enquiry'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { CATEGORIES_BY_DIVISION_QUERY, SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
@@ -39,7 +40,7 @@ export async function Footer({ site }: { site: Site }) {
       items: [
         { text: `${s.brand} ${s.label}`, href: sitePath(site) },
         { text: `${SITES[other].brand} ${SITES[other].label}`, href: sitePath(other) },
-        { text: 'Become a model', href: sitePath(site, '/apply') },
+        { text: 'Apply', href: sitePath(site, '/apply') },
         { text: 'Contact', href: sitePath(site, '/contact') },
       ],
     },
@@ -58,6 +59,9 @@ export async function Footer({ site }: { site: Site }) {
   ]
   // When each piece starts typing (ms after the footer comes into view).
   const emailAt = 160
+  const enquiry = enquiryMailto(email, { brand: s.brand })
+  const BRIEF = 'Send us the brief: dates, location and usage. We come back with a shortlist from the board.'
+  const ctaAt = typeEnd(BRIEF, typeEnd(email, emailAt, 24), 10) + 100
   const colAt = (c: number) => 300 + c * 160
   const cut = (at: number) => ({ '--at': `${at}ms` }) as React.CSSProperties
 
@@ -66,13 +70,21 @@ export async function Footer({ site }: { site: Site }) {
       <TypeOnView className="px-gutter">
         <div className="grid gap-y-14 md:grid-cols-12 md:gap-x-6">
           <div className="flex flex-col gap-4 md:col-span-5">
-            <p className="label text-[#8a8a8a]"><TypeText text="Bookings & new faces" /></p>
-            <a href={`mailto:${email}`} className="wordmark w-fit text-[clamp(30px,3.6vw,64px)] leading-none hover:opacity-60">
+            <p className="label text-[#8a8a8a]"><TypeText text="Bookings" /></p>
+            <a href={enquiry} className="wordmark w-fit text-[clamp(30px,3.6vw,64px)] leading-none hover:opacity-60">
               <TypeText text={email} at={emailAt} ms={24} />
             </a>
-            <Link href={sitePath(site, '/apply')} className="type-char mt-4 flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(typeEnd(email, emailAt, 24) + 100) }}>
-              Get scouted →
-            </Link>
+            <p className="max-w-[440px] text-[15px] leading-snug text-[#8a8a8a]">
+              <TypeText text={BRIEF} at={typeEnd(email, emailAt, 24)} ms={10} />
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a href={enquiry} className="type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
+                Book talent →
+              </a>
+              <Link href={sitePath(site, '/apply')} className="type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase tracking-[0.04em] hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt + 120) }}>
+                Become a model →
+              </Link>
+            </div>
           </div>
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4 md:col-span-7">
             {columns.map((c, ci) => (

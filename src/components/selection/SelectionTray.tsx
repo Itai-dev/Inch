@@ -3,11 +3,12 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { isPlaceholder } from '@/lib/placeholders'
+import { enquiryMailto } from '@/lib/enquiry'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
-export function SelectionTray({ site }: { site: Site }) {
+export function SelectionTray({ site, email }: { site: Site; email: string }) {
   const { items, remove, clear, open, setOpen } = useSelection()
   // The selection as comp cards: one PDF, a page a model, each linking to her page on the site.
   const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}`
@@ -16,6 +17,8 @@ export function SelectionTray({ site }: { site: Site }) {
   const [state, setState] = useState<'idle' | 'making' | 'link' | 'copied' | 'error'>('idle')
   // The link to the PDF itself, for when the device can't share the file.
   const pdfLink = typeof location === 'undefined' ? compCards : location.origin + compCards
+  // The shortlist, straight to the agency as a booking enquiry (the comp cards linked in it).
+  const request = enquiryMailto(email, { brand: SITES[site].brand, models: items.map((t) => t.name), link: real ? `Comp cards: ${pdfLink}` : undefined })
 
   /**
    * Shares the comp cards: the PDF itself through the device's share sheet where it can take a
@@ -63,7 +66,7 @@ export function SelectionTray({ site }: { site: Site }) {
         </div>
 
         {items.length === 0 ? (
-          <p className="text-muted">Add talents with the + button to build a selection.</p>
+          <p className="text-muted">Add models with the + button to build your shortlist, then send it to us as one request, or share it as comp cards.</p>
         ) : (
           // The first model large, the pictures getting smaller as more are added.
           <ul className={`grid gap-3 ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length <= 6 ? 'grid-cols-3' : 'grid-cols-4'}`}>
@@ -85,9 +88,12 @@ export function SelectionTray({ site }: { site: Site }) {
 
         {items.length > 0 && (
           <div className="mt-auto flex flex-col gap-3 border-t border-line pt-6">
+            <a href={request} className="flex h-12 items-center justify-center bg-fg text-[14px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85" style={{ fontStretch: '80%' }}>
+              {items.length > 1 ? `Request these ${items.length} models →` : 'Request this model →'}
+            </a>
             {real > 0 ? (
               <>
-                <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center text-[14px] font-bold uppercase tracking-[0.04em] bg-fg text-bg hover:opacity-85 disabled:opacity-50" style={{ fontStretch: '80%' }}>
+                <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center border border-fg text-[14px] font-bold uppercase tracking-[0.04em] hover:bg-fg hover:text-bg disabled:opacity-50" style={{ fontStretch: '80%' }}>
                   {state === 'making' ? 'Making the PDF…' : real > 1 ? `Share comp cards (${real})` : 'Share comp card'}
                 </button>
                 {(state === 'link' || state === 'copied') && (

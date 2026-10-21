@@ -332,7 +332,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={500} ms={45} />
         </h1>
         <p className="text-[17px] leading-snug">
-          <TypeText text="We’ve received your application. Our scouts look at every one, and we’ll get back to you by email or phone." at={1100} ms={10} />
+          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={1100} ms={10} />
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}

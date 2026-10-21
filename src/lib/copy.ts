@@ -1,6 +1,6 @@
 /** Fallback copy until it's entered in the Studio. */
 export const DEFAULT_STATEMENT =
-  'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image. The perfect fit for your brand.'
+  'Inch is a boutique model agency: a small board of distinctive women, chosen with a precise eye and managed by hand. The right face for your brand, to the inch.'
 
 /** Contact details shown until the real ones are in the Studio (Site settings). TODO: demo values. */
 export const DEMO_CONTACT = {
@@ -17,13 +17,13 @@ export const instagramHandle = (url: string) => url.replace(/^https?:\/\/(www\.)
 export const DEFAULT_STORY = [
   {
     heading: 'The measure',
-    text: 'An inch is the smallest measure that still changes a fit. INCH” is built around that idea: a small board, chosen closely, and the time to get every detail right.',
+    text: 'An inch is the smallest measure that still changes a fit. INCH” works to it: a small board, chosen closely, and an agent who knows every model, and your brief, in detail.',
   },
   {
     heading: 'The standard',
-    text: 'INCH” represents a select board of women and men for the houses, magazines and brands that set the pace in fashion. Every career is managed by hand, from the first test to the campaign, with the discretion and attention that work at this level asks for.',
+    text: 'For the houses, magazines and brands that set the pace. Fewer faces than a large agency, so every booking gets our full attention, from the first casting to the campaign, with the discretion work at this level asks for.',
   },
 ]
 
 // TODO: final DOT. line from INCH” — placeholder.
-export const DEFAULT_DOT_STATEMENT = 'The men’s board of INCH” — sharp, considered, exact'
+export const DEFAULT_DOT_STATEMENT = 'The men’s board of INCH” — few faces, each one exact'

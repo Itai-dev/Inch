@@ -7,7 +7,11 @@ import { RouteMemory } from '@/components/RouteMemory'
 import { SelectionProvider } from '@/components/selection/SelectionProvider'
 import { SelectionTray } from '@/components/selection/SelectionTray'
 import { SiteSwitch } from '@/components/SiteSwitch'
-import { isSite, SITE_KEYS, SITES } from '@/lib/sites'
+import { DEMO_CONTACT } from '@/lib/copy'
+import { isSite, singletonId, SITE_KEYS, SITES } from '@/lib/sites'
+import { sanityFetch } from '@/sanity/lib/client'
+import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
+import type { SiteSettings } from '@/sanity/lib/types'
 import { siteUrl } from '@/sanity/env'
 import '@fontsource-variable/archivo/wdth.css'
 import '../globals.css'
@@ -30,6 +34,7 @@ export async function generateMetadata({ params }: LayoutProps<'/[site]'>): Prom
 export default async function SiteLayout({ children, params }: LayoutProps<'/[site]'>) {
   const { site } = await params
   if (!isSite(site)) notFound()
+  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
 
   return (
     <html lang="en" data-theme={site === 'dot' ? 'dot' : undefined}>
@@ -39,7 +44,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<'/[si
           <main className="min-h-dvh">{children}</main>
           <Footer site={site} />
           <SiteSwitch site={site} />
-          <SelectionTray site={site} />
+          <SelectionTray site={site} email={settings?.email || DEMO_CONTACT.email} />
           <RouteMemory />
         </SelectionProvider>
         <Cursor />

@@ -17,14 +17,14 @@ export const SITES: Record<
     label: 'Women',
     base: '',
     description:
-      'Inch is a boutique modeling agency representing distinctive talent, curated with a precise eye for fashion and image.',
+      'INCH” is a boutique model agency: a small board of distinctive women, chosen with a precise eye and managed by hand. Browse the board, build a shortlist and book direct.',
   },
   dot: {
     division: 'men',
     brand: 'DOT.',
     label: 'Men',
     base: '/dot',
-    description: 'DOT. — the men’s board of INCH” Model Management.',
+    description: 'DOT. is the men’s board of INCH” Model Management: few faces, each one exact. Browse the board, build a shortlist and book direct.',
   },
 }
 
