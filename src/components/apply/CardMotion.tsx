@@ -435,18 +435,22 @@ export function CardOpening({
     const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
     const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
 
-    // It is there in the middle of the screen, its back up (the headline), growing a touch while it
-    // is read; then in one move it turns over about its upright axis as it goes to its place
-    // (beside the form, or into its strip on phones). The page writes itself in on the way.
+    // It comes up in the middle of the screen, its back up (the headline): growing from smaller and
+    // tipping up from a slight lean back until it faces you; then it grows a touch more while it is
+    // read; then in one move it turns over about its upright axis as it goes to its place (beside the
+    // form, or into its strip on phones). The page writes itself in on the way.
     const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
-    const HOLD = 1250
+    const ENTER = 1000
+    const HOLD = ENTER + 1250
     const T = HOLD + 1100
     const WRITE = HOLD + 350
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
+    const arrive = 'cubic-bezier(0.22, 0.6, 0.3, 1)'
     const card = el.animate(
       [
-        { transform: place(fit), clipPath: free, offset: 0, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
+        { transform: place(fit * 0.8), clipPath: free, offset: 0, easing: arrive },
+        { transform: place(fit), clipPath: free, offset: o(ENTER), easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
         { transform: place(fit * 1.06), clipPath: free, offset: o(HOLD), easing: glide },
         { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
       ],
@@ -454,9 +458,10 @@ export function CardOpening({
     )
     const turn = fl.animate(
       [
-        { transform: 'perspective(1800px) rotateY(180deg)', offset: 0 },
-        { transform: 'perspective(1800px) rotateY(180deg)', offset: o(HOLD), easing: glide },
-        { transform: 'perspective(1800px) rotateY(0deg)', offset: 1 },
+        { transform: 'perspective(1800px) rotateX(-14deg) rotateY(180deg)', offset: 0, easing: arrive },
+        { transform: 'perspective(1800px) rotateX(0deg) rotateY(180deg)', offset: o(ENTER) },
+        { transform: 'perspective(1800px) rotateX(0deg) rotateY(180deg)', offset: o(HOLD), easing: glide },
+        { transform: 'perspective(1800px) rotateX(0deg) rotateY(0deg)', offset: 1 },
       ],
       opts,
     )
