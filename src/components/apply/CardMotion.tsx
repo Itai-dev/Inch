@@ -212,12 +212,13 @@ function Headline({ division }: { division: Division }) {
       <span className="mt-[3%] text-[#0a0a0a]" style={{ fontSize: 'min(9cqw, 8cqh)' }}>
         <Logo division={division} />
       </span>
-      <p className="my-auto flex flex-col items-center" style={press}>
+      {/* Raised a little: the fine "Official" weighs less than the line under it, so the block sits optically centred. */}
+      <p className="my-auto flex flex-col items-center" style={{ ...press, transform: 'translateY(-3.5cqh)' }}>
         {/* "Official" signed across it in a fine hand, then what it is. */}
-        <span className="relative z-[1] -mb-[0.1em] -rotate-[4deg] text-[#0a0a0a]" style={{ fontFamily: '"Mrs Saint Delafield", cursive', fontSize: 'min(11.5cqw, 15cqh)', lineHeight: 1 }}>
+        <span className="relative z-[1] -mb-[0.1em] -rotate-[4deg] text-[#0a0a0a]" style={{ fontFamily: '"Mrs Saint Delafield", cursive', fontSize: 'min(12.65cqw, 16.5cqh)', lineHeight: 1 }}>
           Official
         </span>
-        <span className="wordmark whitespace-nowrap uppercase leading-[0.92]" style={{ fontSize: 'min(7.2cqw, 10.5cqh)' }}>
+        <span className="wordmark whitespace-nowrap uppercase leading-[0.92]" style={{ fontSize: 'min(7.9cqw, 11.55cqh)' }}>
           Model Application
         </span>
       </p>
