@@ -27,7 +27,8 @@ export function StepRuler({
   return (
     <nav aria-label="Application steps" className="w-full select-none">
       <div className="relative">
-        <ol className="grid items-end" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+        {/* Room for the last inch's closing tick, which lies 1px past its column (SEG_OVERLAP). */}
+        <ol className="grid items-end" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, paddingRight: SEG_OVERLAP }}>
           {steps.map((name, i) => {
             // As on the hero ruler: the current step at full strength, the others faded.
             const tone = i === current ? 'opacity-100' : i <= reached ? 'opacity-40 enabled:hover:opacity-100' : 'opacity-25'

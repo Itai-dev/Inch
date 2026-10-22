@@ -305,6 +305,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     }, 2000)
     return () => clearTimeout(id)
   }, [stage])
+  // Also whenever the stage changes: the logo is taken down once the video has scrolled away and
+  // put back when it comes up again (a jump to the top, say), and the new element has to be placed
+  // at once, not on the next scroll event (else it stands there at the header's size, unplaced).
   useLayoutEffect(() => {
     if (!showLogo) return
     const el = logoRef.current
@@ -319,7 +322,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       ],
       { duration: LOGO_IN_MS, easing: LOGO_EASE },
     )
-  }, [showLogo, skip])
+  }, [showLogo, skip, stage])
 
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
@@ -468,7 +471,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
           return v.kind === 'image' ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={v.src}
+              key={`${i}-${v.src}`}
               ref={ref}
               src={v.src}
               alt=""
@@ -480,7 +483,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
             />
           ) : (
             <video
-              key={v.src}
+              key={`${i}-${v.src}`}
               ref={ref}
               src={v.src}
               poster={v.poster}

@@ -43,10 +43,21 @@ const MIN_FILL_MS = 8000
 
 const key = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
+// Four photos go up to the Studio and out by email: give it a minute (Vercel's default can be 10 s).
+export const maxDuration = 60
+
 export async function POST(req: Request) {
-  const form = await req.formData()
+  const form = await req.formData().catch((e) => {
+    console.error('[apply] Could not read the form', e)
+    return null
+  })
+  if (!form) return NextResponse.json({ error: 'Could not read the application' }, { status: 400 })
   const parsed = Body.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === 'string')))
-  if (!parsed.success) return NextResponse.json({ error: 'Invalid application' }, { status: 400 })
+  if (!parsed.success) {
+    // Which fields, in the deployment's logs.
+    console.error('[apply] Invalid application', parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '))
+    return NextResponse.json({ error: 'Invalid application' }, { status: 400 })
+  }
   const d = parsed.data
 
   // Bots fill the hidden field or post instantly: answer as if it worked, keep nothing.
@@ -63,7 +74,8 @@ export async function POST(req: Request) {
   const files = form.getAll('digitals').filter((f): f is File => f instanceof File).slice(0, MAX_FILES)
   const total = files.reduce((n, f) => n + f.size, 0)
   if (files.length < MIN_FILES || total > MAX_TOTAL || files.some((f) => f.size > MAX_BYTES || !f.type.startsWith('image/'))) {
-    return NextResponse.json({ error: 'Invalid photos' }, { status: 400 })
+    console.error('[apply] Invalid photos', files.map((f) => `${f.name} ${f.type} ${f.size}B`).join(', '))
+    return NextResponse.json({ error: files.length < MIN_FILES ? 'Four photos are needed' : 'The photos are too large' }, { status: 400 })
   }
 
   const name = `${d.firstName} ${d.lastName}`
@@ -148,7 +160,7 @@ export async function POST(req: Request) {
   // No email set up yet (no RESEND_API_KEY) and the Studio didn't take it: the site isn't live, so
   // finish the flow and say plainly that it wasn't delivered, rather than an error nobody can act on.
   if (!saved && !process.env.RESEND_API_KEY) return NextResponse.json({ ok: true, unsent: true })
-  if (!saved && !emailed) return NextResponse.json({ error: 'Could not send' }, { status: 503 })
+  if (!saved && !emailed) return NextResponse.json({ error: 'Could not deliver the application' }, { status: 503 })
   return NextResponse.json({ ok: true })
 }
 

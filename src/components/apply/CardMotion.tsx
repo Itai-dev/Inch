@@ -18,10 +18,11 @@ import type { Division } from '@/sanity/lib/types'
 const EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
 const EASE_OUT = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
 const EASE_IN = 'cubic-bezier(0.55, 0, 0.9, 0.5)'
-/** Where the card goes or comes from: the card itself beside the form (`card`), or the strip it folds into on phones. */
-export type Place = { el: HTMLElement; card: boolean } | null
-/** The card's width over the page: the real card's or the strip's, else a phone's comfortable width. */
-const cardWidth = (r: DOMRect | null) => (r ? r.width : Math.min(innerWidth * 0.86, 380))
+/** Where the card goes or comes from: the card itself beside the form (`card`), or the strip it folds into on phones.
+ * Beside the form the card is zoomed to fit the screen's height (`zoom`): the copies are drawn at its unzoomed width and scaled to match. */
+export type Place = { el: HTMLElement; card: boolean; zoom?: number } | null
+/** The card's width over the page: the real card's (before its zoom) or the strip's, else a phone's comfortable width. */
+const cardWidth = (r: DOMRect | null, zoom = 1) => (r ? r.width / zoom : Math.min(innerWidth * 0.86, 380))
 
 /** The envelope round a card of w × h: a little wider and taller; its flap reaches just past the middle. */
 const envSize = (w: number, h: number) => {
@@ -142,10 +143,11 @@ export function CardOpening({
     const t = target()
     const r = t?.el.getBoundingClientRect() ?? null
     const toCard = !t || t.card
+    const zoom = t?.zoom ?? 1
     // Beside the form the card turns to the comp card; on phones to the strip.
     if (desk.current) desk.current.style.display = toCard ? '' : 'none'
     if (phone.current) phone.current.style.display = toCard ? 'none' : ''
-    const w = cardWidth(r)
+    const w = cardWidth(r, zoom)
     el.style.width = `${w}px`
     const h = el.offsetHeight
     // Whole on screen in the middle, with room round it for the turn: sized to what is actually
@@ -168,7 +170,7 @@ export function CardOpening({
         { transform: place(fit * 0.55), clipPath: 'inset(0 0 0 0)', offset: 0, easing: EASE_OUT },
         { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(750) },
         { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1650), easing: EASE },
-        { transform: at(tx, ty), clipPath: clipTo, offset: 1 },
+        { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
       ],
       opts,
     )
@@ -226,7 +228,8 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const f = from()
     const r = f?.el.getBoundingClientRect() ?? null
     const desk = !!f?.card
-    const w = cardWidth(desk ? r : null)
+    const zoom = f?.zoom ?? 1
+    const w = cardWidth(desk ? r : null, zoom)
     el.style.width = `${w}px`
     const h = el.offsetHeight
     const { pad, ew, eh, fh } = envSize(w, h)
@@ -252,7 +255,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const below = eh * sc + 80
     const card = el.animate(
       [
-        { transform: at(fx, fy), offset: 0, easing: EASE },
+        { transform: at(fx, fy, desk ? zoom : 1), offset: 0, easing: EASE },
         { transform: at(cx, inY - rise, sc), offset: o(900) },
         { transform: at(cx, inY - rise, sc), offset: o(1300), easing: EASE },
         { transform: at(cx, inY, sc), offset: o(2100) },

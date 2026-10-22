@@ -8,7 +8,7 @@
  */
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Logo } from '@/components/brand/Logo'
 import { TypeText } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -88,6 +88,11 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
 
 type Unit = 'in' | 'cm'
 
+/** The page's padding under the form and the card (pb-12), kept clear when the card is fitted to the screen. */
+const BODY_PB = 48
+/** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
+const PHOTOS_BUDGET = 3.6 * 1024 * 1024
+
 /** Sizes: T-shirt as letters; pants and shoes in EU sizes on tapes, each resting on a typical size before it's touched. */
 const TSHIRT = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL']
 const PANTS: TapeScale = { min: 30, max: 60, px: 16, snap: 2, every: 4 }
@@ -143,11 +148,35 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const stripRef = useRef<HTMLDetailsElement>(null)
   /** The card beside the form when it shows (desktop), else the strip it folds into. */
   const cardPlace = (): Place => {
-    // The card itself, inside the aside's room for its tilt.
-    const a = asideRef.current?.firstElementChild as HTMLElement | null | undefined
-    if (a && a.offsetParent) return { el: a, card: true }
+    // The card itself, inside the aside's room for its tilt (zoomed with the aside to fit the screen).
+    const aside = asideRef.current
+    const a = aside?.firstElementChild as HTMLElement | null | undefined
+    if (aside && a && a.offsetParent) return { el: a, card: true, zoom: parseFloat(getComputedStyle(aside).zoom) || 1 }
     return stripRef.current ? { el: stripRef.current, card: false } : null
   }
+  // Beside the form, the card is zoomed down (never up) so that it is always whole on the screen,
+  // under the top bar and the ruler, however short the window: no scrolling to see all of it.
+  const gridRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current
+    const aside = asideRef.current
+    const grid = gridRef.current
+    if (!sheet || !aside || !grid) return
+    const fit = () => {
+      if (!aside.offsetParent) return
+      aside.style.zoom = '1'
+      const top = grid.getBoundingClientRect().top - sheet.getBoundingClientRect().top + sheet.scrollTop
+      const gridPad = parseFloat(getComputedStyle(grid).paddingTop) + parseFloat(getComputedStyle(grid).paddingBottom)
+      const room = sheet.clientHeight - top - gridPad - BODY_PB
+      const h = aside.getBoundingClientRect().height
+      aside.style.zoom = String(Math.max(0.4, Math.min(1, room / h)))
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(sheet)
+    ro.observe(aside.firstElementChild as Element)
+    return () => ro.disconnect()
+  }, [step])
   useEffect(() => {
     startedAt.current = Date.now()
   }, [])
@@ -238,17 +267,27 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     Object.entries(d).forEach(([k, v]) => fd.append(k, v === null ? '' : String(v)))
     fd.append('division', division)
     fd.append('startedAt', String(startedAt.current))
-    SLOTS.forEach((s) => {
-      const p = photos[s.pose]
-      if (p) fd.append('digitals', p.blob, `${s.pose}.jpg`)
-    })
+    // The photos, shrunk again if together they would still be too much for one request.
+    let blobs = SLOTS.map((s) => photos[s.pose]?.blob).filter((b): b is Blob => !!b)
+    for (const pass of [{ maxSide: 1400, quality: 0.75 }, { maxSide: 1200, quality: 0.68 }]) {
+      if (blobs.reduce((n, b) => n + b.size, 0) <= PHOTOS_BUDGET) break
+      blobs = await Promise.all(blobs.map((b) => shrinkPhoto(b, pass).catch(() => b)))
+    }
+    SLOTS.forEach((s, i) => photos[s.pose] && fd.append('digitals', blobs[i], `${s.pose}.jpg`))
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
     setSending(false)
-    if (res?.ok) setUnsent(!!(await res.clone().json().catch(() => ({})))?.unsent)
+    if (!res?.ok) {
+      // Say what the site answered, so a failure can be followed up (the API's own reason, or the status).
+      const why = res ? ((await res.json().catch(() => null))?.error ?? `error ${res.status}`) : 'no connection'
+      setError(`Something went wrong (${why}). Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
+      return
+    }
+    setUnsent(!!(await res.json().catch(() => ({})))?.unsent)
     // Sent: the card goes through the slot (CardPost), then the thanks.
-    if (res?.ok) setPhase(reduced ? 'ready' : 'posting')
-    if (res?.ok && reduced) go('done')
-    else setError(`Something went wrong. Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
+    if (reduced) {
+      setPhase('ready')
+      go('done')
+    } else setPhase('posting')
   }
 
   // What the measurements step still needs.
@@ -386,8 +425,9 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
       </details>
 
-      {/* The form and the card, centred in the space under the ruler. */}
-      <div className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,600px)_minmax(0,720px)] lg:content-center lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-10">
+      {/* The form and the card, centred in the space under the ruler: the card the larger of the two,
+          at its own width (zoomed down to fit the screen's height, see above). */}
+      <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,520px)_auto] lg:content-center lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-6">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form className="relative grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
@@ -610,7 +650,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </div>
 
         {/* Room round the card for its tilt and shadow, so neither is cut off. */}
-        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start p-[clamp(20px,2.8vw,48px)] lg:block">{card()}</aside>
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden w-[720px] self-start p-9 lg:block">{card()}</aside>
       </div>
     </div>
   )

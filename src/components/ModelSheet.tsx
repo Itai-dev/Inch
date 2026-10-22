@@ -13,12 +13,13 @@
  * link without a page load). Close steps back to the page you came from, or the board.
  */
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
 import { Logo } from './brand/Logo'
 import { Ruler } from './motion/Ruler'
+import { TypeText } from './motion/TypeText'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
 import { useSelection } from './selection/SelectionProvider'
@@ -39,6 +40,9 @@ const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
 const WRITE_MS_PER_CHAR = 28
 const INTRO_MS = 1600 // by then every opening animation is done
+const THUMB_GAP = 6
+/** The name's capitals as tall as the logo: Archivo's cap height is 0.69em, the logo is drawn 0.72em tall. */
+const NAME_PER_LOGO = 0.72 / 0.69
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 const mod = (a: number, n: number) => ((a % n) + n) % n
@@ -222,40 +226,27 @@ export function ModelSheet({
   const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
   const statsCm = measurements ? measurementRows(measurements, division, 'cm') : []
   const stats = unit === 'in' ? statsIn : statsCm
-  // The bio in parts, a sentence each (an inch on the ruler a sentence).
-  const bioParts = useMemo(
-    () =>
-      (bio ?? '')
-        .split(/\n\s*\n/)
-        .flatMap((para) => para.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g) ?? [])
-        .map((x) => x.trim())
-        .filter(Boolean),
-    [bio],
-  )
-  const bioRef = useRef<HTMLElement>(null)
-  const [bioAt, setBioAt] = useState(0)
-  // The part nearest the middle of the view is the current one.
-  const onBioScroll = () => {
-    const el = bioRef.current
-    if (!el) return
-    const mid = el.getBoundingClientRect().top + el.clientHeight / 2
-    let best = 0
-    let d = Infinity
-    el.querySelectorAll<HTMLElement>('[data-part]').forEach((p, i) => {
-      const r = p.getBoundingClientRect()
-      const x = Math.abs(r.top + r.height / 2 - mid)
-      if (x < d) [d, best] = [x, i]
-    })
-    if (best !== bioAt) setBioAt(best)
-  }
-  const toBioPart = (i: number) => {
-    const part = bioRef.current?.querySelectorAll<HTMLElement>('[data-part]')[i]
-    part?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
-  }
 
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
+
+  // Thumbnails: as large as they can be and still all on screen (the columns chosen for the largest
+  // cells), centred in the stage; phones get three across and scroll.
+  const thumbPad = wide ? SIDE_W + 16 : 20
+  const thumbW = Math.max(0, stage.w - thumbPad * 2)
+  const thumbH = Math.max(0, stage.h - 32)
+  let thumbCols = 3
+  let thumbSize = (thumbW - THUMB_GAP * 2) / 3
+  if (per === 2) {
+    thumbSize = 0
+    for (let c = 2; c <= 6; c++) {
+      const rows = Math.ceil(N / c)
+      const s = Math.min((thumbW - THUMB_GAP * (c - 1)) / c, ((thumbH - THUMB_GAP * (rows - 1)) / rows) * 0.75)
+      if (s > thumbSize) [thumbSize, thumbCols] = [s, c]
+    }
+  }
+  thumbSize = Math.max(100, Math.floor(thumbSize))
 
   // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
   // other line writes itself in letter by letter, and the spread slides into its frame as one.
@@ -363,8 +354,8 @@ export function ModelSheet({
         // Top rail, wide: the logo on the left, the name in the middle, close on the right; the same
         // gap above the name as between it and the pictures.
         <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter py-[clamp(18px,1.9vw,34px)]">
-          <Logo division={division} className="justify-self-start text-[clamp(48px,3.65vw,70px)]" />
-          <h1 aria-label={name} className="wordmark whitespace-nowrap text-[clamp(48px,4.6vw,80px)] uppercase">
+          <Logo division={division} className="justify-self-start text-[clamp(46px,4.86vw,70px)]" />
+          <h1 aria-label={name} className="wordmark whitespace-nowrap uppercase" style={{ fontSize: `clamp(${46 * NAME_PER_LOGO}px, ${4.86 * NAME_PER_LOGO}vw, ${70 * NAME_PER_LOGO}px)` }}>
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
           <div className="flex justify-end">
@@ -380,7 +371,7 @@ export function ModelSheet({
         <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <Logo division={division} className="justify-self-start text-[32px] md:text-[48px]" />
-            <h1 aria-label={name} className="wordmark text-center text-[clamp(24px,6.4vw,44px)] uppercase">
+            <h1 aria-label={name} className="wordmark text-center text-[calc(32px*var(--name-per-logo))] uppercase md:text-[calc(48px*var(--name-per-logo))]" style={{ '--name-per-logo': NAME_PER_LOGO } as React.CSSProperties}>
               <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
             </h1>
             <button type="button" onClick={close} aria-label="Close" className="-m-2 justify-self-end p-2 hover:opacity-60">
@@ -474,37 +465,30 @@ export function ModelSheet({
         </section>
       )}
 
+      {/* Thumbnails: the whole book at once, as large as fits, in the middle of the stage. */}
       {view === 'thumbnails' && book && (
-        <ul style={at(INTRO_AT)} className="intro-crop grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
-          {slides.map((s, i) => (
-            <li key={i}>
-              <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
-                <span className="block aspect-[3/4] overflow-hidden bg-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${book.title}, thumbnails`}>
+          <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: THUMB_GAP }} className="intro-crop m-auto grid shrink-0 py-4">
+            {slides.map((s, i) => (
+              <li key={i}>
+                <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
+                  <span className="block aspect-[3/4] overflow-hidden bg-line">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {/* The bio scrolls a part at a time, on the same ruler as the book: the part in the middle is
-          at full strength and lights its inch; a click on the ruler scrolls to that part. */}
+      {/* The bio: one paragraph in the middle of the screen, writing itself in as it opens. */}
       {segment === 'bio' && bio && (
-        <section ref={bioRef} onScroll={onBioScroll} style={at(INTRO_AT)} className="intro-fade min-h-0 flex-1 overflow-y-auto px-gutter [scrollbar-width:none]">
-          <div className="mx-auto flex max-w-[38ch] flex-col gap-[clamp(28px,4vh,48px)] py-[30vh]">
-            {bioParts.map((part, i) => (
-              <p
-                key={i}
-                data-part
-                className="whitespace-pre-line text-[clamp(20px,1.9vw,30px)] leading-[1.35] tracking-[-0.01em] transition-opacity duration-500"
-                style={{ opacity: i === bioAt ? 1 : 0.22 }}
-              >
-                {part}
-              </p>
-            ))}
-          </div>
+        <section style={at(INTRO_AT)} className="intro-fade flex min-h-0 flex-1 flex-col overflow-y-auto px-gutter lg:px-[calc(var(--gutter)+230px)]">
+          <p className="m-auto max-w-[44ch] whitespace-pre-line py-8 text-center text-[clamp(19px,1.7vw,27px)] leading-[1.4] tracking-[-0.01em]">
+            <TypeText text={bio} at={150} ms={9} />
+          </p>
         </section>
       )}
 
@@ -525,24 +509,6 @@ export function ModelSheet({
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
         {!underSpread && !wide && actionsRow('px-gutter')}
-
-        {segment === 'bio' && bioParts.length > 1 && (
-          <div className="intro-fade" style={at(INTRO_AT + 200)}>
-            <Ruler
-              count={bioParts.length}
-              pos={bioAt}
-              active={[bioAt]}
-              onSelect={(k) => toBioPart(mod(k, bioParts.length))}
-              reduced={reduced}
-              segW={small ? 40 : 48}
-              fontPx={small ? 13 : 14}
-              tickH={small ? 16 : 18}
-              minors={9}
-              duration={SLIDE_MS}
-              easing={EASE}
-            />
-          </div>
-        )}
 
         {showBook && S > 1 && (
           <>

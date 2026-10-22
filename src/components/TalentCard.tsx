@@ -86,7 +86,8 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
               <span aria-hidden className="ruler-seg relative self-stretch" style={{ ...rulerTicksDown(26, 9), marginBottom: `-${SEG_OVERLAP}` }}>
                 <span className="absolute left-[34px] top-1/2 -translate-y-1/2 text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
               </span>
-              <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line md:my-4">
+              {/* The picture comes along with the name on hover, a little larger. */}
+              <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2 group-hover:scale-[1.06] md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
               </span>
               <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2">

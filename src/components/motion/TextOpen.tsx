@@ -12,17 +12,19 @@ import { QuoteStroke, STROKE_GAP_RATIO, STROKE_RATIO } from '@/components/brand/
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useScrollProgress } from '@/hooks/useScrollProgress'
 
-// Written by 62% of the zone's scroll (as before, about 0.87 screens), then held for about half a screen to be read.
-const ANIM_END = 0.62
-/** First the ” sits a little larger in the middle of the screen, then moves to its place at the
- * statement's start (MOVE_FROM to MOVE_END of the writing), then splits (to DROP_END). */
+// Moved, split and written by 78% of the zone's scroll, then held to be read.
+const ANIM_END = 0.78
+/** First the ” comes up from under the video, a little larger, to the middle of the screen. Then,
+ * with the scroll, it moves slowly to the left, shrinking to its size, to the statement's start
+ * (MOVE_FROM to MOVE_END of the writing: about half a screen of scrolling), then splits (to DROP_END).
+ * It stays at the middle of the screen's height the whole way: the statement starts there and
+ * runs down from it, the block rising as it is written until it sits centred. */
 const MARK_BIG = 2.2
-const MOVE_FROM = 0.04
-const MOVE_END = 0.16
-const DROP_END = 0.28
-const DROP_PX = 48
+const MOVE_FROM = 0.03
+const MOVE_END = 0.4
+const DROP_END = 0.48
 const EXIT_UP = 40
-const DRIFT_UP = 30 // the statement rises this much while it is written
+const AIR = 48 // kept clear above and below the written statement (its exit, and room to breathe)
 const WIDTH_PER_FONT = 12.5 // container width ÷ font size
 const MAX_FONT = 104
 const MIN_FONT = 26
@@ -41,8 +43,8 @@ const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-/** The zone's own length (vh) before any `holdVh`: written, then held, over its scroll of 140vh. */
-const ZONE_VH = 240
+/** The zone's own length (vh) before any `holdVh`: moved, written, then held, over its scroll of 170vh. */
+const ZONE_VH = 270
 
 /**
  * Pictures set into the statement (brand artboard 18): gaps held open in the text, a picture in
@@ -86,7 +88,7 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     // As large as the width allows, then smaller until the statement, centred and at its highest,
     // stays below the header: the height goes roughly with the square of the size (more lines too).
     const fit = (width: number) => {
-      const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + Math.max(DROP_PX, DRIFT_UP + EXIT_UP)))
+      const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + AIR))
       let f = Math.min(MAX_FONT, width / WIDTH_PER_FONT)
       const was = t.style.fontSize
       for (let i = 0; i < 4; i++) {
@@ -114,10 +116,8 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
 
   const animP = Math.min(1, progress / ANIM_END)
   const exitT = Math.max(0, (progress - ANIM_END) / (1 - ANIM_END))
-  const dropT = Math.min(animP / DROP_END, 1)
   const moveE = easeInOutCubic(clamp01((animP - MOVE_FROM) / (MOVE_END - MOVE_FROM)))
   const splitT = easeOutCubic(clamp01((animP - MOVE_END) / (DROP_END - MOVE_END)))
-  const translateY = (1 - easeOutCubic(dropT)) * -DROP_PX - animP * DRIFT_UP + exitT * -EXIT_UP
   const revealP = Math.max(0, (animP - DROP_END) / (1 - DROP_END))
   // The writing runs through the letters and the pictures alike: a picture takes picSteps letters'
   // worth of the scroll and opens left to right at the letters' pace, the stroke travelling across it.
@@ -149,17 +149,24 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     const right = rightRef.current
     const left = leftRef.current
     if (!wrap || !right || !left) return
+    // The block starts with its first line at the middle of the screen (where the ” arrives), and
+    // rises as the statement is written, until it sits centred; then it leaves upward.
+    const lift = wrap.offsetHeight / 2 - topNudge - markH / 2
+    wrap.style.transform = `translateY(${(reduced ? 0 : lift * (1 - clamp01(revealP))) - exitT * EXIT_UP}px)`
     const wr = wrap.getBoundingClientRect()
     const place = (x: number, y: number, visible: boolean, scale = 1) => {
       right.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
       right.style.opacity = visible ? '1' : '0'
     }
-    // Arriving: the whole ”, larger, in the middle of the screen, easing over to the statement's start.
+    // Arriving: the whole ”, larger, in the middle of the screen, moving left with the scroll to the
+    // statement's start and shrinking about its own centre on the way, at the same height throughout.
     if (moveE < 1 && !reduced) {
       const s = lerp(MARK_BIG, 1, moveE)
       const markFull = markW * 2 + strokeGap
-      const x = lerp(wrap.offsetWidth / 2 - (MARK_BIG * markFull) / 2, leftX, moveE)
-      const y = lerp(wrap.offsetHeight / 2 - (MARK_BIG * markH) / 2, topNudge, moveE)
+      const cx = lerp(wrap.offsetWidth / 2, leftX + markFull / 2, moveE)
+      const cy = topNudge + markH / 2
+      const x = cx - (s * markFull) / 2
+      const y = cy - (s * markH) / 2
       left.style.transform = `translate(${x}px, ${y}px) scale(${s})`
       place(x + (markW + strokeGap) * s, y, true, s)
       return
@@ -200,10 +207,11 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   })
 
   return (
-    // Without a hold, phones get a shorter zone (190vh), so the statement doesn't take a long thumb to get past.
-    <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[190vh] md:h-[240vh]'}`}>
+    // Without a hold, phones get a shorter zone (210vh), so the statement doesn't take a long thumb to get past.
+    <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[210vh] md:h-[270vh]'}`}>
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
-        <div ref={wrapRef} className="relative w-[min(90vw,1500px)]" style={{ transform: `translateY(${translateY}px)` }}>
+        {/* Placed from the layout effect below (its lift, then its exit). */}
+        <div ref={wrapRef} className="relative w-[min(90vw,1500px)]">
           <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">
             <QuoteStroke side="left" height={markH} />
           </div>
