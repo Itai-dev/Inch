@@ -12,6 +12,7 @@
  * Both draw copies over the page (fixed), so the page under them lays itself out undisturbed.
  */
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Logo } from '@/components/brand/Logo'
 import { DivisionMark } from '@/components/brand/Marks'
 import { bendLeaf, Leaf } from './Leaf'
 import { SITES, siteForDivision } from '@/lib/sites'
@@ -38,9 +39,27 @@ const POCKET = 'polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%)'
  * its inside, as seen when it stands open (tip up). */
 const FLAP = 'polygon(0 0, 100% 0, 100% 16%, 50% 100%, 0 16%)'
 const FLAP_INSIDE = 'polygon(0 100%, 100% 100%, 100% 84%, 50% 0, 0 84%)'
-/** The same flap in two parts, its upper part and its tip (the sealed envelopes standing in the drawer draw it so). */
-const FLAP_BASE = 'polygon(0 0, 100% 0, 100% 29.1%, 76.8% 100%, 23.2% 100%, 0 29.1%)'
-const FLAP_TIP = 'polygon(23.2% 0, 76.8% 0, 50% 100%)'
+/** The bottom flap, folded up from the bottom edge to a point just under where the top flap's tip lies. */
+const BOTTOM_FLAP = 'polygon(0 100%, 50% 47%, 100% 100%)'
+/** Thin paper: in the middle a little of what is inside shows through (most where the flaps meet). */
+const SHOW_THROUGH = {
+  maskImage: 'radial-gradient(ellipse 46% 40% at 50% 56%, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0.93) 55%, #000 100%)',
+  WebkitMaskImage: 'radial-gradient(ellipse 46% 40% at 50% 56%, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0.93) 55%, #000 100%)',
+} as const
+const FLAP_SHOW_THROUGH = {
+  maskImage: 'radial-gradient(ellipse 40% 55% at 50% 100%, rgb(0 0 0 / 0.82), rgb(0 0 0 / 0.94) 55%, #000 100%)',
+  WebkitMaskImage: 'radial-gradient(ellipse 40% 55% at 50% 100%, rgb(0 0 0 / 0.82), rgb(0 0 0 / 0.94) 55%, #000 100%)',
+} as const
+
+/** The house's name printed in black across the top of the flap, as a maison's envelope has it (sized to the flap). */
+function FlapPrint({ division }: { division: Division }) {
+  return (
+    <span className="absolute inset-x-0 top-[16%] flex justify-center text-[#0a0a0a]" style={{ fontSize: 'min(6.5cqw, 15cqh)' }}>
+      <Logo division={division} />
+    </span>
+  )
+}
+
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
 
@@ -78,16 +97,20 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
     <>
       {/* Inside, behind the card: the same stock, in shade. No shadow under it: nothing is behind it to fall on. */}
       <div ref={back} style={OFF} className="envelope-paper absolute left-0 top-0 z-[1] origin-top-left shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09)]" />
-      {/* In front of the card: the back of the envelope, its side and bottom folds meeting under the flap. */}
-      <div ref={pocket} style={OFF} className="absolute left-0 top-0 z-[3] origin-top-left [filter:drop-shadow(0_-1px_1px_rgb(0_0_0/0.12))]">
-        <div className="envelope-paper absolute inset-0" style={{ clipPath: POCKET }}>
-          {/* The side flaps in a little shade towards the folds, so they read as two sheets meeting. */}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgb(0 0 0 / 0.045), transparent 30%, transparent 70%, rgb(0 0 0 / 0.045))' }} />
-          <svg aria-hidden viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
-            {/* The folds: from the bottom corners up to where the side flaps meet. */}
-            <path d="M0 100 L46 62 M100 100 L54 62" stroke="rgb(0 0 0 / 0.1)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" fill="none" />
-            <path d="M0 100.6 L46 62.6 M100 100.6 L54 62.6" stroke="rgb(255 255 255 / 0.7)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" fill="none" />
-          </svg>
+      {/* In front of the card: the back of the envelope, its two side flaps and, over them, the bottom
+          flap folded up to a point under the top flap. The paper is thin: in the middle the card
+          inside shows through a little. */}
+      <div ref={pocket} style={{ ...OFF, ...SHOW_THROUGH }} className="absolute left-0 top-0 z-[3] origin-top-left">
+        <div className="absolute inset-0 [filter:drop-shadow(0_-1px_1px_rgb(0_0_0/0.12))]">
+          <div className="envelope-paper absolute inset-0" style={{ clipPath: POCKET }}>
+            {/* The side flaps in a little shade towards the folds, so they read as two sheets meeting. */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgb(0 0 0 / 0.045), transparent 30%, transparent 70%, rgb(0 0 0 / 0.045))' }} />
+          </div>
+        </div>
+        <div className="absolute inset-0 [filter:drop-shadow(0_-1px_1.5px_rgb(0_0_0/0.13))]">
+          <div className="envelope-paper absolute inset-0" style={{ clipPath: BOTTOM_FLAP }}>
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, transparent 40%, rgb(0 0 0 / 0.03))' }} />
+          </div>
         </div>
       </div>
       {/* The flap: closed over the top, the mark pressed into its tip; open, it stands up behind,
@@ -97,11 +120,12 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
           strips={14}
           shade={false}
           front={
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 [container-type:size]" style={FLAP_SHOW_THROUGH}>
               <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
                 {/* Shaded towards its point, so it reads as a sheet folded over. */}
                 <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
               </div>
+              <FlapPrint division={division} />
               <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
                 <DivisionMark division={division} size={26} />
               </span>
@@ -119,18 +143,14 @@ function ClosedEnvelope({ division }: { division: Division }) {
   return (
     <div data-closed className="absolute left-0 top-0 origin-top-left">
       <div className="envelope-paper absolute inset-0 shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09)]" />
-      <div data-closed-flap className="absolute inset-x-0 top-0">
-        <div className="absolute inset-x-0 top-0 h-[55%] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
-          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_BASE }} />
+      <div data-closed-flap className="absolute inset-x-0 top-0 [container-type:size] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
+        <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
+          <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
         </div>
-        <div className="absolute inset-x-0 top-[55%] h-[45%] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
-          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_TIP }}>
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
-          </div>
-          <span className="absolute bottom-[31%] left-1/2 -translate-x-1/2" style={blind}>
-            <DivisionMark division={division} size={26} />
-          </span>
-        </div>
+        <FlapPrint division={division} />
+        <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
+          <DivisionMark division={division} size={26} />
+        </span>
       </div>
     </div>
   )
