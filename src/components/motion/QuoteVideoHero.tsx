@@ -92,15 +92,41 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
 
 // Giant logo: big at the top of the page, shrinking into the header logo as you scroll.
-// Phones: as wide as the screen between the margins, just under the header's row (clear of MENU).
+// Phones: as wide as the screen between the margins, at the very top, with the menu under it; as it
+// shrinks, the menu comes back up beside it (see placeMenu).
 const isPhone = () => window.innerWidth < 768
-const logoTop = () => (isPhone() ? headerTop() + headerLogo() * 0.9 + 12 : window.innerHeight * 0.02)
+const logoTop = () => (isPhone() ? headerTop() : window.innerHeight * 0.02)
 const logoTransform = (big: number, e: number) =>
   `translateY(${lerp(logoTop(), headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
 /** The logo's width for each px of its font size (measured once per logo). */
 const logoAspect = new WeakMap<HTMLElement, number>()
+/** The header's menu (phones: MENU, and DOT.'s INCH” box). */
+const headerNav = () => document.querySelector<HTMLElement>('[data-site-header] nav')
+/** Phones: the menu waits under the giant logo while the logo is across it, and rises to its place beside it as it shrinks. */
+function placeMenu(el: HTMLElement | null, big: number, e: number) {
+  const nav = headerNav()
+  if (!nav) return
+  if (!el || !isPhone()) {
+    nav.style.transform = ''
+    return
+  }
+  const s = lerp(1, headerLogo() / big, e)
+  const header = nav.parentElement as HTMLElement
+  const navTop = header.getBoundingClientRect().top + nav.offsetTop
+  const navLeft = header.getBoundingClientRect().left + nav.offsetLeft
+  const gap = 14
+  const logoBottom = lerp(logoTop(), headerTop(), e) + el.offsetHeight * s
+  const logoRight = headerSide() + el.offsetWidth * s
+  // How far across the menu the logo still reaches (0 once it has shrunk clear of it), eased over 60px.
+  const over = Math.min(1, Math.max(0, (logoRight + gap - navLeft) / 60))
+  const drop = Math.max(0, logoBottom + gap - navTop) * smooth(over)
+  nav.style.transform = drop > 0.5 ? `translateY(${drop.toFixed(1)}px)` : ''
+}
 function placeLogo(el: HTMLElement | null) {
-  if (!el) return 0
+  if (!el) {
+    placeMenu(null, 1, 1)
+    return 0
+  }
   let big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
   if (isPhone()) {
     let k = logoAspect.get(el)
@@ -115,6 +141,7 @@ function placeLogo(el: HTMLElement | null) {
   el.style.fontSize = `${big}px`
   el.style.left = `${headerSide()}px`
   el.style.transform = logoTransform(big, e)
+  placeMenu(el, big, e)
   return big
 }
 
@@ -324,6 +351,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     return () => {
       window.removeEventListener('scroll', on)
       window.removeEventListener('resize', on)
+      // Leaving the home page: the menu back in its place.
+      placeMenu(null, 1, 1)
     }
   }, [settled])
   // First arrival: the logo fades in while growing from header size — the scroll shrink, reversed.
