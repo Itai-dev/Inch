@@ -217,10 +217,8 @@ function Headline({ division }: { division: Division }) {
         <span className="relative z-[1] -mb-[0.1em] -rotate-[4deg] text-[#0a0a0a]" style={{ fontFamily: '"Mrs Saint Delafield", cursive', fontSize: 'min(11.5cqw, 15cqh)', lineHeight: 1 }}>
           Official
         </span>
-        <span className="wordmark uppercase leading-[0.92]" style={{ fontSize: 'min(8.4cqw, 10.5cqh)' }}>
-          Model
-          <br />
-          Application
+        <span className="wordmark whitespace-nowrap uppercase leading-[0.92]" style={{ fontSize: 'min(7.2cqw, 10.5cqh)' }}>
+          Model Application
         </span>
       </p>
       <span className="mb-[3%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
