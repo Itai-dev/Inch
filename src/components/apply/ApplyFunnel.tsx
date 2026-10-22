@@ -96,6 +96,15 @@ const FORM_MIN_W = 480
 const MIN_AIR = 24
 /** The comp card's own width beside the form (scaled down from this when the screen is short or narrow). */
 const CARD_W = 820
+/** The first step's fields, by name, to bring the first one missing into view. */
+const YOU_FIELDS: Record<string, string> = {
+  'First name': 'input[autocomplete=given-name]',
+  'Last name': 'input[autocomplete=family-name]',
+  'Date of birth': 'input[type=date]',
+  Country: 'input[role=combobox]',
+  Email: 'input[type=email]',
+  Phone: 'input[type=tel]',
+}
 /** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
 const PHOTOS_BUDGET = 3.6 * 1024 * 1024
 
@@ -352,6 +361,22 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     } else setPhase('posting')
   }
 
+  // What the first step still needs (in the form's order).
+  const youGaps = (
+    [
+      ['First name', !d.firstName.trim()],
+      ['Last name', !d.lastName.trim()],
+      ['Date of birth', !d.birthdate || badDate],
+      ['Country', !d.country],
+      ['Email', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())],
+      ['Phone', d.phone.replace(/\D/g, '').length < 6],
+    ] as const
+  ).filter(([, bad]) => bad).map(([k]) => k)
+  const youNote = [
+    youGaps.filter((k) => k !== 'Date of birth' || !d.birthdate).length && `Still to fill in: ${youGaps.filter((k) => !(k === 'Date of birth' && d.birthdate)).map((k) => (k === 'Country' ? 'Country (pick it from the list)' : k)).join(', ')}.`,
+    badDate && 'Check the date of birth (a four-digit year).',
+  ].filter(Boolean).join(' ')
+
   // What the measurements step still needs.
   const gaps = (
     [['Height', d.height], ['T-shirt', d.tshirt], ['Pants', d.pants], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
@@ -441,7 +466,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       </div>
     )
 
-  const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
+  const nav = (submitLabel = 'Continue →', disabled = false, note?: string, alert = false) => (
     <div className="apply-nav flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
       <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
@@ -449,7 +474,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
         Back
       </button>
-      {note && <span className="text-[13px] text-muted">{note}</span>}
+      {note && (alert ? <span role="alert" className="text-[13px] font-bold">{note}</span> : <span className="text-[13px] text-muted">{note}</span>)}
     </div>
   )
 
@@ -496,9 +521,15 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               className="relative grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (badDate) setTried(true)
-                else next()
+                // Checked here rather than by the browser, so what's missing is said plainly under the
+                // button, and the first of it is brought into view (not hidden under the ruler on phones).
+                if (!youGaps.length) return next()
+                setTried(true)
+                const first = e.currentTarget.querySelector<HTMLInputElement>(YOU_FIELDS[youGaps[0]])
+                first?.focus({ preventScroll: true })
+                first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
               }}
+              noValidate
             >
               {/* What you'll need: a small (i), opened when wanted, so the form can be filled straight away. */}
               <span className="absolute right-0 top-0 z-10">
@@ -513,7 +544,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
               <p className="sm:col-span-2 text-[13px] text-muted">{GUARDIAN_AGE} or younger? We’ll ask for a parent or guardian’s consent next.</p>
-              <div className="sm:col-span-2">{nav('Continue →', false, tried && badDate ? 'Check the date of birth.' : 'Takes about 3 minutes')}</div>
+              <div className="sm:col-span-2">{tried && youGaps.length ? nav('Continue →', false, youNote, true) : nav('Continue →', false, 'Takes about 3 minutes')}</div>
             </form>
           )}
 
@@ -634,7 +665,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to set it.')}
+              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, 'Tap a size to set it.')}
             </form>
           )}
 

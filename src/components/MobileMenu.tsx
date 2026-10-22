@@ -69,7 +69,9 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
     { text: 'Contact', href: sitePath(site, '/contact') },
   ]
   // Typed in left to right; the clip leaves room round the letters, so none is cut once in (Safari draws past the box).
-  const type = (k: number) => ({ animation: `menu-type 0.45s steps(6) ${120 + k * 70}ms both` })
+  // Once typed in, nothing clips the word any more (backwards, not both): Safari can draw a wide
+  // word a little past its own box, which a held clip would cut off.
+  const type = (k: number) => ({ animation: `menu-type 0.45s steps(6) ${120 + k * 70}ms backwards` })
 
   return (
     <>
@@ -102,7 +104,7 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                   href={l.href}
                   onClick={() => setOpen(false)}
                   aria-current={path === l.href || path.startsWith(`${l.href}/`) ? 'page' : undefined}
-                  className="wordmark self-start text-[clamp(52px,16vw,88px)] uppercase leading-[1] aria-[current=page]:opacity-40"
+                  className="wordmark self-start text-[clamp(44px,15vw,88px)] uppercase leading-[1] aria-[current=page]:opacity-40"
                   style={type(k)}
                 >
                   {l.text}
@@ -114,7 +116,7 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                   setOpen(false)
                   openSelection(true)
                 }}
-                className="wordmark self-start text-left text-[clamp(52px,16vw,88px)] uppercase leading-[1]"
+                className="wordmark self-start text-left text-[clamp(44px,15vw,88px)] uppercase leading-[1]"
                 style={type(links.length)}
               >
                 Selection<sup className="ml-[0.08em] align-[0.9em] text-[0.36em] tabular-nums">({items.length})</sup>
