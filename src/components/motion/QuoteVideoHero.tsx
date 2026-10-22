@@ -95,7 +95,8 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 // Phones: as wide as the screen between the margins, at the very top, with the menu under it; as it
 // shrinks, the menu comes back up beside it (see placeMenu).
 const isPhone = () => window.innerWidth < 768
-const logoTop = () => (isPhone() ? headerTop() : window.innerHeight * 0.02)
+/** Phones: tight to the top, so the logo and the menu under it keep clear of the faces in the video. */
+const logoTop = () => (isPhone() ? 6 : window.innerHeight * 0.02)
 const logoTransform = (big: number, e: number) =>
   `translateY(${lerp(logoTop(), headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
 /** The logo's width for each px of its font size (measured once per logo). */
@@ -114,7 +115,7 @@ function placeMenu(el: HTMLElement | null, big: number, e: number) {
   const header = nav.parentElement as HTMLElement
   const navTop = header.getBoundingClientRect().top + nav.offsetTop
   const navLeft = header.getBoundingClientRect().left + nav.offsetLeft
-  const gap = 14
+  const gap = 8
   const logoBottom = lerp(logoTop(), headerTop(), e) + el.offsetHeight * s
   const logoRight = headerSide() + el.offsetWidth * s
   // How far across the menu the logo still reaches (0 once it has shrunk clear of it), eased over 60px.
@@ -137,7 +138,8 @@ function placeLogo(el: HTMLElement | null) {
     }
     if (k) big = Math.min((window.innerWidth - 2 * headerSide()) / k, window.innerHeight * 0.3)
   }
-  const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
+  // Never past full size: pulling down at the top of the page (a phone's overscroll) leaves it as it is.
+  const e = easeOut(Math.min(1, Math.max(0, window.scrollY) / (window.innerHeight * 0.45)))
   el.style.fontSize = `${big}px`
   el.style.left = `${headerSide()}px`
   el.style.transform = logoTransform(big, e)
