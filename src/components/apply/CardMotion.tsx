@@ -275,10 +275,11 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const inY = ey + pad * sc
     // It waits wholly above the envelope's opening (in front of the open flap), then slides down into it.
     const rise = Math.max(0, Math.min(h * sc + pad * sc + 6, inY - 60))
-    const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + 46))
-    const slotW = Math.round(ew * sc * 1.08)
-    st.style.top = `${slotY}px`
-    st.style.width = `${slotW}px`
+    // The slot: an upright line beside the envelope (on its right), a little taller than it.
+    const slotX = Math.round(Math.min(innerWidth - 22, ex + ew * sc + 36))
+    const slotH = Math.round(eh * sc * 1.15)
+    const slotTop = Math.round(ey + (eh * sc) / 2 - slotH / 2)
+    Object.assign(st.style, { left: `${slotX}px`, top: `${slotTop}px`, height: `${slotH}px` })
     // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
     const fromAt = r ? at(r.left, r.top, desk ? zoom : r.width / w) : at((innerWidth - w) / 2, vh + 20, 1)
     const fromClip = !desk && r ? `inset(0 0 ${Math.max(0, h - r.height / (r.width / w))}px 0)` : 'inset(0 0 0 0)'
@@ -325,47 +326,49 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       ],
       opts,
     )
-    // Sealed, it tips a little, then slides down into the slot (everything below the slot is cut off).
-    g.style.transformOrigin = `${ex + (ew * sc) / 2}px ${ey + (eh * sc) / 2}px`
-    const dropY = slotY + eh * sc + pad * sc + 20 - ey
+    // Sealed, it turns in depth, its right edge towards the slot, and is pushed in edge first, as
+    // an envelope is put into a box (everything right of the slot is cut off).
+    g.style.transformOrigin = `${ex + ew * sc}px ${ey + (eh * sc) / 2}px`
+    const reach = slotX - (ex + ew * sc) // from its right edge to the slot
+    const turned = 'perspective(900px) rotateY(-58deg)'
     const post = g.animate(
       [
         { transform: 'none', offset: 0 },
-        { transform: 'none', offset: o(2350), easing: EASE_OUT },
-        { transform: 'translateY(-14px) rotate(-1.5deg)', offset: o(2600), easing: EASE_IN },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: o(3200) },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: 1 },
+        { transform: 'none', offset: o(2350), easing: EASE },
+        { transform: `translateX(${reach - 4}px) ${turned}`, offset: o(2650), easing: EASE_IN },
+        { transform: `translateX(${reach + ew * sc + 40}px) ${turned}`, offset: o(3200) },
+        { transform: `translateX(${reach + ew * sc + 40}px) ${turned}`, offset: 1 },
       ],
       opts,
     )
-    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2600) * T * SLOW)
-    // The slot: a 0.9px grey line cut into the page, which opens up and down (its two edges part,
-    // white between), takes the envelope, and closes the same way.
+    const cutAt = window.setTimeout(() => (c.style.width = `${slotX}px`), o(2600) * T * SLOW)
+    // The slot: a 0.9px grey line cut into the page, upright, which opens to either side (its two
+    // edges part, white between), takes the envelope, and closes the same way.
     const px = (n: number) => `${n}px`
     const edge = (dir: 1 | -1) => [
-      { transform: 'translateY(0)', visibility: 'hidden', offset: 0 },
-      { transform: 'translateY(0)', visibility: 'hidden', offset: o(2149) },
-      { transform: 'translateY(0)', visibility: 'visible', offset: o(2150), easing: EASE },
-      { transform: `translateY(${dir * 5}px)`, visibility: 'visible', offset: o(2420) },
-      { transform: `translateY(${dir * 5}px)`, visibility: 'visible', offset: o(3200), easing: EASE },
-      { transform: 'translateY(0)', visibility: 'visible', offset: o(3420) },
-      { transform: 'translateY(0)', visibility: 'visible', offset: o(3550) },
-      { transform: 'translateY(0)', visibility: 'hidden', offset: o(3551) },
-      { transform: 'translateY(0)', visibility: 'hidden', offset: 1 },
+      { transform: 'translateX(0)', visibility: 'hidden', offset: 0 },
+      { transform: 'translateX(0)', visibility: 'hidden', offset: o(2149) },
+      { transform: 'translateX(0)', visibility: 'visible', offset: o(2150), easing: EASE },
+      { transform: `translateX(${dir * 5}px)`, visibility: 'visible', offset: o(2420) },
+      { transform: `translateX(${dir * 5}px)`, visibility: 'visible', offset: o(3200), easing: EASE },
+      { transform: 'translateX(0)', visibility: 'visible', offset: o(3420) },
+      { transform: 'translateX(0)', visibility: 'visible', offset: o(3550) },
+      { transform: 'translateX(0)', visibility: 'hidden', offset: o(3551) },
+      { transform: 'translateX(0)', visibility: 'hidden', offset: 1 },
     ]
-    const [top, bottom] = [...st.children] as HTMLElement[]
-    const slotAnim = top.animate(edge(-1), opts)
-    const slotAnim2 = bottom.animate(edge(1), opts)
-    // As it goes in, the slot's shadow falls on the part of the envelope just above it (it is
-    // going somewhere deep): drawn each frame from where the envelope really is.
+    const [leftEdge, rightEdge] = [...st.children] as HTMLElement[]
+    const slotAnim = leftEdge.animate(edge(-1), opts)
+    const slotAnim2 = rightEdge.animate(edge(1), opts)
+    // As it goes in, the slot's shadow falls on the part of the envelope beside it (it is going
+    // somewhere deep): drawn each frame from where the envelope really is.
     const sh = shade.current
     let raf = 0
     const follow = () => {
       const env = back.current?.getBoundingClientRect()
       if (sh && env) {
-        const inSlot = env.bottom > slotY && env.top < slotY
-        const top = Math.max(env.top, slotY - 30)
-        Object.assign(sh.style, { left: px(env.left), width: px(env.width), top: px(top), height: px(Math.max(0, slotY - top)), opacity: inSlot ? '1' : '0' })
+        const inSlot = env.right > slotX && env.left < slotX
+        const left = Math.max(env.left, slotX - 30)
+        Object.assign(sh.style, { left: px(left), width: px(Math.max(0, slotX - left)), top: px(env.top), height: px(env.height), opacity: inSlot ? '1' : '0' })
       }
       raf = requestAnimationFrame(follow)
     }
@@ -381,7 +384,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-30">
-      <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
+      <div ref={clip} className="absolute inset-y-0 left-0 w-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
         <div ref={group} className="absolute inset-0">
           <Envelope division={division} back={back} pocket={pocket} flap={flap} />
@@ -389,13 +392,13 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
             {front}
           </div>
         </div>
-        {/* The slot's shadow on the envelope as it goes in (above it, cut with it at the slot). */}
-        <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
+        {/* The slot's shadow on the envelope as it goes in (beside it, cut with it at the slot). */}
+        <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to right, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
       </div>
-      {/* The slot: two 0.9px grey edges, one on the other (a line) until they part. */}
-      <div ref={slot} className="absolute left-1/2 h-0 -translate-x-1/2" style={{ width: 0 }}>
-        <span className="invisible absolute inset-x-0 top-0 h-[0.9px] bg-[#a9a6a0]" />
-        <span className="invisible absolute inset-x-0 top-0 h-[0.9px] bg-[#a9a6a0]" />
+      {/* The slot: two upright 0.9px grey edges, one on the other (a line) until they part. */}
+      <div ref={slot} className="absolute w-0">
+        <span className="invisible absolute inset-y-0 left-0 w-[0.9px] bg-[#a9a6a0]" />
+        <span className="invisible absolute inset-y-0 left-0 w-[0.9px] bg-[#a9a6a0]" />
       </div>
     </div>
   )
