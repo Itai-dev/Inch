@@ -400,8 +400,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     const phone = !asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent
     if (phone && !stripOpen) {
       setStripOpen(true)
-      // Wholly open, and a beat to be seen, before it goes up.
-      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS + 180))
+      // As it lies open, it goes on up.
+      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS))
     }
     setPhase('posting')
   }
