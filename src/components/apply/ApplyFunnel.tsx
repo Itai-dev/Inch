@@ -765,14 +765,14 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                         addPhoto(s.pose, e.dataTransfer.files[0])
                       }}
                     >
-                      {/* The empty spot stays as it is under a photo: the photo slides in over it, cut to its frame. */}
+                      {/* The empty spot stays as it is under a photo: the photo is pressed onto it, cut to its frame. */}
                       <span className="relative block aspect-[3/4] border-2 border-dashed border-fg/70 [clip-path:inset(0)] group-hover:border-fg">
                         <Silhouette pose={s.pose} className="absolute inset-[12%] text-muted/60" />
                         {!p && <span className="absolute bottom-2 left-2 text-[12px] font-bold uppercase" style={narrow}>+ Add</span>}
                         {p && (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img key={p.url} src={p.url} alt={s.label} className="photo-slide absolute -inset-[2px] size-[calc(100%+4px)] max-w-none object-cover" />
+                            <img key={p.url} src={p.url} alt={s.label} className="photo-press absolute -inset-[2px] size-[calc(100%+4px)] max-w-none object-cover" />
                             <span className="absolute bottom-2 right-2 bg-bg px-1.5 py-0.5 text-[11px] font-bold uppercase" style={narrow}>Replace</span>
                           </>
                         )}

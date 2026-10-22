@@ -338,7 +338,12 @@ const DRAWER_UNITS = 16
 /** How far up the vanishing point is, against the drawer's width at the front (and at most against the screen's height). */
 const DRAWER_RISE = 0.7
 const DRAWER_RISE_MAX = 0.28
-const fz = (u: number) => 1 / (1 + u * 0.16)
+/** Twice as deep as it once was (8 steps), and seen so that it looks it: the vanishing point twice as
+ * high and the steps shrinking half as fast, so the near steps keep their spacing and the far end
+ * is as narrow as before, only twice as far up. Its front stays where it was. */
+const DRAWER_STRETCH = 2
+const fz = (u: number) => 1 / (1 + u * 0.08)
+const DRAWER_FRONT = 1 - 1 / (1 + 8 * 0.16)
 /** The inch ruler's ticks along both its edges between the whole steps, as on every ruler on the
  * site: nine short ones, the middle one taller. [depth within a step, length]. */
 const DRAWER_TICKS: [number, number][] = Array.from({ length: 9 }, (_, i) => [(i + 1) / 10, i === 4 ? 0.7 : 0.45])
@@ -418,96 +423,118 @@ export function CardOpening({
     const el = box.current
     const fl = flip.current
     if (!el || !fl) return
-    const t = target()
-    const r = t?.el.getBoundingClientRect() ?? null
-    const toCard = !t || t.card
-    const zoom = t?.zoom ?? 1
-    // Beside the form the card turns to the comp card; on phones to the strip.
-    if (desk.current) desk.current.style.display = toCard ? '' : 'none'
-    if (phone.current) phone.current.style.display = toCard ? 'none' : ''
-    const w = cardWidth(r, zoom)
-    el.style.width = `${w}px`
-    const h = el.offsetHeight
-    // Whole on screen in the middle, with room round it for the turn: sized to what is actually
-    // visible (on phones the browser's own bars take part of the window), never cut off.
-    const vh = window.visualViewport?.height ?? innerHeight
-    const top = window.visualViewport?.offsetTop ?? 0
-    const fit = Math.min(1, (vh * 0.66) / h, (innerWidth - 56) / w)
-    const place = (scale: number) => at((innerWidth - w * scale) / 2, top + (vh - h * scale) / 2 + 12, scale)
-    const tx = r ? r.left : (innerWidth - w) / 2
-    const ty = r ? r.top : (innerHeight - h) / 2
-    // Phones: cut to the strip's folded height as it lands, so it is the strip.
-    // Until then nothing is cut: while it turns, its near edge swings out past its own box.
-    const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
-    const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
+    // Started once the headline's handwriting is in (or soon anyway), so no letter changes while it moves.
+    const run = () => {
+      const t = target()
+      const r = t?.el.getBoundingClientRect() ?? null
+      const toCard = !t || t.card
+      const zoom = t?.zoom ?? 1
+      // Beside the form the card turns to the comp card; on phones to the strip.
+      if (desk.current) desk.current.style.display = toCard ? '' : 'none'
+      if (phone.current) phone.current.style.display = toCard ? 'none' : ''
+      const w = cardWidth(r, zoom)
+      el.style.width = `${w}px`
+      const h = el.offsetHeight
+      // Whole on screen in the middle, with room round it for the turn: sized to what is actually
+      // visible (on phones the browser's own bars take part of the window), never cut off.
+      const vh = window.visualViewport?.height ?? innerHeight
+      const top = window.visualViewport?.offsetTop ?? 0
+      const fit = Math.min(1, (vh * 0.66) / h, (innerWidth - 56) / w)
+      const place = (scale: number) => at((innerWidth - w * scale) / 2, top + (vh - h * scale) / 2 + 12, scale)
+      const tx = r ? r.left : (innerWidth - w) / 2
+      const ty = r ? r.top : (innerHeight - h) / 2
+      // Phones: cut to the strip's folded height as it lands, so it is the strip.
+      // Until then nothing is cut: while it turns, its near edge swings out past its own box.
+      const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
+      const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
 
-    // It comes up in the middle of the screen, its back up (the headline): growing from smaller and
-    // tipping up from a slight lean back until it faces you; then it grows a touch more while it is
-    // read; then in one move it turns over about its upright axis as it goes to its place (beside the
-    // form, or into its strip on phones). The page writes itself in on the way.
-    const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
-    const ENTER = 1000
-    const HOLD = ENTER + 1250
-    const T = HOLD + 1100
-    const WRITE = HOLD + 350
-    const o = (ms: number) => ms / T
-    const opts = { duration: T, fill: 'forwards' as const }
-    const arrive = 'cubic-bezier(0.22, 0.6, 0.3, 1)'
-    const card = el.animate(
-      [
-        { transform: place(fit * 0.8), clipPath: free, offset: 0, easing: arrive },
-        { transform: place(fit), clipPath: free, offset: o(ENTER), easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
-        { transform: place(fit * 1.06), clipPath: free, offset: o(HOLD), easing: glide },
-        { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
-      ],
-      opts,
-    )
-    const turn = fl.animate(
-      [
-        { transform: 'perspective(1800px) rotateX(-14deg) rotateY(180deg)', offset: 0, easing: arrive },
-        { transform: 'perspective(1800px) rotateX(0deg) rotateY(180deg)', offset: o(ENTER) },
-        { transform: 'perspective(1800px) rotateX(0deg) rotateY(180deg)', offset: o(HOLD), easing: glide },
-        { transform: 'perspective(1800px) rotateX(0deg) rotateY(0deg)', offset: 1 },
-      ],
-      opts,
-    )
-    // The light slides across the paper as it turns.
-    const light = el.animate(
-      [
-        { '--sheen': '20%', offset: 0 },
-        { '--sheen': '20%', offset: o(HOLD), easing: glide },
-        { '--sheen': '80%', offset: 1 },
-      ] as Keyframe[],
-      opts,
-    )
-    const writeAt = window.setTimeout(() => write.current(), WRITE)
-    // No fade: the stage is simply there.
-    if (stage.current) stage.current.style.opacity = '1'
-    // Only the face turned toward you is drawn (each frame, from the card's actual turn), so neither
-    // face ever shows through the other.
-    const faceEl = fl.querySelector<HTMLElement>('[data-face]')
-    const backEl = fl.querySelector<HTMLElement>('[data-back]')
-    let raf = 0
-    const faces = () => {
-      const front = new DOMMatrix(getComputedStyle(fl).transform).m11 >= 0
-      if (faceEl) faceEl.style.visibility = front ? 'visible' : 'hidden'
-      if (backEl) backEl.style.visibility = front ? 'hidden' : 'visible'
-      raf = requestAnimationFrame(faces)
+      // It comes up in the middle of the screen, its back up (the headline): growing from smaller in one
+      // unbroken ease (quick at first, slower and slower while it is read), tipping up from a slight
+      // lean back until it faces you as it comes; then in one move it turns over about its upright axis
+      // as it goes to its place (beside the form, or into its strip on phones). The page writes itself
+      // in on the way.
+      const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
+      const ENTER = 750
+      const HOLD = 1750
+      const T = HOLD + 1100
+      const WRITE = HOLD + 350
+      const o = (ms: number) => ms / T
+      const opts = { duration: T, fill: 'forwards' as const }
+      const arrive = 'cubic-bezier(0.22, 0.6, 0.3, 1)'
+      const card = el.animate(
+        [
+          { transform: place(fit * 0.8), clipPath: free, offset: 0, easing: 'cubic-bezier(0.16, 0.7, 0.3, 1)' },
+          { transform: place(fit * 1.06), clipPath: free, offset: o(HOLD), easing: glide },
+          { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
+        ],
+        opts,
+      )
+      const turn = fl.animate(
+        [
+          { transform: 'perspective(1800px) rotateX(-14deg) rotateY(180deg)', offset: 0, easing: arrive },
+          { transform: 'perspective(1800px) rotateX(0deg) rotateY(180deg)', offset: o(ENTER) },
+          { transform: 'perspective(1800px) rotateX(0deg) rotateY(180deg)', offset: o(HOLD), easing: glide },
+          { transform: 'perspective(1800px) rotateX(0deg) rotateY(0deg)', offset: 1 },
+        ],
+        opts,
+      )
+      // The light slides across the paper as it turns.
+      const light = el.animate(
+        [
+          { '--sheen': '20%', offset: 0 },
+          { '--sheen': '20%', offset: o(HOLD), easing: glide },
+          { '--sheen': '80%', offset: 1 },
+        ] as Keyframe[],
+        opts,
+      )
+      const writeAt = window.setTimeout(() => write.current(), WRITE)
+      // No fade: the stage is simply there.
+      if (stage.current) stage.current.style.opacity = '1'
+      // Only the face turned toward you is drawn (each frame, from the card's actual turn), so neither
+      // face ever shows through the other.
+      const faceEl = fl.querySelector<HTMLElement>('[data-face]')
+      const backEl = fl.querySelector<HTMLElement>('[data-back]')
+      let raf = 0
+      const faces = () => {
+        const front = new DOMMatrix(getComputedStyle(fl).transform).m11 >= 0
+        if (faceEl) faceEl.style.visibility = front ? 'visible' : 'hidden'
+        if (backEl) backEl.style.visibility = front ? 'hidden' : 'visible'
+        raf = requestAnimationFrame(faces)
+      }
+      faces()
+      card.onfinish = () => {
+        cancelAnimationFrame(raf)
+        if (faceEl) faceEl.style.visibility = 'visible'
+        if (backEl) backEl.style.visibility = 'hidden'
+        done.current()
+      }
+      // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
+      if (skipRef) skipRef.current = () => [turn, light, card].forEach((a) => a?.finish())
+      return () => {
+        if (skipRef) skipRef.current = null
+        clearTimeout(writeAt)
+        cancelAnimationFrame(raf)
+        ;[card, turn, light].forEach((a) => a?.cancel())
+      }
     }
-    faces()
-    card.onfinish = () => {
-      cancelAnimationFrame(raf)
-      if (faceEl) faceEl.style.visibility = 'visible'
-      if (backEl) backEl.style.visibility = 'hidden'
-      done.current()
-    }
-    // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
-    if (skipRef) skipRef.current = () => [turn, light, card].forEach((a) => a?.finish())
+    let live = true
+    let stop: (() => void) | undefined
+    const fonts = document.fonts
+    const ready = fonts
+      ? Promise.race([fonts.load('400 40px "Mrs Saint Delafield"', 'Official').then(() => fonts.ready), new Promise((r) => setTimeout(r, 700))])
+      : Promise.resolve()
+    // ...and once the page has settled (done loading its own work), so its first frames run smooth.
+    const idle = (go: () => void) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(go, { timeout: 300 }) : setTimeout(go, 60))
+    ready.catch(() => undefined).then(() =>
+      idle(() =>
+        requestAnimationFrame(() => {
+          if (live) stop = run()
+        }),
+      ),
+    )
     return () => {
-      if (skipRef) skipRef.current = null
-      clearTimeout(writeAt)
-      cancelAnimationFrame(raf)
-      ;[card, turn, light].forEach((a) => a?.cancel())
+      live = false
+      stop?.()
     }
     // Plays once, from where the page is when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -606,9 +633,10 @@ export function CardPost({
       // The drawer under it: its front edge (the slot line) low enough that its back clears the
       // envelope; wide enough that ours fills its share of it where it goes in.
       const slotW = (ew * sc) / (OURS_SHARE * fz(OURS_U))
-      const vp = Math.min(slotW * DRAWER_RISE, vh * DRAWER_RISE_MAX)
-      const tops = vp * OURS_SHOW
-      const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + vp * (1 - fz(DRAWER_UNITS)) + 14))
+      const rise0 = Math.min(slotW * DRAWER_RISE, vh * DRAWER_RISE_MAX)
+      const vp = rise0 * DRAWER_STRETCH
+      const tops = rise0 * OURS_SHOW
+      const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + rise0 * DRAWER_FRONT + 14))
       const baseY = slotY - vp * (1 - fz(OURS_U))
       // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
       const [sx, sy, ss] = r ? [r.left, r.top, desk ? zoom : r.width / w] : [(innerWidth - w) / 2, vh + 20, 1]
