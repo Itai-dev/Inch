@@ -387,17 +387,17 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 3800
+    const T = 3550
     const SLOW = 1.3
     const CARD_END = 1500
     const FLAP = 1250
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [2100, 2430]
-    // Sealed, it rests a beat before it goes down.
-    const DROP = 2350
-    const LAND = 2950
-    const SHUT: [number, number] = [3400, 3730]
+    const OPEN: [number, number] = [1850, 2180]
+    // Sealed, it goes on down without stopping, only slower at first (a change of pace, not a pause).
+    const DROP = 1900
+    const LAND = 2750
+    const SHUT: [number, number] = [3150, 3480]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     // The card's path: a curve from its place, up over the opening, ending straight down into it
@@ -486,7 +486,7 @@ export function CardPost({
     const post = g.animate(
       [
         { transform: 'none', visibility: 'visible', offset: 0 },
-        { transform: 'none', visibility: 'visible', offset: o(DROP), easing: 'cubic-bezier(0.45, 0, 0.25, 1)' },
+        { transform: 'none', visibility: 'visible', offset: o(DROP), easing: 'cubic-bezier(0.6, 0.04, 0.3, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
         { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
