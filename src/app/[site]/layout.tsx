@@ -14,6 +14,7 @@ import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
 import type { SiteSettings } from '@/sanity/lib/types'
 import { siteUrl } from '@/sanity/env'
 import '@fontsource-variable/archivo/wdth.css'
+import '@fontsource/mrs-saint-delafield/400.css'
 import '../globals.css'
 
 export const dynamicParams = false

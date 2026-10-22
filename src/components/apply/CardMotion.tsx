@@ -206,16 +206,22 @@ function Headline({ division }: { division: Division }) {
       {/* The plate's impression, a hairline inside the edge. */}
       <span aria-hidden className="pointer-events-none absolute inset-[10px] shadow-[inset_0_1px_1px_rgb(0_0_0/0.07),inset_0_-1px_0_rgb(255_255_255/0.6)]" />
       {/* The name at the top, what it is in the middle, the house at the foot; the seal pressed in at the top left. */}
-      <span className="absolute left-[6%] top-[7%] block aspect-square" style={{ width: 'min(24cqw, 30cqh)' }}>
+      <span className="absolute left-[4%] top-[5%] block aspect-square" style={{ width: 'min(34cqw, 40cqh)', transform: 'rotate(-9deg)' }}>
         <BlindSeal division={division} id={id} />
       </span>
       <span className="mt-[3%] text-[#0a0a0a]" style={{ fontSize: 'min(9cqw, 8cqh)' }}>
         <Logo division={division} />
       </span>
-      <p className="wordmark my-auto uppercase leading-[0.92]" style={{ ...press, fontSize: 'min(6.4cqw, 8cqh)' }}>
-        Official
-        <br />
-        Model Application
+      <p className="my-auto flex flex-col items-center" style={press}>
+        {/* "Official" signed across it in a fine hand, then what it is. */}
+        <span className="relative z-[1] -mb-[0.1em] -rotate-[4deg] text-[#0a0a0a]" style={{ fontFamily: '"Mrs Saint Delafield", cursive', fontSize: 'min(11.5cqw, 15cqh)', lineHeight: 1 }}>
+          Official
+        </span>
+        <span className="wordmark uppercase leading-[0.92]" style={{ fontSize: 'min(8.4cqw, 10.5cqh)' }}>
+          Model
+          <br />
+          Application
+        </span>
       </p>
       <span className="mb-[3%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
         {s.brand} Model Management
@@ -239,6 +245,17 @@ function Envelope({
   seal: React.Ref<HTMLDivElement>
 }) {
   const sealId = `seal-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  // The flap's face: the paper, the house's name printed on it, the mark pressed in near its tip.
+  const flapFront = (
+    <div className="absolute inset-0 [container-type:size]" style={FLAP_SHOW_THROUGH}>
+      <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
+        {/* Shaded towards its point, so it reads as a sheet folded over. */}
+        <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+      </div>
+      <FlapPrint division={division} />
+      <FlapIndent division={division} />
+    </div>
+  )
   return (
     <>
       {/* Inside, behind the card: the same stock, in shade. No shadow under it (nothing is behind it to
@@ -266,18 +283,13 @@ function Envelope({
         <Leaf
           strips={14}
           shade={false}
-          front={
-            <div className="absolute inset-0 [container-type:size]" style={FLAP_SHOW_THROUGH}>
-              <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
-                {/* Shaded towards its point, so it reads as a sheet folded over. */}
-                <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
-              </div>
-              <FlapPrint division={division} />
-              <FlapIndent division={division} />
-            </div>
-          }
+          front={flapFront}
           back={<div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_INSIDE, boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />}
         />
+        {/* Lying closed it is one flat sheet (no strips), so what is printed on it is drawn once, crisp. */}
+        <div data-flap-flat className="absolute inset-0" style={{ visibility: 'hidden' }}>
+          {flapFront}
+        </div>
       </div>
       {/* The seal: a sticker laid on where the flap's tip lies once it is closed. It goes on like
           paper: its top touches first and the rest is smoothed down after it (a bending leaf). */}
@@ -662,6 +674,7 @@ export function CardPost({
       opts,
     )
     const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
+    const flapFlat = flap.current?.querySelector<HTMLElement>('[data-flap-flat]')
     const FLAP_MS = 750
     // As the flap lies down, the sticker goes on (turned each frame below); the light on its foil
     // moves only as the envelope (and the sticker itself) turns.
@@ -686,11 +699,11 @@ export function CardPost({
       [
         { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
         { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.4, 0, 0.3, 1)' },
-        { transform: pose(-46, 11, -3, -1.8), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-82, 14, -7, -4), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
         // Held, it is never quite still: it breathes in the hand.
-        { transform: pose(-50, 9.2, -1.4, -1.2), visibility: 'visible', offset: o(TURN[1] + (TURN[2] - TURN[1]) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        { transform: pose(-47, 11.6, -3.6, -2), visibility: 'visible', offset: o(TURN[1] + ((TURN[2] - TURN[1]) * 2) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        { transform: pose(-50, 10, -2, -1.5), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.5, 0.05, 0.3, 1)' },
+        { transform: pose(-87, 12.4, -5.2, -3.2), visibility: 'visible', offset: o(TURN[1] + (TURN[2] - TURN[1]) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-83, 14.8, -7.8, -4.6), visibility: 'visible', offset: o(TURN[1] + ((TURN[2] - TURN[1]) * 2) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-86, 13, -6, -3.8), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.45, 0.05, 0.3, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
         { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
@@ -759,6 +772,10 @@ export function CardPost({
       const fp = span(ms, FLAP, FLAP + FLAP_MS)
       const fa = 180 * (0.5 + 0.5 * Math.cos(Math.PI * fp))
       if (flapLeaf) bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
+      // Closed, the flat flap stands in for the strips.
+      const flat = fa < 0.05
+      if (flapLeaf) flapLeaf.style.visibility = flat ? 'hidden' : ''
+      if (flapFlat) flapFlat.style.visibility = flat ? 'inherit' : 'hidden'
       if (flap.current) flap.current.style.zIndex = fa > 90 ? '1' : '4'
       // Lighter the further away it is.
       const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
