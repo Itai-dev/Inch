@@ -203,13 +203,14 @@ export function CardOpening({
       ],
       opts,
     )
-    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 550, easing: EASE_OUT, fill: 'both' })
+    // No fade: the stage is simply there, the card small and growing.
+    if (stage.current) stage.current.style.opacity = '1'
     card.onfinish = () => done.current()
     // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
-    if (skipRef) skipRef.current = () => [turn, show, card].forEach((a) => a?.finish())
+    if (skipRef) skipRef.current = () => [turn, card].forEach((a) => a?.finish())
     return () => {
       if (skipRef) skipRef.current = null
-      ;[card, turn, show].forEach((a) => a?.cancel())
+      ;[card, turn].forEach((a) => a?.cancel())
     }
     // Plays once, from where the page is when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,6 +240,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   const flap = useRef<HTMLDivElement>(null)
   const slot = useRef<HTMLDivElement>(null)
   const shade = useRef<HTMLDivElement>(null)
+  const slotFlap = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
   useLayoutEffect(() => {
     done.current = onDone
@@ -332,18 +334,27 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       opts,
     )
     const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2250) * T * SLOW)
-    // The mail slot, cut in the white page: a hairline drawn across it, which opens onto the dark
-    // inside (so it has depth), and closes after.
+    // The mail slot, in the white page: white, a 0.9px grey hairline round it. It is drawn across,
+    // its flap swings open onto the dark inside, the envelope goes in, the flap shuts, and it goes.
     const px = (n: number) => `${n}px`
     const slotAnim = st.animate(
       [
-        { width: px(0), height: px(2), opacity: 0, offset: 0 },
-        { width: px(0), height: px(2), opacity: 0, offset: o(1750), easing: EASE },
-        { width: px(slotW), height: px(2), opacity: 1, offset: o(1980), easing: EASE },
-        { width: px(slotW), height: px(8), opacity: 1, offset: o(2200) },
-        { width: px(slotW), height: px(8), opacity: 1, offset: o(2850), easing: EASE },
-        { width: px(slotW), height: px(2), opacity: 1, offset: o(3050), easing: EASE },
-        { width: px(0), height: px(2), opacity: 0, offset: 1 },
+        { width: px(0), offset: 0 },
+        { width: px(0), offset: o(1750), easing: EASE },
+        { width: px(slotW), offset: o(1980) },
+        { width: px(slotW), offset: o(3080), easing: EASE },
+        { width: px(0), offset: 1 },
+      ],
+      opts,
+    )
+    const flapAnim = slotFlap.current?.animate(
+      [
+        { transform: 'rotateX(0deg)', offset: 0 },
+        { transform: 'rotateX(0deg)', offset: o(2060), easing: EASE },
+        { transform: 'rotateX(-82deg)', offset: o(2230) },
+        { transform: 'rotateX(-82deg)', offset: o(2870), easing: EASE },
+        { transform: 'rotateX(0deg)', offset: o(3010) },
+        { transform: 'rotateX(0deg)', offset: 1 },
       ],
       opts,
     )
@@ -365,7 +376,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, flapClose, post, slotAnim, ...parts].forEach((a) => a?.cancel())
+      ;[card, flapClose, post, slotAnim, flapAnim, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -383,8 +394,14 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         {/* The slot's shadow on the envelope as it goes in (above it, cut with it at the slot). */}
         <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
       </div>
-      {/* The mail slot: white page, a 0.9px hairline round a dark inside. */}
-      <div ref={slot} className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[1px] border-[0.9px] border-[#b9b6af] bg-[#0a0a0a]" style={{ width: 0, height: 2, opacity: 0 }} />
+      {/* The mail slot: white, a 0.9px grey hairline round it; its flap opens onto the dark inside. */}
+      <div
+        ref={slot}
+        className="absolute left-1/2 h-[12px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1px] border-[0.9px] border-[#b9b6af] bg-[#151515] [perspective:120px]"
+        style={{ width: 0 }}
+      >
+        <div ref={slotFlap} className="absolute inset-0 origin-top bg-white" />
+      </div>
     </div>
   )
 }

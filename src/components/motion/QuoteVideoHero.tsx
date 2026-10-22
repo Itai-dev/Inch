@@ -400,7 +400,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       placeMenu(null, 1, 1)
     }
   }, [settled])
-  // First arrival: the logo fades in while growing from header size — the scroll shrink, reversed.
+  // First arrival: the logo cuts in very small and grows to its size.
   const logoIntroDone = useRef(false)
   const showLogo = stage === 'over' || logoIn
   // As the ruler arrives, it moves on one item (pushing the next video in) to show it's the control.
@@ -456,13 +456,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     if (!el || !big || logoIntroDone.current) return
     logoIntroDone.current = true
     if (skip) return
-    el.animate(
-      [
-        { opacity: 0, transform: logoTransform(big, 1) },
-        { opacity: 1, transform: el.style.transform },
-      ],
-      { duration: LOGO_IN_MS, easing: LOGO_EASE },
-    )
+    // No fade: it cuts in very small at its place and grows to its size.
+    const tiny = el.style.transform.replace(/scale\([^)]*\)/, 'scale(0.04)')
+    el.animate([{ transform: tiny }, { transform: el.style.transform }], { duration: LOGO_IN_MS, easing: LOGO_EASE })
   }, [showLogo, skip, stage])
 
   // Only the current video plays; each starts from the top when it comes up
