@@ -33,7 +33,7 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
         </dt>
         <dd className="whitespace-pre-line font-bold leading-snug">
           {r.href ? (
-            <a href={r.href} target={r.external ? '_blank' : undefined} rel={r.external ? 'noreferrer' : undefined} className="kern ink-line inline-block">
+            <a href={r.href} target={r.external ? '_blank' : undefined} rel={r.external ? 'noreferrer' : undefined} className="ink-line inline-block">
               {text}
             </a>
           ) : (

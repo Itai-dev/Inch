@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   if (d.website || !d.startedAt || Date.now() - d.startedAt < MIN_FILL_MS) return NextResponse.json({ ok: true })
 
   const age = ageFrom(d.birthdate)
-  if (!(age >= 10 && age <= 80)) return NextResponse.json({ error: 'Invalid date of birth' }, { status: 400 })
+  if (!(age >= 10 && age <= 80)) return NextResponse.json({ error: Number.isFinite(age) ? `date of birth: that would make you ${age}` : 'date of birth' }, { status: 400 })
   // At GUARDIAN_AGE or younger, a parent or guardian consents.
   const minor = age <= GUARDIAN_AGE
   if (minor && (!d.guardianName || !d.guardianPhone || d.guardianConsent !== 'true')) {

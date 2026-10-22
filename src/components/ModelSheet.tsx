@@ -12,9 +12,11 @@
  * Books switch in place (the URL follows with replaceState, so every book keeps its own
  * link without a page load). Close steps back to the page you came from, or the board.
  */
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { siteForDivision, sitePath } from '@/lib/sites'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
 import { Logo } from './brand/Logo'
@@ -55,7 +57,8 @@ const onWide = (cb: () => void) => {
   m.addEventListener('change', cb)
   return () => m.removeEventListener('change', cb)
 }
-const tabCls = (on: boolean) => `kern uppercase transition-colors ${on ? 'text-fg' : 'text-muted hover:text-fg'}`
+/** The books and the bio, all at full strength; the open one carries the line (aria-current), the others draw it on hover. */
+const tabCls = () => 'ink-line uppercase'
 const narrow = { fontStretch: '80%' } as const
 
 export function ModelSheet({
@@ -302,22 +305,22 @@ export function ModelSheet({
   const bookActions = (stacked = false) => (
     <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
       {book && N > 0 && (
-        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="kern intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
+        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
           {view === 'book' ? 'Thumbnails' : 'Book'}
         </button>
       )}
       {compCard && (
-        <a href={compCard} className="kern intro-write hover:opacity-60" style={write('Comp card')}>
+        <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
           Comp card
         </a>
       )}
       {talent && (
-        <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="kern intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
+        <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
           {selected ? 'Selected' : '+ Selection'}
         </button>
       )}
       {enquiry && (
-        <a href={enquiry} className="kern intro-write uppercase underline decoration-2 underline-offset-[5px] hover:opacity-60" style={write('Book her →')}>
+        <a href={enquiry} className="intro-write uppercase underline decoration-2 underline-offset-[5px] hover:opacity-60" style={write('Book her →')}>
           {division === 'men' ? 'Book him →' : 'Book her →'}
         </a>
       )}
@@ -354,7 +357,9 @@ export function ModelSheet({
         // Top rail, wide: the logo on the left, the name in the middle, close on the right; the same
         // gap above the name as between it and the pictures.
         <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter py-[clamp(18px,1.9vw,34px)]">
-          <Logo division={division} className="justify-self-start text-[clamp(46px,4.86vw,70px)]" />
+          <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
+            <Logo division={division} className="text-[clamp(46px,4.86vw,70px)]" />
+          </Link>
           <h1 aria-label={name} className="wordmark whitespace-nowrap uppercase" style={{ fontSize: `clamp(${46 * NAME_PER_LOGO}px, ${4.86 * NAME_PER_LOGO}vw, ${70 * NAME_PER_LOGO}px)` }}>
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
@@ -370,7 +375,9 @@ export function ModelSheet({
         /* Top rail: logo | name | close, then the sizes under them */
         <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <Logo division={division} className="justify-self-start text-[32px] md:text-[48px]" />
+            <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
+              <Logo division={division} className="text-[32px] md:text-[48px]" />
+            </Link>
             <h1 aria-label={name} className="wordmark text-center text-[calc(32px*var(--name-per-logo))] uppercase md:text-[calc(48px*var(--name-per-logo))]" style={{ '--name-per-logo': NAME_PER_LOGO } as React.CSSProperties}>
               <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
             </h1>

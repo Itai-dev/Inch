@@ -88,17 +88,17 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
 
         {items.length > 0 && (
           <div className="mt-auto flex flex-col gap-3 border-t border-line pt-6">
-            <a href={request} className="kern flex h-12 items-center justify-center bg-fg text-[14px] font-bold uppercase text-bg hover:opacity-85" style={{ fontStretch: '80%' }}>
+            <a href={request} className="flex h-12 items-center justify-center bg-fg text-[14px] font-bold uppercase text-bg hover:opacity-85" style={{ fontStretch: '80%' }}>
               {items.length > 1 ? `Request these ${items.length} models →` : 'Request this model →'}
             </a>
             {real > 0 ? (
               <>
-                <button onClick={share} disabled={state === 'making'} className="kern flex h-12 items-center justify-center border border-fg text-[14px] font-bold uppercase hover:bg-fg hover:text-bg disabled:opacity-50" style={{ fontStretch: '80%' }}>
+                <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center border border-fg text-[14px] font-bold uppercase hover:bg-fg hover:text-bg disabled:opacity-50" style={{ fontStretch: '80%' }}>
                   {state === 'making' ? 'Making the PDF…' : real > 1 ? `Share comp cards (${real})` : 'Share comp card'}
                 </button>
                 {(state === 'link' || state === 'copied') && (
                   <div className="grid grid-cols-3 gap-2 text-[13px] font-bold uppercase tracking-[0.04em]" style={{ fontStretch: '80%' }}>
-                    <button onClick={() => navigator.clipboard.writeText(pdfLink).then(() => setState('copied'))} className="kern h-11 border border-fg uppercase hover:bg-fg hover:text-bg">
+                    <button onClick={() => navigator.clipboard.writeText(pdfLink).then(() => setState('copied'))} className="h-11 border border-fg uppercase hover:bg-fg hover:text-bg">
                       {state === 'copied' ? 'Copied' : 'Copy link'}
                     </button>
                     <a href={`https://wa.me/?text=${encodeURIComponent(pdfLink)}`} target="_blank" rel="noreferrer" className="grid h-11 place-items-center border border-fg hover:bg-fg hover:text-bg">WhatsApp</a>
@@ -106,14 +106,14 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
                   </div>
                 )}
                 {state === 'error' && <p className="text-sm text-red-600">Couldn’t make the PDF. Try again.</p>}
-                <a href={compCards} download className="kern flex h-12 items-center justify-center text-[14px] font-bold uppercase border border-fg hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
+                <a href={compCards} download className="flex h-12 items-center justify-center text-[14px] font-bold uppercase border border-fg hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
                   Download PDF
                 </a>
               </>
             ) : (
               <p className="text-sm text-muted">Comp cards are made for models in the Studio; placeholders don’t have one.</p>
             )}
-            <button onClick={clear} className="kern ink-line text-sm text-muted">Clear selection</button>
+            <button onClick={clear} className="ink-line text-sm text-muted">Clear selection</button>
           </div>
         )}
       </aside>

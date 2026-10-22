@@ -1,10 +1,10 @@
-import Link from 'next/link'
 import { DEMO_CONTACT } from '@/lib/copy'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
 import type { SiteSettings } from '@/sanity/lib/types'
 import { Logo } from './brand/Logo'
+import { HomeLink } from './HomeLink'
 import { MobileMenu } from './MobileMenu'
 import { SiteSwitchLink } from './SiteSwitchLink'
 import { SelectionCount } from './selection/SelectionCount'
@@ -26,9 +26,9 @@ export async function Header({ site }: { site: Site }) {
       data-site-header
       className="sticky top-0 z-40 flex items-center justify-between px-gutter pb-4 pt-[clamp(12px,2.1vw,40px)] text-paper mix-blend-difference"
     >
-      <Link href={sitePath(site)} aria-label={`${s.brand} home`}>
+      <HomeLink href={sitePath(site)} label={`${s.brand} home`}>
         <Logo division={s.division} className="text-[48px] md:text-[70px]" />
-      </Link>
+      </HomeLink>
       <nav
         className="flex items-center gap-[var(--nav-gap)] text-[clamp(13px,3.4vw,15px)] font-bold md:text-[clamp(12px,1.333vw,25.6px)] uppercase leading-none [--nav-gap:1.65em]"
         style={{ fontStretch: '80%' }}

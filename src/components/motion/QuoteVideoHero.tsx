@@ -572,7 +572,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
                 data-sound
                 aria-pressed={audible}
                 aria-label={audible ? 'Sound off' : 'Sound on'}
-                className="kern absolute bottom-[calc(100%+clamp(10px,1.4vw,22px))] right-[var(--gutter)] -m-2 flex items-center gap-2 p-2 text-[clamp(12px,0.9vw,15px)] font-bold uppercase leading-none"
+                className="absolute bottom-[calc(100%+clamp(10px,1.4vw,22px))] right-[var(--gutter)] -m-2 flex items-center gap-2 p-2 text-[clamp(12px,0.9vw,15px)] font-bold uppercase leading-none"
                 style={{ fontStretch: '80%' }}
               >
                 <SoundIcon on={audible} />

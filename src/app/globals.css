@@ -165,25 +165,19 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 
 /* Menu items: tighten to -10% tracking on hover, press and the current page, around the
    word's centre (the trailing tracking after the last letter is cancelled with a margin).
-   The same kerning on anything else with a word to press (.kern): a button, a link, a model's
-   name (lit by its .group), the footer's lines. */
-.nav-label,
-.kern {
+   Only the menu kerns; everything else with a word to press gets the line (.ink-line). */
+.nav-label {
   letter-spacing: -0.02em;
   margin-right: 0.02em;
   transition: letter-spacing 0.35s var(--ease-out), margin-right 0.35s var(--ease-out);
 }
 .nav-item:hover .nav-label,
 .nav-item:active .nav-label,
-.nav-item[aria-current="page"] .nav-label,
-.kern:hover,
-.kern:active,
-.kern[aria-current="page"],
-.group:hover .kern {
+.nav-item[aria-current="page"] .nav-label {
   letter-spacing: -0.1em;
   margin-right: 0.1em;
 }
-/* A line drawing itself under the word, left to right, as it is hovered (and under the current page). */
+/* A line drawing itself under the word, left to right, as it is hovered (and under the current page or tab). */
 .ink-line {
   position: relative;
 }
@@ -307,6 +301,10 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 .model-sheet {
   transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
 }
+/* The sheet comes up softly over the board, rather than cutting in. */
+@media (prefers-reduced-motion: no-preference) {
+  .model-sheet { animation: hero-fade 0.45s var(--ease-out) both; }
+}
 /* Opening (data-intro, first open only), all at once: text writes in letter by letter
    (one step per letter, --n), the spread slides into its frame as one, the ruler fades up. */
 @keyframes crop-in {
@@ -337,7 +335,7 @@ body:has([data-model-sheet], [data-sheet]) > footer {
 
 /* Board rulers: every model sits on her stretch of the INCH” ruler. Quiet at rest; hovering a
    model brings hers to full strength and fades the rest. */
-.ruler-seg { opacity: 0.4; transition: opacity 0.3s; }
+.ruler-seg { opacity: 0.4; transition: opacity 0.5s var(--ease-out); }
 .ruler-board:has(.ruler-cell:hover) .ruler-seg { opacity: 0.16; }
 .ruler-board .ruler-cell:hover .ruler-seg { opacity: 1; }
 @keyframes ruler-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }

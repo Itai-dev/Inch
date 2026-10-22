@@ -71,17 +71,17 @@ export async function Footer({ site }: { site: Site }) {
         <div className="grid gap-y-14 md:grid-cols-12 md:gap-x-6">
           <div className="flex flex-col gap-4 md:col-span-5">
             <p className="label text-[#8a8a8a]"><TypeText text="Bookings" /></p>
-            <a href={enquiry} className="kern ink-line wordmark w-fit text-[clamp(30px,3.6vw,64px)] leading-none">
+            <a href={enquiry} className="ink-line wordmark w-fit text-[clamp(30px,3.6vw,64px)] leading-none">
               <TypeText text={email} at={emailAt} ms={24} />
             </a>
             <p className="max-w-[440px] text-[15px] leading-snug text-[#8a8a8a]">
               <TypeText text={BRIEF} at={typeEnd(email, emailAt, 24)} ms={10} />
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <a href={enquiry} className="kern type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
+              <a href={enquiry} className="type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
                 Book talent →
               </a>
-              <Link href={sitePath(site, '/apply')} className="kern type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt + 120) }}>
+              <Link href={sitePath(site, '/apply')} className="type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt + 120) }}>
                 Become a model →
               </Link>
             </div>
@@ -103,9 +103,9 @@ export async function Footer({ site }: { site: Site }) {
                     return (
                       <li key={i} className={it.pre ? 'whitespace-pre-line' : undefined}>
                         {!it.href ? t : it.external ? (
-                          <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="kern ink-line inline-block">{t}</a>
+                          <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="ink-line inline-block">{t}</a>
                         ) : (
-                          <Link href={it.href} className="kern ink-line inline-block">{t}</Link>
+                          <Link href={it.href} className="ink-line inline-block">{t}</Link>
                         )}
                       </li>
                     )
@@ -118,7 +118,7 @@ export async function Footer({ site }: { site: Site }) {
 
         <div className="label mt-[clamp(56px,7vw,120px)] flex flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
           <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
-          <a href="#" className="kern ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
+          <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
         </div>
       </TypeOnView>
 

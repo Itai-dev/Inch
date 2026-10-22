@@ -92,6 +92,8 @@ type Unit = 'in' | 'cm'
 const BODY_PB = 48
 /** The form keeps at least this much width beside the card. */
 const FORM_MIN_W = 520
+/** The comp card's own width beside the form (scaled down from this when the screen is short or narrow). */
+const CARD_W = 820
 /** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
 const PHOTOS_BUDGET = 3.6 * 1024 * 1024
 
@@ -150,35 +152,43 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const stripRef = useRef<HTMLDetailsElement>(null)
   /** The card beside the form when it shows (desktop), else the strip it folds into. */
   const cardPlace = (): Place => {
-    // The card itself, inside the aside's room for its tilt (zoomed with the aside to fit the screen).
-    const aside = asideRef.current
-    const a = aside?.firstElementChild as HTMLElement | null | undefined
-    if (aside && a && a.offsetParent) return { el: a, card: true, zoom: parseFloat(getComputedStyle(aside).zoom) || 1 }
+    // The card itself, inside the aside's room for its tilt (scaled with its box to fit the screen).
+    const a = asideRef.current?.querySelector<HTMLElement>('[data-card]')
+    if (a && a.offsetParent) return { el: a, card: true, zoom: cardScale.current }
     return stripRef.current ? { el: stripRef.current, card: false } : null
   }
-  // Beside the form, the card is zoomed down (never up) so that it is always whole on the screen,
-  // under the top bar and the ruler, however short the window: no scrolling to see all of it.
+  // Beside the form, the card is scaled down (never up) so that it is always whole on the screen,
+  // under the top bar and the ruler, however short the window: no scrolling to see all of it. A
+  // transform, with its box sized to match, so every browser lays it out and measures it alike.
   const gridRef = useRef<HTMLDivElement>(null)
+  const scaleBoxRef = useRef<HTMLDivElement>(null)
+  const cardScale = useRef(1)
   useLayoutEffect(() => {
     const sheet = sheetRef.current
     const aside = asideRef.current
     const grid = gridRef.current
-    if (!sheet || !aside || !grid) return
+    const box = scaleBoxRef.current
+    const inner = box?.firstElementChild as HTMLElement | null | undefined
+    if (!sheet || !aside || !grid || !box || !inner) return
     const fit = () => {
       if (!aside.offsetParent) return
-      aside.style.zoom = '1'
+      const h = inner.offsetHeight // the card at its own width (transforms don't count)
       const top = grid.getBoundingClientRect().top - sheet.getBoundingClientRect().top + sheet.scrollTop
       const gs = getComputedStyle(grid)
-      const room = sheet.clientHeight - top - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - BODY_PB
-      const r = aside.getBoundingClientRect()
+      const as = getComputedStyle(aside)
+      const room = sheet.clientHeight - top - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - BODY_PB - parseFloat(as.paddingTop) - parseFloat(as.paddingBottom)
       // Also narrow enough to leave the form its width beside it.
-      const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap)
-      aside.style.zoom = String(Math.max(0.4, Math.min(1, room / r.height, width / r.width)))
+      const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap) - parseFloat(as.paddingLeft) - parseFloat(as.paddingRight)
+      const s = Math.max(0.4, Math.min(1, room / h, width / CARD_W))
+      cardScale.current = s
+      inner.style.transform = s < 1 ? `scale(${s})` : ''
+      box.style.width = `${Math.round(CARD_W * s)}px`
+      box.style.height = `${Math.round(h * s)}px`
     }
     fit()
     const ro = new ResizeObserver(fit)
     ro.observe(sheet)
-    ro.observe(aside.firstElementChild as Element)
+    ro.observe(inner)
     return () => ro.disconnect()
   }, [step])
   useEffect(() => {
@@ -242,6 +252,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
   const age = d.birthdate ? ageFrom(d.birthdate) : NaN
+  // A date that makes no sense (a year typed short, say): the form says so before it is sent.
+  const badDate = !!d.birthdate && !(age >= 10 && age <= 80)
   // A parent or guardian consents for applicants up to GUARDIAN_AGE (16).
   const isMinor = age >= 0 && age <= GUARDIAN_AGE
   const flow: Step[] = useMemo(() => ['you', ...(isMinor ? (['guardian'] as Step[]) : []), 'measure', 'digitals', 'send'], [isMinor])
@@ -397,16 +409,16 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-        <button type="button" onClick={close} className="kern ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
+        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
   const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
-      <button type="submit" disabled={disabled} className="kern h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
+      <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
       </button>
-      <button type="button" onClick={back} className="kern text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
+      <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
         Back
       </button>
       {note && <span className="text-[13px] text-muted">{note}</span>}
@@ -452,21 +464,28 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,520px)_auto] lg:content-center lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-6">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
-            <form className="relative grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form
+              className="relative grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (badDate) setTried(true)
+                else next()
+              }}
+            >
               {/* What you'll need: a small (i), opened when wanted, so the form can be filled straight away. */}
               <span className="absolute right-0 top-0 z-10">
                 <InfoTip label="What you’ll need">{BEFORE}</InfoTip>
               </span>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-              <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
-                <input required type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
+              <Field label="Date of birth" hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
+                <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
               <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} inputClassName={big} />
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
               <p className="sm:col-span-2 text-[13px] text-muted">{GUARDIAN_AGE} or younger? We’ll ask for a parent or guardian’s consent next.</p>
-              <div className="sm:col-span-2">{nav('Continue →', false, 'Takes about 3 minutes')}</div>
+              <div className="sm:col-span-2">{nav('Continue →', false, tried && badDate ? 'Check the date of birth.' : 'Takes about 3 minutes')}</div>
             </form>
           )}
 
@@ -545,7 +564,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                       <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                         {SIZE_NAME[openSize]} {openSize !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
-                      <button type="button" onClick={() => setOpenSize(null)} className="kern ink-line text-[12px] font-bold uppercase" style={narrow}>
+                      <button type="button" onClick={() => setOpenSize(null)} className="ink-line text-[12px] font-bold uppercase" style={narrow}>
                         Done
                       </button>
                     </div>
@@ -672,16 +691,28 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </div>
 
         {/* Room round the card for its tilt and shadow, so neither is cut off. It stays in view while a long step scrolls. */}
-        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden w-[820px] self-start p-9 lg:sticky lg:top-[calc(var(--bar,90px)+8px)] lg:block">{card()}</aside>
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start p-9 lg:sticky lg:top-[calc(var(--bar,90px)+8px)] lg:block">
+          <div ref={scaleBoxRef} style={{ width: CARD_W }}>
+            <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card()}</div>
+          </div>
+        </aside>
       </div>
     </div>
   )
 
   return (
     <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
-      {/* Top bar, as on the model page: the logo, and close. */}
+      {/* Top bar, as on the model page: the logo (home, asking first if the form was started), and close. */}
       <div ref={barRef} className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
-        <Logo division={division} className="text-[48px] md:text-[70px]" />
+        <Link
+          href={sitePath(site)}
+          aria-label={`${brand} home`}
+          onClick={(e) => {
+            if (started && !window.confirm('Leave your application? What you’ve filled in will be lost.')) e.preventDefault()
+          }}
+        >
+          <Logo division={division} className="text-[48px] md:text-[70px]" />
+        </Link>
         <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
             <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />

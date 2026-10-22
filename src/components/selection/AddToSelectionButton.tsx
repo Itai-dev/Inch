@@ -16,7 +16,7 @@ export function AddToSelectionButton({ talent, compact }: { talent: TalentCard; 
       className={
         compact
           ? `grid size-8 place-items-center rounded-full border text-lg leading-none backdrop-blur ${selected ? 'border-fg bg-fg text-bg' : 'border-white/70 bg-white/60'}`
-          : `kern border px-5 py-3 text-[14px] font-bold uppercase ${selected ? 'border-fg bg-fg text-bg' : 'border-fg'}`
+          : `border px-5 py-3 text-[14px] font-bold uppercase ${selected ? 'border-fg bg-fg text-bg' : 'border-fg'}`
       }
     >
       {compact ? (selected ? <DivisionMark division={talent.division} size={13} /> : '+') : selected ? 'Selected' : 'Add to selection'}

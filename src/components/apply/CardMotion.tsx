@@ -32,8 +32,9 @@ const envSize = (w: number, h: number) => {
   return { pad, ew, eh, fh: Math.round(eh * 0.56) }
 }
 /** The pocket: the envelope's back with the V of its open top cut out, meeting where the flap's tip lands. */
-const POCKET = 'polygon(0 0, 50% 52%, 100% 0, 100% 100%, 0 100%)'
-const FLAP = 'polygon(0 0, 100% 0, 50% 100%)'
+const POCKET = 'polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%)'
+/** The flap: a short straight side at each end, then the two slopes to its tip (as a real one is cut). */
+const FLAP = 'polygon(0 0, 100% 0, 100% 16%, 50% 100%, 0 16%)'
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
 
@@ -74,6 +75,8 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
       {/* In front of the card: the back of the envelope, its side and bottom folds meeting under the flap. */}
       <div ref={pocket} style={OFF} className="absolute left-0 top-0 z-[3] origin-top-left [filter:drop-shadow(0_-1px_1px_rgb(0_0_0/0.12))]">
         <div className="paper absolute inset-0" style={{ clipPath: POCKET }}>
+          {/* The side flaps in a little shade towards the folds, so they read as two sheets meeting. */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgb(0 0 0 / 0.045), transparent 30%, transparent 70%, rgb(0 0 0 / 0.045))' }} />
           <svg aria-hidden viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
             {/* The folds: from the bottom corners up to where the side flaps meet. */}
             <path d="M0 100 L46 62 M100 100 L54 62" stroke="rgb(0 0 0 / 0.1)" strokeWidth="0.6" vectorEffect="non-scaling-stroke" fill="none" />
@@ -85,6 +88,8 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
         <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
           <div className="paper absolute inset-0" style={{ clipPath: FLAP }}>
+            {/* Shaded towards its tip, so it reads as a sheet folded over. */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, rgb(0 0 0 / 0.05))' }} />
           </div>
           <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
             <DivisionMark division={division} size={26} />
@@ -216,6 +221,7 @@ export function CardOpening({
 
 export function CardPost({ front, division, from, onDone }: { front: React.ReactNode; division: Division; from: () => Place; onDone: () => void }) {
   const clip = useRef<HTMLDivElement>(null)
+  const group = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const back = useRef<HTMLDivElement>(null)
   const pocket = useRef<HTMLDivElement>(null)
@@ -230,7 +236,8 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const el = box.current
     const c = clip.current
     const st = slot.current
-    if (!el || !c || !st) return
+    const g = group.current
+    if (!el || !c || !st || !g) return
     const f = from()
     const r = f?.el.getBoundingClientRect() ?? null
     const desk = !!f?.card
@@ -255,7 +262,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const fx = r && desk ? r.left : cx
     const fy = r && desk ? r.top : innerHeight + 20
 
-    const T = 4400
+    const T = 4700
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
     const below = eh * sc + 80
@@ -265,21 +272,17 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         { transform: at(cx, inY - rise, sc), offset: o(900) },
         { transform: at(cx, inY - rise, sc), offset: o(1300), easing: EASE },
         { transform: at(cx, inY, sc), offset: o(2100) },
-        { transform: at(cx, inY, sc), offset: o(2900), easing: EASE_IN },
-        { transform: at(cx, slotY + below, sc), offset: o(3700) },
-        { transform: at(cx, slotY + below, sc), offset: 1 },
+        { transform: at(cx, inY, sc), offset: 1 },
       ],
       opts,
     )
     const env = [
       { transform: at(ex, innerHeight + 60, sc), offset: 0, easing: EASE },
       { transform: at(ex, ey, sc), offset: o(1100) },
-      { transform: at(ex, ey, sc), offset: o(2900), easing: EASE_IN },
-      { transform: at(ex, slotY + below + pad, sc), offset: o(3700) },
-      { transform: at(ex, slotY + below + pad, sc), offset: 1 },
+      { transform: at(ex, ey, sc), offset: 1 },
     ]
     const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
-    // Open while the card goes in; it closes over it, then goes down with the rest.
+    // Open while the card goes in; it closes over it.
     const flapClose = flap.current?.animate(
       [
         { transform: flapAt(ex, innerHeight + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: 0, easing: EASE },
@@ -288,20 +291,32 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(2450) },
         { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(2451), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
         { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(2750) },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(2900), easing: EASE_IN },
-        { transform: flapAt(ex, slotY + below + pad, 0, ew, sc), zIndex: 4, offset: o(3700) },
-        { transform: flapAt(ex, slotY + below + pad, 0, ew, sc), zIndex: 4, offset: 1 },
+        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: 1 },
       ],
       opts,
     )
-    // Only once the envelope is sealed does the slot open and cut off what goes through it.
-    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2850) * T)
-    const open = st.animate([{ transform: 'translateX(-50%) scaleX(0)' }, { transform: 'translateX(-50%) scaleX(1)' }], { duration: 420, delay: 2500, easing: EASE, fill: 'both' })
-    const close = st.animate([{ transform: 'translateX(-50%) scaleX(1)' }, { transform: 'translateX(-50%) scaleX(0)' }], { duration: 380, delay: 3800, easing: EASE, fill: 'forwards' })
+    // Sealed, the whole envelope is picked up: a little to the side and up, turned slightly, as in a
+    // hand; then posted, lower corner first, through the slot (everything below the slot is cut off).
+    g.style.transformOrigin = `${ex + (ew * sc) / 2}px ${ey + (eh * sc) / 2}px`
+    const dropY = slotY + below + pad - ey
+    const post = g.animate(
+      [
+        { transform: 'none', offset: 0 },
+        { transform: 'none', offset: o(2850), easing: EASE_OUT },
+        { transform: 'translate(46px, -54px) rotate(-5deg)', offset: o(3350) },
+        { transform: 'translate(46px, -54px) rotate(-5deg)', offset: o(3480), easing: EASE_IN },
+        { transform: `translate(8px, ${dropY}px) rotate(-2deg)`, offset: o(4300) },
+        { transform: `translate(8px, ${dropY}px) rotate(-2deg)`, offset: 1 },
+      ],
+      opts,
+    )
+    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(3450) * T)
+    const open = st.animate([{ transform: 'translateX(-50%) scaleX(0)' }, { transform: 'translateX(-50%) scaleX(1)' }], { duration: 420, delay: 2950, easing: EASE, fill: 'both' })
+    const close = st.animate([{ transform: 'translateX(-50%) scaleX(1)' }, { transform: 'translateX(-50%) scaleX(0)' }], { duration: 380, delay: 4320, easing: EASE, fill: 'forwards' })
     close.onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)
-      ;[card, flapClose, open, close, ...parts].forEach((a) => a?.cancel())
+      ;[card, flapClose, post, open, close, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -309,13 +324,16 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-30">
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
-        <Envelope division={division} back={back} pocket={pocket} flap={flap} />
-        <div ref={box} className="absolute left-0 top-0 z-[2] origin-top-left" style={{ transform: 'translateY(200vh)' }}>
-          {front}
+        {/* The envelope and the card in it move as one once it is sealed. */}
+        <div ref={group} className="absolute inset-0">
+          <Envelope division={division} back={back} pocket={pocket} flap={flap} />
+          <div ref={box} className="absolute left-0 top-0 z-[2] origin-top-left" style={{ transform: 'translateY(200vh)' }}>
+            {front}
+          </div>
         </div>
       </div>
-      {/* The slot: a dark opening in the page, a little wider than the envelope. */}
-      <div ref={slot} className="absolute left-1/2 h-2 rounded-full bg-[#0a0a0a] shadow-[0_3px_10px_rgb(0_0_0/0.35)_inset,0_1px_0_rgb(255_255_255/0.6)]" style={{ transform: 'translateX(-50%) scaleX(0)' }} />
+      {/* The slot: a thin dark cut in the page, a little wider than the envelope. */}
+      <div ref={slot} className="absolute left-1/2 h-[3px] bg-[#0a0a0a]" style={{ transform: 'translateX(-50%) scaleX(0)' }} />
     </div>
   )
 }
