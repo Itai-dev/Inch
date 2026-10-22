@@ -202,7 +202,7 @@ function Headline({ division }: { division: Division }) {
   const s = SITES[siteForDivision(division)]
   const id = `blind-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
-    <div className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden] [container-type:size]" style={{ transform: 'rotateY(180deg) translateZ(1px)' }}>
+    <div data-back className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden] [container-type:size]" style={{ transform: 'rotateY(180deg) translateZ(1px)' }}>
       {/* The plate's impression, a hairline inside the edge. */}
       <span aria-hidden className="pointer-events-none absolute inset-[10px] shadow-[inset_0_1px_1px_rgb(0_0_0/0.07),inset_0_-1px_0_rgb(255_255_255/0.6)]" />
       {/* The name at the top, what it is in the middle, the house at the foot; the seal pressed in at the top left. */}
@@ -438,7 +438,7 @@ export function CardOpening({
     // is read; then in one move it turns over about its upright axis as it goes to its place
     // (beside the form, or into its strip on phones). The page writes itself in on the way.
     const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
-    const HOLD = 750
+    const HOLD = 1250
     const T = HOLD + 1100
     const WRITE = HOLD + 350
     const o = (ms: number) => ms / T
@@ -446,7 +446,7 @@ export function CardOpening({
     const card = el.animate(
       [
         { transform: place(fit), clipPath: free, offset: 0, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
-        { transform: place(fit * 1.04), clipPath: free, offset: o(HOLD), easing: glide },
+        { transform: place(fit * 1.06), clipPath: free, offset: o(HOLD), easing: glide },
         { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
       ],
       opts,
@@ -471,12 +471,30 @@ export function CardOpening({
     const writeAt = window.setTimeout(() => write.current(), WRITE)
     // No fade: the stage is simply there.
     if (stage.current) stage.current.style.opacity = '1'
-    card.onfinish = () => done.current()
+    // Only the face turned toward you is drawn (each frame, from the card's actual turn), so neither
+    // face ever shows through the other.
+    const faceEl = fl.querySelector<HTMLElement>('[data-face]')
+    const backEl = fl.querySelector<HTMLElement>('[data-back]')
+    let raf = 0
+    const faces = () => {
+      const front = new DOMMatrix(getComputedStyle(fl).transform).m11 >= 0
+      if (faceEl) faceEl.style.visibility = front ? 'visible' : 'hidden'
+      if (backEl) backEl.style.visibility = front ? 'hidden' : 'visible'
+      raf = requestAnimationFrame(faces)
+    }
+    faces()
+    card.onfinish = () => {
+      cancelAnimationFrame(raf)
+      if (faceEl) faceEl.style.visibility = 'visible'
+      if (backEl) backEl.style.visibility = 'hidden'
+      done.current()
+    }
     // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
     if (skipRef) skipRef.current = () => [turn, light, card].forEach((a) => a?.finish())
     return () => {
       if (skipRef) skipRef.current = null
       clearTimeout(writeAt)
+      cancelAnimationFrame(raf)
       ;[card, turn, light].forEach((a) => a?.cancel())
     }
     // Plays once, from where the page is when it opens.
@@ -582,18 +600,18 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 4500
+    const T = 4250
     const SLOW = 1.3
     const CARD_END = 1500
     const FLAP = 1250
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [2750, 3150]
+    const OPEN: [number, number] = [2550, 2950]
     // Closed, it is taken up as if in a hand (TURN: lifted from, held, let go), the sticker put on
     // while it is held, and it goes down into the drawer.
-    const TURN: [number, number, number] = [2000, 2400, 3050]
+    const TURN: [number, number, number] = [2000, 2650, 2650]
     const DROP = TURN[2]
-    const LAND = 3750
+    const LAND = 3500
     // As it lands the drawer starts in, slowly at first (it never stops), and goes in.
     const SHUT: [number, number] = [LAND - 50, LAND + 650]
     const o = (ms: number) => ms / T
@@ -696,12 +714,9 @@ export function CardPost({
     const post = g.animate(
       [
         { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
-        { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.4, 0, 0.3, 1)' },
-        { transform: pose(-82, 14, -7, -4), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        // Held, it is never quite still: it breathes in the hand.
-        { transform: pose(-87, 12.4, -5.2, -3.2), visibility: 'visible', offset: o(TURN[1] + (TURN[2] - TURN[1]) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        { transform: pose(-83, 14.8, -7.8, -4.6), visibility: 'visible', offset: o(TURN[1] + ((TURN[2] - TURN[1]) * 2) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        { transform: pose(-86, 13, -6, -3.8), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.45, 0.05, 0.3, 1)' },
+        { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.45, 0, 0.4, 1)' },
+        // Taken up, turning, as the sticker goes on; then straight down into the drawer: one move up, one down.
+        { transform: pose(-82, 14, -7, -4), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.35, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
         { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },

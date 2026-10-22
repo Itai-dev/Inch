@@ -551,7 +551,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       {trap}
       {cardMoving && !reduced && (
         <CardOpening
-          front={card()}
+          front={card('', false, true)}
           compact={compact}
           division={division}
           target={cardPlace}
