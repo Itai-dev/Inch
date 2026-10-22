@@ -34,9 +34,12 @@ const envSize = (w: number, h: number) => {
 /** The pocket: the envelope's back with the V of its open top cut out, meeting where the flap's tip lands. */
 const POCKET = 'polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%)'
 /** The flap: a short straight side at each end, then the two slopes to its tip (as a real one is cut). */
-const FLAP = 'polygon(0 0, 100% 0, 100% 16%, 50% 100%, 0 16%)'
-/** The flap's inside: the same cut, upside down, because that face is itself turned over (rotateX) so it shows from behind. */
-const FLAP_INSIDE = 'polygon(0 100%, 100% 100%, 100% 84%, 50% 0, 0 84%)'
+/** The flap in two parts, hinged across 55% of its height (so it can curve): its upper part, and its tip.
+ * Each inside face is the same cut, upside down, because that face is itself turned over (rotateX) so it shows from behind. */
+const FLAP_BASE = 'polygon(0 0, 100% 0, 100% 29.1%, 76.8% 100%, 23.2% 100%, 0 29.1%)'
+const FLAP_BASE_INSIDE = 'polygon(0 100%, 100% 100%, 100% 70.9%, 76.8% 0, 23.2% 0, 0 70.9%)'
+const FLAP_TIP = 'polygon(23.2% 0, 76.8% 0, 50% 100%)'
+const FLAP_TIP_INSIDE = 'polygon(23.2% 100%, 76.8% 100%, 50% 0)'
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
 
@@ -69,7 +72,7 @@ function Headline({ division }: { division: Division }) {
 }
 
 /** A classic envelope's three layers, placed by the caller: its inside, the pocket in front of the card, and the flap. */
-function Envelope({ division, back, pocket, flap }: { division: Division; back: React.Ref<HTMLDivElement>; pocket: React.Ref<HTMLDivElement>; flap: React.Ref<HTMLDivElement> }) {
+function Envelope({ division, back, pocket, flap, tip }: { division: Division; back: React.Ref<HTMLDivElement>; pocket: React.Ref<HTMLDivElement>; flap: React.Ref<HTMLDivElement>; tip: React.Ref<HTMLDivElement> }) {
   return (
     <>
       {/* Inside, behind the card: the same stock, in shade. */}
@@ -86,18 +89,28 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
           </svg>
         </div>
       </div>
-      {/* The flap: closed over the top, the mark pressed into its tip; it opens up and back, showing its inside. */}
+      {/* The flap: closed over the top, the mark pressed into its tip; it opens up and back, showing
+          its inside. It is paper, so it curves as it moves: its tip (hinged to the rest across the
+          middle) lags behind and catches up. */}
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
-        <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
-          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
-            {/* Shaded towards its tip, so it reads as a sheet folded over. */}
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, rgb(0 0 0 / 0.05))' }} />
+        <div className="absolute inset-x-0 top-0 h-[55%] [transform-style:preserve-3d]">
+          <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
+            <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_BASE }} />
           </div>
-          <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
-            <DivisionMark division={division} size={26} />
-          </span>
+          <div className="envelope-paper absolute inset-0 [backface-visibility:hidden]" style={{ clipPath: FLAP_BASE_INSIDE, transform: 'rotateX(180deg)', boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />
         </div>
-        <div className="envelope-paper absolute inset-0 [backface-visibility:hidden]" style={{ clipPath: FLAP_INSIDE, transform: 'rotateX(180deg)', boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.07)' }} />
+        <div ref={tip} className="absolute inset-x-0 top-[55%] h-[45%] origin-top [transform-style:preserve-3d]">
+          <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
+            <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_TIP }}>
+              {/* Shaded towards its point, so it reads as a sheet folded over. */}
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+            </div>
+            <span className="absolute bottom-[31%] left-1/2 -translate-x-1/2" style={blind}>
+              <DivisionMark division={division} size={26} />
+            </span>
+          </div>
+          <div className="envelope-paper absolute inset-0 [backface-visibility:hidden]" style={{ clipPath: FLAP_TIP_INSIDE, transform: 'rotateX(180deg)', boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />
+        </div>
       </div>
     </>
   )
@@ -113,9 +126,21 @@ const at = (x: number, y: number, scale = 1) => `translate(${x}px, ${y}px) scale
 /** The flap turns about its top edge's middle; `x` is where its top-left corner lands, at scale `sc`. */
 const flapAt = (x: number, y: number, deg: number, ew: number, sc: number) =>
   `translate(${x - (ew * (1 - sc)) / 2}px, ${y}px) scale(${sc}) perspective(1400px) rotateX(${deg}deg)`
+/** The slot's ruler: how deep it runs (px) and how quickly its lines close in on the vanishing point. */
+const SLOT_DEPTH = 64
+const SLOT_PERSPECTIVE = 0.34
+/** Its lines, as [depth, width, strength]: a line at each whole step (eleven), and the inch
+ * ruler's ticks between: a middle one, and a short one either side of it. */
+const SLOT_LINES: [number, number, number][] = Array.from({ length: 10 }, (_, k) => [
+  [k, 1, 1],
+  [k + 0.25, 0.42, 0.55],
+  [k + 0.5, 0.7, 0.75],
+  [k + 0.75, 0.42, 0.55],
+] as [number, number, number][]).flat().concat([[10, 1, 1]])
+
 /** Clear of the top bar above, and room for the slot below. */
 const ENV_TOP = 96
-const ENV_FOOT = 90
+const ENV_FOOT = 130
 /** The envelope's scale: small, whole on screen with its flap open above it (and the slot under it). */
 const envScale = (ew: number, eh: number, fh: number) => Math.min(0.8, (innerWidth * 0.56) / ew, ((innerHeight - ENV_TOP - ENV_FOOT) * 0.85) / (eh + fh))
 
@@ -251,6 +276,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   const back = useRef<HTMLDivElement>(null)
   const pocket = useRef<HTMLDivElement>(null)
   const flap = useRef<HTMLDivElement>(null)
+  const tip = useRef<HTMLDivElement>(null)
   const slot = useRef<HTMLDivElement>(null)
   const shade = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
@@ -288,7 +314,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const inY = ey + pad * sc
     // It waits wholly above the envelope's opening (in front of the open flap), then slides down into it.
     const rise = Math.max(0, Math.min(h * sc + pad * sc + 6, inY - 60))
-    const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + 46))
+    const slotY = Math.round(Math.min(vh - SLOT_DEPTH - 16, ey + eh * sc + 40))
     const slotW = Math.round(ew * sc * 1.08)
     st.style.top = `${slotY}px`
     st.style.width = `${slotW}px`
@@ -370,6 +396,18 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       ],
       opts,
     )
+    // As the flap comes down over the card, its tip lags, so the flap curves, and catches up as it lies down.
+    const tipBend = tip.current?.animate(
+      [
+        { transform: 'rotateX(0deg)', offset: 0 },
+        { transform: 'rotateX(0deg)', offset: o(2131), easing: 'cubic-bezier(0.3, 0.5, 0.4, 1)' },
+        { transform: 'rotateX(20deg)', offset: o(2210), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
+        { transform: 'rotateX(-5deg)', offset: o(2300), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
+        { transform: 'rotateX(0deg)', offset: o(2390) },
+        { transform: 'rotateX(0deg)', offset: 1 },
+      ],
+      opts,
+    )
     // Sealed, it tips a little, then slides down into the slot (everything below the slot is cut off).
     g.style.transformOrigin = `${ex + (ew * sc) / 2}px ${ey + (eh * sc) / 2}px`
     const dropY = slotY + eh * sc + pad * sc + 20 - ey
@@ -384,23 +422,35 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       opts,
     )
     const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2600) * T * SLOW)
-    // The slot: a 0.9px grey line cut into the page, which opens up and down (its two edges part,
-    // white between), takes the envelope, and closes the same way.
+    // The slot opens into depth: one 0.9px grey line that parts into a ruler running away from
+    // the eye, eleven lines closing in on a vanishing point below it, and the inch ruler's smaller
+    // ticks between them. The envelope goes in at the front, between the two nearest lines;
+    // then it all closes back into the one line, and goes.
     const px = (n: number) => `${n}px`
-    const edge = (dir: 1 | -1) => [
-      { transform: 'translateY(0)', visibility: 'hidden', offset: 0 },
-      { transform: 'translateY(0)', visibility: 'hidden', offset: o(2149) },
-      { transform: 'translateY(0)', visibility: 'visible', offset: o(2150), easing: EASE },
-      { transform: `translateY(${dir * 5}px)`, visibility: 'visible', offset: o(2420) },
-      { transform: `translateY(${dir * 5}px)`, visibility: 'visible', offset: o(3200), easing: EASE },
-      { transform: 'translateY(0)', visibility: 'visible', offset: o(3420) },
-      { transform: 'translateY(0)', visibility: 'visible', offset: o(3550) },
-      { transform: 'translateY(0)', visibility: 'hidden', offset: o(3551) },
-      { transform: 'translateY(0)', visibility: 'hidden', offset: 1 },
-    ]
-    const [top, bottom] = [...st.children] as HTMLElement[]
-    const slotAnim = top.animate(edge(-1), opts)
-    const slotAnim2 = bottom.animate(edge(1), opts)
+    const lines = [...st.children] as HTMLElement[]
+    const lineAnims = lines.map((ln) => {
+      const u = Number(ln.dataset.u)
+      const share = Number(ln.dataset.w)
+      const f = 1 / (1 + u * SLOT_PERSPECTIVE)
+      const dy = SLOT_DEPTH * (1 - f)
+      const shut = `translateY(0px) scaleX(${share})`
+      const opened = `translateY(${dy.toFixed(2)}px) scaleX(${(share * f).toFixed(4)})`
+      const lag = u * 14 // the deeper lines arrive a moment later, and leave a moment sooner
+      return ln.animate(
+        [
+          { transform: shut, visibility: 'hidden', offset: 0 },
+          { transform: shut, visibility: 'hidden', offset: o(2149) },
+          { transform: shut, visibility: 'visible', offset: o(2150), easing: EASE },
+          { transform: opened, visibility: 'visible', offset: o(2440 + lag) },
+          { transform: opened, visibility: 'visible', offset: o(3200 - lag), easing: EASE },
+          { transform: shut, visibility: 'visible', offset: o(3430) },
+          { transform: shut, visibility: 'visible', offset: o(3550) },
+          { transform: shut, visibility: 'hidden', offset: o(3551) },
+          { transform: shut, visibility: 'hidden', offset: 1 },
+        ],
+        opts,
+      )
+    })
     // As it goes in, the slot's shadow falls on the part of the envelope just above it (it is
     // going somewhere deep): drawn each frame from where the envelope really is.
     const sh = shade.current
@@ -415,11 +465,11 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       raf = requestAnimationFrame(follow)
     }
     raf = requestAnimationFrame(follow)
-    slotAnim.onfinish = () => done.current()
+    lineAnims[0].onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, post, slotAnim, slotAnim2, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, tipBend, post, ...lineAnims, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -429,7 +479,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
         <div ref={group} className="absolute inset-0">
-          <Envelope division={division} back={back} pocket={pocket} flap={flap} />
+          <Envelope division={division} back={back} pocket={pocket} flap={flap} tip={tip} />
           <div ref={box} className="absolute left-0 top-0 z-[2] origin-top-left" style={{ transform: 'translateY(200vh)' }}>
             {front}
           </div>
@@ -437,10 +487,17 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         {/* The slot's shadow on the envelope as it goes in (above it, cut with it at the slot). */}
         <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
       </div>
-      {/* The slot: two 0.9px grey edges, one on the other (a line) until they part. */}
+      {/* The slot: the ruler of lines it opens into (all on one line until it opens). */}
       <div ref={slot} className="absolute left-1/2 h-0 -translate-x-1/2" style={{ width: 0 }}>
-        <span className="invisible absolute inset-x-0 top-0 h-[0.9px] bg-[#a9a6a0]" />
-        <span className="invisible absolute inset-x-0 top-0 h-[0.9px] bg-[#a9a6a0]" />
+        {SLOT_LINES.map(([u, share, tone]) => (
+          <span
+            key={u}
+            data-u={u}
+            data-w={share}
+            className="invisible absolute inset-x-0 top-0 h-[0.9px] origin-center"
+            style={{ background: `rgb(150 147 141 / ${(tone / (1 + u * 0.18)).toFixed(3)})` }}
+          />
+        ))}
       </div>
     </div>
   )
