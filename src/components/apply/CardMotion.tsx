@@ -252,21 +252,31 @@ export function CardOpening({
     const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
     const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
 
-    // It is simply there, its back up (the headline), long enough to be read; then, in one move, it
-    // turns over about its upright axis as it goes to its place, and the page writes itself in
-    // under it before it gets there.
-    const HOLD = 700
-    const T = HOLD + 1150
-    const WRITE = HOLD + 650
+    // Beside the form (desktop) it all happens in the card's own place, leaving the form free: the
+    // card is there, its back up (the headline), and grows a touch for a second so it reads; then
+    // it turns over about its upright axis as it settles back. On phones it is there in the middle,
+    // then in one move turns over as it goes into its strip. Either way the page writes itself in
+    // before it is done.
+    const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
+    const HOLD = toCard ? 1000 : 700
+    const T = HOLD + (toCard ? 950 : 1150)
+    const WRITE = toCard ? 250 : HOLD + 650
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
-    const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
+    // At its place, grown k times about its middle.
+    const grown = (k: number) => at(tx - (w * zoom * (k - 1)) / 2, ty - (h * zoom * (k - 1)) / 2, zoom * k)
     const card = el.animate(
-      [
-        { transform: place(fit), clipPath: free, offset: 0 },
-        { transform: place(fit), clipPath: free, offset: o(HOLD), easing: glide },
-        { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
-      ],
+      toCard
+        ? [
+            { transform: grown(1), clipPath: free, offset: 0, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
+            { transform: grown(1.08), clipPath: free, offset: o(HOLD), easing: glide },
+            { transform: grown(1), clipPath: free, offset: 1 },
+          ]
+        : [
+            { transform: place(fit), clipPath: free, offset: 0 },
+            { transform: place(fit), clipPath: free, offset: o(HOLD), easing: glide },
+            { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
+          ],
       opts,
     )
     const turn = fl.animate(
@@ -379,6 +389,12 @@ export function CardPost({
     // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
     const [sx, sy, ss] = r ? [r.left, r.top, desk ? zoom : r.width / w] : [(innerWidth - w) / 2, vh + 20, 1]
     const folded = !desk && r ? Math.max(0, h - r.height / (r.width / w)) : 0
+    // The card as it was beside the form: turned toward the pointer (its own tilt), from there.
+    const tilt = (f?.el.firstElementChild as HTMLElement | null)?.style.transform ?? ''
+    const num = (fn: string, unit: string) => Number(tilt.match(new RegExp(`${fn}\\((-?[\\d.]+)${unit}\\)`))?.[1] ?? (fn === 'scale' ? 1 : 0))
+    const lean = (rx: number, ry: number, ty: number, k: number, rz: number, sk: number) =>
+      `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(${ty}px) scale(${k}) rotate(${rz}deg) skewX(${sk}deg)`
+    const from0 = lean(num('rotateX', 'deg'), num('rotateY', 'deg'), num('translateY', 'px'), num('scale', ''), 0, 0)
 
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
@@ -430,10 +446,10 @@ export function CardPost({
     const sheet = el.firstElementChild as HTMLElement | null
     const sway = sheet?.animate(
       [
-        { transform: 'rotate(0deg) skewX(0deg)', offset: 0, easing: EASE },
-        { transform: 'rotate(-1deg) skewX(0.4deg)', offset: o(500), easing: EASE },
-        { transform: 'rotate(0deg) skewX(0deg)', offset: o(1200) },
-        { transform: 'rotate(0deg) skewX(0deg)', offset: 1 },
+        { transform: from0, offset: 0, easing: EASE },
+        { transform: lean(0, 0, 0, 1, -1, 0.4), offset: o(500), easing: EASE },
+        { transform: lean(0, 0, 0, 1, 0, 0), offset: o(1200) },
+        { transform: lean(0, 0, 0, 1, 0, 0), offset: 1 },
       ],
       opts,
     )

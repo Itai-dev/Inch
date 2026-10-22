@@ -11,7 +11,9 @@ import { useEffect, useRef, useState } from 'react'
 
 const EASE_OUT = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
 const EASE_IN_OUT = 'cubic-bezier(0.55, 0, 0.35, 1)'
-const OPEN_MS = 760
+/** How long it takes to unfold. */
+export const FOLD_OPEN_MS = 760
+const OPEN_MS = FOLD_OPEN_MS
 const CLOSE_MS = 560
 
 export function PaperFold({ open, children, className = '' }: { open: boolean; children: React.ReactNode; className?: string }) {

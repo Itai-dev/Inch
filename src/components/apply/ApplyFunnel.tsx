@@ -21,7 +21,7 @@ import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
 import { CardOpening, CardPost, type Place } from './CardMotion'
-import { PaperFold } from './PaperFold'
+import { FOLD_OPEN_MS, PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { CountrySelect } from './CountrySelect'
 import { HeightTape } from './Tape'
@@ -172,6 +172,9 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     // The card itself, inside the aside's room for its tilt (scaled with its box to fit the screen).
     const a = asideRef.current?.querySelector<HTMLElement>('[data-card]')
     if (a && a.offsetParent) return { el: a, card: true, zoom: cardScale.current }
+    // Phones, the card unfolded under its strip: from the card itself.
+    const open = stripRef.current?.querySelector<HTMLElement>('[data-strip-card]')
+    if (open) return { el: open, card: true, zoom: 1 }
     return stripRef.current ? { el: stripRef.current, card: false } : null
   }
   // Beside the form, the card is its own layer, fixed on the screen: whatever the form does (a
@@ -374,10 +377,14 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       return
     }
     setUnsent(!!(await res.json().catch(() => ({})))?.unsent)
-    // Sent: the card goes through the slot (CardPost), then the thanks.
+    // Sent: the card goes into the envelope and the drawer (CardPost), then the thanks. On phones
+    // the card is first unfolded from its strip, and goes from there.
     if (reduced) {
       setPhase('ready')
       go('done')
+    } else if (!asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent && !stripOpen) {
+      setStripOpen(true)
+      setTimeout(() => setPhase('posting'), FOLD_OPEN_MS + 60)
     } else setPhase('posting')
   }
 
@@ -549,7 +556,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </button>
         {/* The card folds out from under the strip like paper, and back. */}
         <PaperFold open={stripOpen}>
-          <div className="paper px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
+          <div data-strip-card className="paper px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
         </PaperFold>
       </div>
 
