@@ -313,8 +313,11 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     setTried(false)
     setStep(s)
     setFurthest((f) => Math.max(f, NUMBER[s] ?? 0))
-    sheetRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
   }
+  // Each step opens at the top of the page (straight there, before it is drawn).
+  useLayoutEffect(() => {
+    sheetRef.current?.scrollTo({ top: 0 })
+  }, [step])
   const next = () => go(flow[index + 1])
   const started = step !== 'done' && (Object.values(d).some(Boolean) || Object.keys(photos).length > 0)
   const close = useCallback(() => {

@@ -178,10 +178,10 @@ export function CardOpening({
 
     // It grows in from small, unhurried, turning slightly as it comes; the headline is held a while
     // to be read; then it turns over (unhurried too) and goes to its place.
-    const GROWN = 1000
-    const TURN_FROM = 1850
-    const TURN_END = TURN_FROM + 500
-    const T = TURN_END + 650
+    const GROWN = 1300
+    const TURN_FROM = 2400
+    const TURN_END = TURN_FROM + 650
+    const T = TURN_END + 850
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
     const card = el.animate(
@@ -203,7 +203,7 @@ export function CardOpening({
       ],
       opts,
     )
-    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: EASE_OUT, fill: 'both' })
+    const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 550, easing: EASE_OUT, fill: 'both' })
     card.onfinish = () => done.current()
     // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
     if (skipRef) skipRef.current = () => [turn, show, card].forEach((a) => a?.finish())
@@ -281,9 +281,11 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const fromClip = !desk && r ? `inset(0 0 ${Math.max(0, h - r.height / (r.width / w))}px 0)` : 'inset(0 0 0 0)'
     const open = 'inset(0 0 0 0)'
 
+    // Timed on a 3.3s score, played unhurried (SLOW times longer).
     const T = 3300
+    const SLOW = 1.35
     const o = (ms: number) => ms / T
-    const opts = { duration: T, fill: 'forwards' as const }
+    const opts = { duration: T * SLOW, fill: 'forwards' as const }
     const card = el.animate(
       [
         { transform: fromAt, clipPath: fromClip, offset: 0, easing: EASE },
@@ -329,7 +331,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       ],
       opts,
     )
-    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2250) * T)
+    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2250) * T * SLOW)
     // The mail slot: a hairline drawn across the page, which opens into a slit (its shadow inside), and closes after.
     const slotAnim = st.animate(
       [
