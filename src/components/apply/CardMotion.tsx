@@ -240,7 +240,6 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   const flap = useRef<HTMLDivElement>(null)
   const slot = useRef<HTMLDivElement>(null)
   const shade = useRef<HTMLDivElement>(null)
-  const slotFlap = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
   useLayoutEffect(() => {
     done.current = onDone
@@ -278,31 +277,37 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + 46))
     const slotW = Math.round(ew * sc * 1.08)
     st.style.top = `${slotY}px`
+    st.style.width = `${slotW}px`
     // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
     const fromAt = r ? at(r.left, r.top, desk ? zoom : r.width / w) : at((innerWidth - w) / 2, vh + 20, 1)
     const fromClip = !desk && r ? `inset(0 0 ${Math.max(0, h - r.height / (r.width / w))}px 0)` : 'inset(0 0 0 0)'
     const open = 'inset(0 0 0 0)'
 
     // Timed on a 3.3s score, played unhurried (SLOW times longer).
-    const T = 3300
-    const SLOW = 1.35
+    // The score (ms, played SLOW times longer): the card alone in the middle; then it settles, small,
+    // where the envelope's opening will be (in front of everything); only then does the envelope
+    // rise to meet it, and the card goes in. Sealed, it goes through the slot.
+    const T = 3650
+    const SLOW = 1.3
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     const card = el.animate(
       [
-        { transform: fromAt, clipPath: fromClip, offset: 0, easing: EASE },
-        { transform: showAt, clipPath: open, offset: o(600) },
-        { transform: showAt, clipPath: open, offset: o(800), easing: EASE },
-        { transform: at(cx, inY - rise, sc), clipPath: open, offset: o(1250), easing: EASE },
-        { transform: at(cx, inY, sc), clipPath: open, offset: o(1600) },
-        { transform: at(cx, inY, sc), clipPath: open, offset: 1 },
+        { transform: fromAt, clipPath: fromClip, zIndex: 5, offset: 0, easing: EASE },
+        { transform: showAt, clipPath: open, zIndex: 5, offset: o(600) },
+        { transform: showAt, clipPath: open, zIndex: 5, offset: o(800), easing: EASE },
+        { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 5, offset: o(1150) },
+        { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 5, offset: o(1599) },
+        { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 2, offset: o(1600), easing: EASE },
+        { transform: at(cx, inY, sc), clipPath: open, zIndex: 2, offset: o(1950) },
+        { transform: at(cx, inY, sc), clipPath: open, zIndex: 2, offset: 1 },
       ],
       opts,
     )
     const env = [
       { transform: at(ex, vh + 60, sc), offset: 0 },
-      { transform: at(ex, vh + 60, sc), offset: o(650), easing: EASE },
-      { transform: at(ex, ey, sc), offset: o(1200) },
+      { transform: at(ex, vh + 60, sc), offset: o(1150), easing: EASE },
+      { transform: at(ex, ey, sc), offset: o(1550) },
       { transform: at(ex, ey, sc), offset: 1 },
     ]
     const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
@@ -310,12 +315,12 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const flapClose = flap.current?.animate(
       [
         { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: 0 },
-        { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: o(650), easing: EASE },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1200) },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1620), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(1780) },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(1781), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(1950) },
+        { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: o(1150), easing: EASE },
+        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1550) },
+        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1970), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
+        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(2130) },
+        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(2131), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
+        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(2300) },
         { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: 1 },
       ],
       opts,
@@ -326,38 +331,31 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const post = g.animate(
       [
         { transform: 'none', offset: 0 },
-        { transform: 'none', offset: o(2000), easing: EASE_OUT },
-        { transform: 'translateY(-14px) rotate(-1.5deg)', offset: o(2250), easing: EASE_IN },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: o(2850) },
+        { transform: 'none', offset: o(2350), easing: EASE_OUT },
+        { transform: 'translateY(-14px) rotate(-1.5deg)', offset: o(2600), easing: EASE_IN },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: o(3200) },
         { transform: `translateY(${dropY}px) rotate(0deg)`, offset: 1 },
       ],
       opts,
     )
-    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2250) * T * SLOW)
-    // The mail slot, in the white page: white, a 0.9px grey hairline round it. It is drawn across,
-    // its flap swings open onto the dark inside, the envelope goes in, the flap shuts, and it goes.
+    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2600) * T * SLOW)
+    // The slot: a 0.9px grey line cut into the page, which opens up and down (its two edges part,
+    // white between), takes the envelope, and closes the same way.
     const px = (n: number) => `${n}px`
-    const slotAnim = st.animate(
-      [
-        { width: px(0), offset: 0 },
-        { width: px(0), offset: o(1750), easing: EASE },
-        { width: px(slotW), offset: o(1980) },
-        { width: px(slotW), offset: o(3080), easing: EASE },
-        { width: px(0), offset: 1 },
-      ],
-      opts,
-    )
-    const flapAnim = slotFlap.current?.animate(
-      [
-        { transform: 'rotateX(0deg)', offset: 0 },
-        { transform: 'rotateX(0deg)', offset: o(2060), easing: EASE },
-        { transform: 'rotateX(-82deg)', offset: o(2230) },
-        { transform: 'rotateX(-82deg)', offset: o(2870), easing: EASE },
-        { transform: 'rotateX(0deg)', offset: o(3010) },
-        { transform: 'rotateX(0deg)', offset: 1 },
-      ],
-      opts,
-    )
+    const edge = (dir: 1 | -1) => [
+      { transform: 'translateY(0)', visibility: 'hidden', offset: 0 },
+      { transform: 'translateY(0)', visibility: 'hidden', offset: o(2149) },
+      { transform: 'translateY(0)', visibility: 'visible', offset: o(2150), easing: EASE },
+      { transform: `translateY(${dir * 5}px)`, visibility: 'visible', offset: o(2420) },
+      { transform: `translateY(${dir * 5}px)`, visibility: 'visible', offset: o(3200), easing: EASE },
+      { transform: 'translateY(0)', visibility: 'visible', offset: o(3420) },
+      { transform: 'translateY(0)', visibility: 'visible', offset: o(3550) },
+      { transform: 'translateY(0)', visibility: 'hidden', offset: o(3551) },
+      { transform: 'translateY(0)', visibility: 'hidden', offset: 1 },
+    ]
+    const [top, bottom] = [...st.children] as HTMLElement[]
+    const slotAnim = top.animate(edge(-1), opts)
+    const slotAnim2 = bottom.animate(edge(1), opts)
     // As it goes in, the slot's shadow falls on the part of the envelope just above it (it is
     // going somewhere deep): drawn each frame from where the envelope really is.
     const sh = shade.current
@@ -376,7 +374,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, flapClose, post, slotAnim, flapAnim, ...parts].forEach((a) => a?.cancel())
+      ;[card, flapClose, post, slotAnim, slotAnim2, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -394,13 +392,10 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         {/* The slot's shadow on the envelope as it goes in (above it, cut with it at the slot). */}
         <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
       </div>
-      {/* The mail slot: white, a 0.9px grey hairline round it; its flap opens onto the dark inside. */}
-      <div
-        ref={slot}
-        className="absolute left-1/2 h-[12px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1px] border-[0.9px] border-[#b9b6af] bg-[#151515] [perspective:120px]"
-        style={{ width: 0 }}
-      >
-        <div ref={slotFlap} className="absolute inset-0 origin-top bg-white" />
+      {/* The slot: two 0.9px grey edges, one on the other (a line) until they part. */}
+      <div ref={slot} className="absolute left-1/2 h-0 -translate-x-1/2" style={{ width: 0 }}>
+        <span className="invisible absolute inset-x-0 top-0 h-[0.9px] bg-[#a9a6a0]" />
+        <span className="invisible absolute inset-x-0 top-0 h-[0.9px] bg-[#a9a6a0]" />
       </div>
     </div>
   )
