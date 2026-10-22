@@ -291,12 +291,12 @@ export function ModelSheet({
   const bookTabs = (stacked = false) => (
     <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
       {tabs.map((t) => (
-        <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
+        <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
           {t.title}
         </button>
       ))}
       {handle && (
-        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
+        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('IG')}>
           IG
         </a>
       )}
