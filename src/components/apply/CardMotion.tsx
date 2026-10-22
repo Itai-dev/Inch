@@ -7,10 +7,11 @@
  *   the form it becomes the comp card (desktop); on phones it turns to the folded strip and
  *   shrinks into it, so it is the strip.
  * - CardPost: once the application is sent, the card comes to the middle, an open envelope rises
- *   under it, the card goes in, the flap closes, and the envelope drops through a slot.
+ *   under it, the card goes in, the flap closes, and the envelope drops into a drawer (seen from
+ *   above, among others' envelopes) that shuts on it.
  * Both draw copies over the page (fixed), so the page under them lays itself out undisturbed.
  */
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { DivisionMark } from '@/components/brand/Marks'
 import { SITES, siteForDivision } from '@/lib/sites'
 import type { Division } from '@/sanity/lib/types'
@@ -126,17 +127,39 @@ const at = (x: number, y: number, scale = 1) => `translate(${x}px, ${y}px) scale
 /** The flap turns about its top edge's middle; `x` is where its top-left corner lands, at scale `sc`. */
 const flapAt = (x: number, y: number, deg: number, ew: number, sc: number) =>
   `translate(${x - (ew * (1 - sc)) / 2}px, ${y}px) scale(${sc}) perspective(1400px) rotateX(${deg}deg)`
-/** The slot's ruler: how deep it runs (px) and how quickly its lines close in on the vanishing point. */
-const SLOT_DEPTH = 64
-const SLOT_PERSPECTIVE = 0.34
-/** Its lines, as [depth, width, strength]: a line at each whole step (eleven), and the inch
- * ruler's ticks between: a middle one, and a short one either side of it. */
-const SLOT_LINES: [number, number, number][] = Array.from({ length: 10 }, (_, k) => [
-  [k, 1, 1],
-  [k + 0.25, 0.42, 0.55],
-  [k + 0.5, 0.7, 0.75],
-  [k + 0.75, 0.42, 0.55],
-] as [number, number, number][]).flat().concat([[10, 1, 1]])
+/**
+ * The slot opens into a drawer seen from above: one ruler lying in it, running away from the eye
+ * to a vanishing point above. Depth `u` runs 0 (the slot line, at the front) to DRAWER_UNITS (the
+ * back); a line `u` deep sits vp * (1 - fz(u)) px above the slot and fz(u) of its width.
+ */
+const DRAWER_UNITS = 10
+/** How far up the vanishing point is, against the drawer's width at the front (and at most against the screen's height). */
+const DRAWER_RISE = 0.55
+const DRAWER_RISE_MAX = 0.24
+const fz = (u: number) => 1 / (1 + u * 0.22)
+/** The inch ruler's ticks along both its edges between the whole steps: [depth within a step, length]. */
+const DRAWER_TICKS: [number, number][] = [
+  [0.25, 0.45],
+  [0.5, 0.7],
+  [0.75, 0.45],
+]
+/** A tick at full length, as a share of the drawer's width there. */
+const DRAWER_TICK = 0.14
+/** Where ours goes in: between the two nearest lines. How much of it shows above them (against the rise), and its share of the width there. */
+const OURS_U = 0.5
+const OURS_SHOW = 0.085
+const OURS_SHARE = 0.78
+/** Envelopes already in it (others have applied): [depth, share of the width, height against ours, sideways]. */
+const DRAWER_ENVELOPES: [number, number, number, number][] = [
+  [1.5, 0.76, 1, -0.02],
+  [2.5, 0.8, 1.15, 0.015],
+  [4.5, 0.74, 0.9, 0],
+  [6.5, 0.78, 1.1, -0.02],
+  [8.5, 0.76, 1, 0.02],
+]
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2)
+const span = (ms: number, from: number, to: number) => Math.min(1, Math.max(0, (ms - from) / (to - from)))
 
 /** Clear of the top bar above, and room for the slot below. */
 const ENV_TOP = 96
@@ -277,8 +300,9 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   const pocket = useRef<HTMLDivElement>(null)
   const flap = useRef<HTMLDivElement>(null)
   const tip = useRef<HTMLDivElement>(null)
-  const slot = useRef<HTMLDivElement>(null)
+  const drawer = useRef<SVGSVGElement>(null)
   const shade = useRef<HTMLDivElement>(null)
+  const shadeId = `drawer-shade-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const done = useRef(onDone)
   useLayoutEffect(() => {
     done.current = onDone
@@ -287,9 +311,9 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   useEffect(() => {
     const el = box.current
     const c = clip.current
-    const st = slot.current
+    const dr = drawer.current
     const g = group.current
-    if (!el || !c || !st || !g) return
+    if (!el || !c || !dr || !g) return
     const f = from()
     const r = f?.el.getBoundingClientRect() ?? null
     const desk = !!f?.card
@@ -314,10 +338,13 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const inY = ey + pad * sc
     // It waits wholly above the envelope's opening (in front of the open flap), then slides down into it.
     const rise = Math.max(0, Math.min(h * sc + pad * sc + 6, inY - 60))
-    const slotY = Math.round(Math.min(vh - SLOT_DEPTH - 16, ey + eh * sc + 40))
-    const slotW = Math.round(ew * sc * 1.08)
-    st.style.top = `${slotY}px`
-    st.style.width = `${slotW}px`
+    // The drawer under it: its front edge (the slot line) low enough that its back clears the
+    // envelope; wide enough that ours fills its share of it where it goes in.
+    const slotW = (ew * sc) / (OURS_SHARE * fz(OURS_U))
+    const vp = Math.min(slotW * DRAWER_RISE, vh * DRAWER_RISE_MAX)
+    const tops = vp * OURS_SHOW
+    const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + vp * (1 - fz(DRAWER_UNITS)) + 14))
+    const baseY = slotY - vp * (1 - fz(OURS_U))
     // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
     const fromAt = r ? at(r.left, r.top, desk ? zoom : r.width / w) : at((innerWidth - w) / 2, vh + 20, 1)
     const fromClip = !desk && r ? `inset(0 0 ${Math.max(0, h - r.height / (r.width / w))}px 0)` : 'inset(0 0 0 0)'
@@ -327,8 +354,13 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     // The score (ms, played SLOW times longer): the card alone in the middle; then it settles, small,
     // where the envelope's opening will be (in front of everything); only then does the envelope
     // rise to meet it, and the card goes in. Sealed, it goes through the slot.
-    const T = 3650
+    const T = 4100
     const SLOW = 1.3
+    // The drawer: it opens as the flap comes down, ours lands in it at LAND, and it shuts after a beat.
+    const OPEN: [number, number] = [2150, 2450]
+    const LAND = 3200
+    const SHUT: [number, number] = [3600, 3900]
+    const GONE = 4000
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     const card = el.animate(
@@ -408,74 +440,119 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       ],
       opts,
     )
-    // Sealed, it tips a little, then slides down into the slot (everything below the slot is cut off).
+    // Sealed, it tips a little, then slides down into the drawer between its two nearest lines
+    // (everything below them is cut off) and stays there, its top showing. There the drawer takes
+    // it over (drawn the same), so it can shut with it.
     g.style.transformOrigin = `${ex + (ew * sc) / 2}px ${ey + (eh * sc) / 2}px`
-    const dropY = slotY + eh * sc + pad * sc + 20 - ey
+    const dropY = baseY - tops - ey
     const post = g.animate(
       [
-        { transform: 'none', offset: 0 },
-        { transform: 'none', offset: o(2350), easing: EASE_OUT },
-        { transform: 'translateY(-14px) rotate(-1.5deg)', offset: o(2600), easing: EASE_IN },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: o(3200) },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: 1 },
+        { transform: 'none', visibility: 'visible', offset: 0 },
+        { transform: 'none', visibility: 'visible', offset: o(2350), easing: EASE_OUT },
+        { transform: 'translateY(-14px) rotate(-1.5deg)', visibility: 'visible', offset: o(2600), easing: EASE_IN },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'visible', offset: o(LAND) },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'visible', offset: o(LAND + 20) },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'hidden', offset: o(LAND + 21) },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'hidden', offset: 1 },
       ],
       opts,
     )
-    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2600) * T * SLOW)
-    // The slot opens into depth: one 0.9px grey line that parts into a ruler running away from
-    // the eye, eleven lines closing in on a vanishing point below it, and the inch ruler's smaller
-    // ticks between them. The envelope goes in at the front, between the two nearest lines;
-    // then it all closes back into the one line, and goes.
-    const px = (n: number) => `${n}px`
-    const lines = [...st.children] as HTMLElement[]
-    const lineAnims = lines.map((ln) => {
-      const u = Number(ln.dataset.u)
-      const share = Number(ln.dataset.w)
-      const f = 1 / (1 + u * SLOT_PERSPECTIVE)
-      const dy = SLOT_DEPTH * (1 - f)
-      const shut = `translateY(0px) scaleX(${share})`
-      const opened = `translateY(${dy.toFixed(2)}px) scaleX(${(share * f).toFixed(4)})`
-      const lag = u * 14 // the deeper lines arrive a moment later, and leave a moment sooner
-      return ln.animate(
-        [
-          { transform: shut, visibility: 'hidden', offset: 0 },
-          { transform: shut, visibility: 'hidden', offset: o(2149) },
-          { transform: shut, visibility: 'visible', offset: o(2150), easing: EASE },
-          { transform: opened, visibility: 'visible', offset: o(2440 + lag) },
-          { transform: opened, visibility: 'visible', offset: o(3200 - lag), easing: EASE },
-          { transform: shut, visibility: 'visible', offset: o(3430) },
-          { transform: shut, visibility: 'visible', offset: o(3550) },
-          { transform: shut, visibility: 'hidden', offset: o(3551) },
-          { transform: shut, visibility: 'hidden', offset: 1 },
-        ],
-        opts,
-      )
-    })
-    // As it goes in, the slot's shadow falls on the part of the envelope just above it (it is
-    // going somewhere deep): drawn each frame from where the envelope really is.
+    const cutAt = window.setTimeout(() => (c.style.height = `${baseY}px`), o(2600) * T * SLOW)
+    // The drawer, drawn each frame from the score: opened `p` of the way, every line sits as deep
+    // as it would p times over (so the rails stay straight and the vanishing point stays put).
+    const mid = innerWidth / 2
+    const q = <E extends Element>(sel: string) => [...dr.querySelectorAll<E>(sel)]
+    const majors = q<SVGLineElement>('[data-major]')
+    const rails = q<SVGLineElement>('[data-rail]')
+    const ticks = q<SVGLineElement>('[data-tick]')
+    const envs = q<SVGGElement>('[data-env]')
+    const set = (n: Element, a: Record<string, number | string>) => Object.entries(a).forEach(([k, v]) => n.setAttribute(k, typeof v === 'number' ? v.toFixed(2) : v))
+    const yAt = (u: number) => slotY - vp * (1 - fz(u))
+    const halfAt = (u: number) => (slotW / 2) * fz(u)
     const sh = shade.current
+    const px = (n: number) => `${n}px`
     let raf = 0
-    const follow = () => {
+    const draw = () => {
+      const ms = Number(post.currentTime ?? 0) / SLOW
+      const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - easeInOut(span(ms, ...SHUT))
+      dr.style.visibility = ms >= OPEN[0] && ms < GONE ? 'visible' : 'hidden'
+      const flat = p < 0.002
+      majors.forEach((ln) => {
+        const u = Number(ln.dataset.major) * p
+        set(ln, { x1: mid - halfAt(u), x2: mid + halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat && u > 0 ? 'hidden' : 'visible' })
+      })
+      rails.forEach((ln) => {
+        const side = Number(ln.dataset.rail)
+        const back = DRAWER_UNITS * p
+        set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: flat ? 'hidden' : 'visible' })
+      })
+      ticks.forEach((ln) => {
+        const u = Number(ln.dataset.tick) * p
+        const side = Number(ln.dataset.side)
+        const edge = mid + side * halfAt(u)
+        set(ln, { x1: edge, x2: edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat ? 'hidden' : 'visible' })
+      })
+      envs.forEach((en) => {
+        const ours = en.dataset.env === 'ours'
+        const u = Number(en.dataset.u) * p
+        const w = Number(en.dataset.ws) * 2 * halfAt(u)
+        const h = (tops / fz(OURS_U)) * Number(en.dataset.hs) * fz(u) * p
+        const x = mid - w / 2 + Number(en.dataset.dx) * 2 * halfAt(u)
+        const shown = !flat && (!ours || ms >= LAND)
+        en.setAttribute('visibility', shown ? 'visible' : 'hidden')
+        ;[...en.children].forEach((r) => set(r, { x, y: yAt(u) - h, width: w, height: Math.max(0, h) }))
+      })
+      // As it goes in, the drawer's shade falls on the part of it just above the lines.
       const env = back.current?.getBoundingClientRect()
       if (sh && env) {
-        const inSlot = env.bottom > slotY && env.top < slotY
-        const top = Math.max(env.top, slotY - 30)
-        Object.assign(sh.style, { left: px(env.left), width: px(env.width), top: px(top), height: px(Math.max(0, slotY - top)), opacity: inSlot ? '1' : '0' })
+        const inSlot = ms < LAND + 20 && env.bottom > baseY && env.top < baseY
+        const top = Math.max(env.top, baseY - tops)
+        Object.assign(sh.style, { left: px(env.left), width: px(env.width), top: px(top), height: px(Math.max(0, baseY - top)), opacity: inSlot ? '1' : '0' })
       }
-      raf = requestAnimationFrame(follow)
+      raf = requestAnimationFrame(draw)
     }
-    raf = requestAnimationFrame(follow)
-    lineAnims[0].onfinish = () => done.current()
+    raf = requestAnimationFrame(draw)
+    post.onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, tipBend, post, ...lineAnims, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, tipBend, post, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-30">
+      {/* The drawer, behind the envelope coming down into it (drawn each frame). */}
+      <svg ref={drawer} className="absolute inset-0 size-full" style={{ visibility: 'hidden' }}>
+        <defs>
+          <linearGradient id={shadeId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#000" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#000" stopOpacity="0.05" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.2" />
+          </linearGradient>
+        </defs>
+        <g stroke="rgb(150 147 141)" strokeWidth={0.9} fill="none">
+          {Array.from({ length: DRAWER_UNITS + 1 }, (_, u) => (
+            <line key={u} data-major={u} strokeOpacity={(1 / (1 + u * 0.12)).toFixed(3)} />
+          ))}
+          {[-1, 1].map((side) => (
+            <line key={side} data-rail={side} />
+          ))}
+          {Array.from({ length: DRAWER_UNITS }, (_, k) =>
+            DRAWER_TICKS.flatMap(([d, len]) =>
+              [-1, 1].map((side) => <line key={`${k + d}${side}`} data-tick={k + d} data-side={side} data-len={len} strokeOpacity={(0.85 / (1 + (k + d) * 0.12)).toFixed(3)} />),
+            ),
+          )}
+        </g>
+        {/* The envelopes in it, the farthest first (ours, at the front, last). */}
+        {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1, 0]]).map(([u, ws, hs, dx], i, all) => (
+          <g key={u} data-env={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} data-dx={dx} visibility="hidden">
+            <rect fill="#fbfbf9" stroke="rgb(150 147 141 / 0.7)" strokeWidth={0.9} />
+            <rect fill={`url(#${shadeId})`} />
+          </g>
+        ))}
+      </svg>
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
         <div ref={group} className="absolute inset-0">
@@ -484,20 +561,8 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
             {front}
           </div>
         </div>
-        {/* The slot's shadow on the envelope as it goes in (above it, cut with it at the slot). */}
-        <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
-      </div>
-      {/* The slot: the ruler of lines it opens into (all on one line until it opens). */}
-      <div ref={slot} className="absolute left-1/2 h-0 -translate-x-1/2" style={{ width: 0 }}>
-        {SLOT_LINES.map(([u, share, tone]) => (
-          <span
-            key={u}
-            data-u={u}
-            data-w={share}
-            className="invisible absolute inset-x-0 top-0 h-[0.9px] origin-center"
-            style={{ background: `rgb(150 147 141 / ${(tone / (1 + u * 0.18)).toFixed(3)})` }}
-          />
-        ))}
+        {/* The drawer's shade on the envelope as it goes in (above the lines, cut with it there). */}
+        <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05) 50%, rgb(0 0 0 / 0.2))' }} />
       </div>
     </div>
   )
