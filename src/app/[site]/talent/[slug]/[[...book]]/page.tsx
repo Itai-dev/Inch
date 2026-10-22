@@ -2,12 +2,14 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { ModelSheet, type Book } from '@/components/ModelSheet'
 import { isPlaceholder, placeholderBook, placeholderTalent } from '@/lib/placeholders'
-import { siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
+import { DEMO_CONTACT } from '@/lib/copy'
+import { enquiryMailto } from '@/lib/enquiry'
+import { siteForDivision, singletonId, sitePath, SITES, talentPath, type Site } from '@/lib/sites'
 import { imageSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
-import { TALENT_QUERY } from '@/sanity/lib/queries'
-import type { Talent } from '@/sanity/lib/types'
+import { SITE_SETTINGS_QUERY, TALENT_QUERY } from '@/sanity/lib/queries'
+import type { SiteSettings, Talent } from '@/sanity/lib/types'
 
 /** Each book has its own URL so bookers can send exactly the right one. */
 const BOOKS = [
@@ -55,6 +57,8 @@ export default async function TalentPage({ params }: PageProps<'/[site]/talent/[
 
   const base = talentPath(t)
   const placeholder = isPlaceholder(t)
+  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site as Site) }, null, ['siteSettings'])
+  const enquiry = enquiryMailto(settings?.email || DEMO_CONTACT.email, { brand: SITES[site as Site].brand, models: [t.name] })
   return (
     <ModelSheet
       talent={placeholder ? null : { _id: t._id, name: t.name, slug: t.slug, division: t.division, cover: t.cover }}
@@ -67,6 +71,7 @@ export default async function TalentPage({ params }: PageProps<'/[site]/talent/[
       initial={segment}
       base={base}
       compCard={placeholder ? null : `${base}/comp-card`}
+      enquiry={enquiry}
       closeHref={sitePath(site as Site, '/models')}
     />
   )

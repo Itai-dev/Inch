@@ -124,6 +124,10 @@ body {
   50% { opacity: 0; }
   70%, 100% { opacity: 1; }
 }
+@keyframes menu-type {
+  from { clip-path: inset(-25% 100% -25% -10%); }
+  to { clip-path: inset(-25% -10% -25% -10%); }
+}
 @keyframes hero-type {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
@@ -158,9 +162,16 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(2) { animation-delay: 0.56s; }
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(3) { animation-delay: 0.64s; }
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(4) { animation-delay: 0.72s; }
+/* Phones: MENU types in letter by letter once the giant logo has landed. */
+@media (max-width: 767px) {
+  body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(n) {
+    animation: hero-type 0.48s steps(4) 1.2s both;
+  }
+}
 
 /* Menu items: tighten to -10% tracking on hover, press and the current page, around the
-   word's centre (the trailing tracking after the last letter is cancelled with a margin). */
+   word's centre (the trailing tracking after the last letter is cancelled with a margin).
+   Only the menu kerns; everything else with a word to press gets the line (.ink-line). */
 .nav-label {
   letter-spacing: -0.02em;
   margin-right: 0.02em;
@@ -172,20 +183,196 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   letter-spacing: -0.1em;
   margin-right: 0.1em;
 }
-/* The other site's box (DOT. / INCH”): grows slightly on hover and press. */
+/* A line drawing itself under the word, left to right, as it is hovered (and under the current page or tab). */
+.ink-line {
+  position: relative;
+}
+.ink-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0.1em;
+  bottom: -0.14em;
+  height: 0.09em;
+  min-height: 1.5px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s var(--ease-out);
+}
+.ink-line:hover::after,
+.ink-line[aria-current="page"]::after,
+.nav-item:hover .ink-line::after,
+.nav-item[aria-current="page"] .ink-line::after,
+.group:hover .ink-line::after {
+  transform: scaleX(1);
+}
+/* Leaving: the line goes out to the right, so the next hover draws it afresh from the left. */
+.ink-line:not(:hover)::after {
+  transform-origin: right;
+}
+.nav-item:not(:hover) .ink-line::after,
+.group:not(:hover) .ink-line::after {
+  transform-origin: right;
+}
+.nav-item[aria-current="page"] .ink-line::after,
+.ink-line[aria-current="page"]::after {
+  transform-origin: left;
+}
+/* The other site's box (SiteSwitch): upright in the bottom-left corner, in the page's margin. It
+   pops up (a small overshoot) when shown and drops away when not; the box grows slightly on hover and press. */
+.site-switch-tab {
+  --tab: clamp(22px, 1.8vw, 34px);
+  position: fixed;
+  z-index: 40;
+  left: var(--gutter);
+  bottom: var(--gutter);
+  transform-origin: bottom left;
+  opacity: 0;
+  transform: translateY(14px) scale(0.6);
+  pointer-events: none;
+  transition: opacity 0.2s var(--ease-out), transform 0.3s var(--ease-out);
+}
+.site-switch-tab[data-shown] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity 0.15s var(--ease-out), transform 0.55s cubic-bezier(0.34, 1.6, 0.64, 1);
+}
 .site-switch {
   transition: transform 0.35s var(--ease-out);
 }
-.site-switch:hover {
+.site-switch-tab:hover .site-switch,
+.site-switch-tab:focus-within .site-switch {
   transform: scale(1.08);
 }
-.site-switch:active {
+.site-switch-tab:active .site-switch {
   transform: scale(1.12);
+}
+
+/* Phones: the header steps aside on the footer (MobileMenu sets data-at-footer). */
+[data-site-header] {
+  transition: opacity 0.3s var(--ease-out);
+}
+@media (max-width: 767px) {
+  html[data-at-footer] [data-site-header] {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* The comp card's stock: white, with the faintest grain. */
+.paper {
+  background-color: #fdfdfc;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* The envelope's: white too, but a rougher paper, its grain and fibres plain to see. */
+.envelope-paper {
+  background-color: #fbfbf9;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.09' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* The card's sheen: a soft band of light (and its shade) that slides across as the card turns
+   (--sheen, from 0% to 100%); faint, so the card stays easy to read. */
+@property --sheen {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 50%;
+}
+.card-sheen {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(112deg, transparent calc(var(--sheen) - 34%), rgb(0 0 0 / 0.035) calc(var(--sheen) - 14%), rgb(255 255 255 / 0.7) var(--sheen), rgb(0 0 0 / 0.025) calc(var(--sheen) + 16%), transparent calc(var(--sheen) + 36%));
+  mix-blend-mode: soft-light;
+}
+
+/* Apply (ApplyFunnel): while the card turns over and moves aside, the page waits unseen; then the
+   ruler draws and the form writes in, field by field; sending fades it all as the card goes. */
+[data-apply-phase="opening"] .apply-in,
+[data-apply-phase="opening"] .apply-card,
+[data-card-moving] .apply-card,
+[data-card-moving] .apply-strip,
+[data-apply-phase="posting"] .apply-card { visibility: hidden; }
+/* Sending: the form clears at once, leaving the card (on phones, unfolding from its strip). */
+[data-clearing] .apply-form,
+[data-clearing] .apply-ruler { visibility: hidden; }
+/* Phones: only the card is left, unfolding out of the (now unseen) strip, already the card that
+   then goes into the envelope: its own edge and shadow. */
+[data-clearing] .apply-strip { border-color: transparent; background: transparent !important; }
+[data-clearing] .apply-strip > button { visibility: hidden; }
+[data-clearing] [data-strip-card] > * {
+  border: 1px solid #dcdad5 !important;
+  box-shadow: -8px 30px 20px -24px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.06) !important;
+}
+/* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
+   in place: the card turned into it.) */
+[data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 0.5s cubic-bezier(0.45, 0, 0.25, 1) both; }
+@keyframes ruler-slide { from { transform: translateX(100%); } to { transform: none; } }
+[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.25s steps(5) 0.25s both; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 0.3s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 0.35s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 0.4s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 0.45s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.5s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.55s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.6s; }
+/* The buttons aren't typed in letter by letter: they cut in with their row, whole. */
+[data-apply-phase="writing"] .apply-form form > :has(.apply-nav),
+[data-apply-phase="writing"] .apply-form form > .apply-nav { animation: type-char 1ms steps(1, start) 0.6s both; }
+/* A photo just added: it arrives from outside its frame, held above the page (larger, turned, its
+   shadow wide), and is laid down onto its spot and pressed flat, as a print pasted onto a form. */
+@keyframes photo-paste {
+  from { transform: translate(38%, -46%) rotate(9deg) scale(1.28); box-shadow: 14px 34px 34px -14px rgb(0 0 0 / 0.45); z-index: 30; }
+  70% { transform: translate(0, 0) rotate(-0.6deg) scale(1.015); box-shadow: 3px 8px 10px -6px rgb(0 0 0 / 0.3); z-index: 30; }
+  86% { transform: scale(0.992); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); z-index: 30; }
+  to { transform: none; box-shadow: 0 0 0 0 rgb(0 0 0 / 0); z-index: auto; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .photo-paste { animation: photo-paste 0.85s cubic-bezier(0.3, 0.8, 0.3, 1) both; }
+}
+/* In the form, a photo just added is pressed down into its spot within its frame (cut to it): from
+   larger and a little turned, settling flat (only on the card's paper does a photo come from
+   outside its frame). */
+@keyframes photo-press {
+  from { transform: scale(1.35) rotate(7deg); }
+  70% { transform: scale(1.02) rotate(-0.6deg); }
+  86% { transform: scale(1.008); }
+  to { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .photo-press { animation: photo-press 0.85s cubic-bezier(0.3, 0.8, 0.3, 1) both; }
+}
+[data-apply-phase="posting"] .apply-in { visibility: hidden; }
+/* Phones and tablets: Continue (and Back) stay in view at the foot of the screen while a step is filled in. */
+@media (max-width: 1023px) {
+  .apply-form form > .apply-nav,
+  .apply-form form > :has(> .apply-nav) {
+    position: sticky;
+    bottom: 0;
+    z-index: 8;
+    margin-inline: calc(var(--gutter) * -1);
+    padding: 12px var(--gutter) max(14px, env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 0.9px solid var(--line, #e5e5e5);
+  }
+  .apply-form form > :has(> .apply-nav) > .apply-nav { padding-top: 0; }
+}
+
+/* Detail text (contact details, the model page's sizes, books and actions): one size across the site. */
+.text-detail {
+  font-size: clamp(16px, 1.25vw, 20px);
 }
 
 /* ── Model page (ModelSheet): a full-screen sheet over the site ───────────── */
 .model-sheet {
   transition: background-color 0.4s var(--ease-out), color 0.4s var(--ease-out);
+}
+/* The sheet comes up softly over the board, rather than cutting in. */
+@media (prefers-reduced-motion: no-preference) {
+  .model-sheet { animation: hero-fade 0.45s var(--ease-out) both; }
 }
 /* Opening (data-intro, first open only), all at once: text writes in letter by letter
    (one step per letter, --n), the spread slides into its frame as one, the ruler fades up. */
@@ -193,10 +380,18 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
   from { transform: translateX(100%); }
   to { transform: none; }
 }
+@keyframes crop-hold {
+  from { transform: translateX(calc(-1 * var(--w))); }
+  to { transform: none; }
+}
 @media (prefers-reduced-motion: no-preference) {
   [data-intro] .intro-write { animation: hero-type var(--t, 0.3s) steps(var(--n, 6)) both; animation-delay: var(--d, 0ms); }
   [data-intro] .intro-crop > [data-current], [data-intro] ul.intro-crop img { animation: crop-in 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; animation-delay: var(--d, 0ms); }
+  /* What stays still on the sliding spread (the model page's mark) slides the other way, by the frame's width. */
+  [data-intro] .intro-crop > [data-current] .intro-hold { animation: crop-hold 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; animation-delay: var(--d, 0ms); }
   [data-intro] .intro-fade { animation: hero-fade 0.6s var(--ease-out) both; animation-delay: var(--d, 0ms); }
+  /* A spread's credits fade in once it has slid into place. */
+  .credit-in { animation: hero-fade 0.5s var(--ease-out) 0.45s both; }
 }
 /* Full-screen sheets (model page, apply): no site header, footer or page scroll behind them. */
 body:has([data-model-sheet], [data-sheet]) {
@@ -209,7 +404,7 @@ body:has([data-model-sheet], [data-sheet]) > footer {
 
 /* Board rulers: every model sits on her stretch of the INCH” ruler. Quiet at rest; hovering a
    model brings hers to full strength and fades the rest. */
-.ruler-seg { opacity: 0.4; transition: opacity 0.3s; }
+.ruler-seg { opacity: 0.4; transition: opacity 0.5s var(--ease-out); }
 .ruler-board:has(.ruler-cell:hover) .ruler-seg { opacity: 0.16; }
 .ruler-board .ruler-cell:hover .ruler-seg { opacity: 1; }
 @keyframes ruler-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
@@ -241,17 +436,6 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   [data-type-wait] .work-frame, [data-type-wait] .work-pic { animation-play-state: paused; }
 }
 
-/* Contact sheet, put together as the page opens: the prints drop onto it from a slight turn, the
-   paper clip slips on to hold them, and the pencilled notes write in, a line at a time. */
-@keyframes print-drop { from { opacity: 0; transform: translateY(-28px) rotate(var(--turn, 0deg)) scale(1.04); } to { opacity: 1; transform: none; } }
-@keyframes hand-write { from { clip-path: inset(-30% 100% -30% -10%); } to { clip-path: inset(-30% -10% -30% -10%); } }
-@keyframes clip-on { from { opacity: 0; transform: translateY(-14px) scale(1.06); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: no-preference) {
-  .sheet-print { animation: print-drop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--at, 0ms) both; }
-  .hand-line { animation: hand-write 0.75s cubic-bezier(0.45, 0.05, 0.55, 0.95) var(--at, 0ms) both; }
-  .sheet-clip { animation: clip-on 0.45s cubic-bezier(0.3, 0.9, 0.3, 1.2) var(--at, 0ms) both; }
-}
-
 /* TypeText: each letter appears at its moment, no fade. Also used to cut things in at a moment. */
 @keyframes type-char { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
@@ -265,4 +449,68 @@ body:has([data-model-sheet], [data-sheet]) > footer {
   [data-type-wait] .type-char { animation-play-state: paused; }
   /* TypeOnScroll: each letter shown by the scroll, not the clock. */
   [data-type-scroll] .type-char { animation: none; opacity: 0; }
+}
+
+/* On the home page the magazine's grey surface runs straight into the footer. */
+:root { --surface-mag: color-mix(in srgb, var(--fg) 9%, var(--bg)); }
+main:has([data-magazine]) + footer { margin-top: 0; }
+
+/* The site's own pointer (Cursor) replaces the system's for the mouse. */
+@media (pointer: fine) {
+  html[data-cursor-on], html[data-cursor-on] * { cursor: none !important; }
+}
+/* Marked text, focus rings and taps in the page's ink, never the system blue. */
+::selection { background: var(--fg); color: var(--bg); }
+/* The date field's parts (day, month, year) as they are typed into, and checkboxes: in ink too. */
+/* (Chrome marks the part being typed with :focus-visible / :focus-within, Safari with :focus; one
+   rule each, so a browser that doesn't know one doesn't drop the others.) */
+input::-webkit-datetime-edit-day-field:focus-visible,
+input::-webkit-datetime-edit-month-field:focus-visible,
+input::-webkit-datetime-edit-year-field:focus-visible { background-color: var(--fg); color: var(--bg); }
+input::-webkit-datetime-edit-day-field:focus-within,
+input::-webkit-datetime-edit-month-field:focus-within,
+input::-webkit-datetime-edit-year-field:focus-within { background-color: var(--fg); color: var(--bg); }
+input::-webkit-datetime-edit-day-field:focus,
+input::-webkit-datetime-edit-month-field:focus,
+input::-webkit-datetime-edit-year-field:focus { background-color: var(--fg); color: var(--bg); }
+:root { accent-color: var(--fg); }
+/* Filled in by the browser: no tinted box behind the text. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--fg);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--fg);
+  transition: background-color 9999s;
+}
+:focus-visible { outline-color: var(--fg); }
+html { -webkit-tap-highlight-color: transparent; }
+
+
+/* Phones, DOT.: the INCH” box in the header waits until the video has scrolled away (it shows on
+   the page itself, not over the video and the giant logo). */
+@media (max-width: 767px) {
+  [data-site-header] .site-switch { transition: transform 0.35s var(--ease-out), opacity 0.35s var(--ease-out); }
+  body:has([data-hero="intro"], [data-hero="open"], [data-hero="over"]) [data-site-header] .site-switch {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* The thanks' check, written in one stroke. Reduced motion: simply there. */
+.check-write {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: check-write ease-in-out forwards;
+}
+@keyframes check-write {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .check-write {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }

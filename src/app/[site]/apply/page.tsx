@@ -8,7 +8,7 @@ import type { SiteSettings, TalentCard } from '@/sanity/lib/types'
 
 export async function generateMetadata({ params }: PageProps<'/[site]/apply'>): Promise<Metadata> {
   const site = (await params).site as Site
-  return { title: 'Become a model', alternates: { canonical: sitePath(site, '/apply') } }
+  return { title: 'Become a model', description: 'No experience needed. Four phone photos and about three minutes: our scouts look at every application themselves.', alternates: { canonical: sitePath(site, '/apply') } }
 }
 
 export default async function ApplyPage({ params }: PageProps<'/[site]/apply'>) {
