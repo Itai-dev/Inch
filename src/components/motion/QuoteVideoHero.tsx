@@ -47,6 +47,7 @@ const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
 const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.4s (globals.css)
 const RULER_IN_MS = 1000 // ruler blinks in at +1s…
+const NUDGE_AFTER_MS = 5000 // the scroll hint, after the video has opened
 const RULER_STEP_MS = 1400 // …and moves on one item as it arrives, to show what it does
 const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
@@ -70,13 +71,19 @@ const readSkipLoader = () => {
 // session gets the loader, the video opening and the logo arriving.
 let introPlayed = false
 const INTRO_PLAYED = 'inch:intro-played'
+/** What it was when this hero appeared: marking the intro played as it ends mustn't turn the rest
+ * of this visit's choreography (the menu typing in, the logo arriving) into a return visit's. */
+let introPlayedAtMount: boolean | null = null
 const readIntroPlayed = () => {
-  if (introPlayed) return true
-  try {
-    return sessionStorage.getItem(INTRO_PLAYED) === '1'
-  } catch {
-    return false
+  if (introPlayedAtMount !== null) return introPlayedAtMount
+  let v = introPlayed
+  if (!v) {
+    try {
+      v = sessionStorage.getItem(INTRO_PLAYED) === '1'
+    } catch {}
   }
+  introPlayedAtMount = v
+  return v
 }
 const markIntroPlayed = () => {
   introPlayed = true
@@ -106,9 +113,10 @@ const logoTransform = (big: number, e: number, el?: HTMLElement | null) =>
 /** The header's menu (phones: MENU, and DOT.'s INCH” box). */
 const headerNav = () => document.querySelector<HTMLElement>('[data-site-header] nav')
 /**
- * Phones: the menu starts under the giant logo and rises to its place beside the small one in the
- * same movement as the logo, step for step with the scroll (the same eased progress `e`).
+ * Phones: the menu waits under the giant logo while the logo still reaches across it, and rises
+ * to its place beside the small logo as the logo narrows (from full width until it is MENU_EASE_PX clear of it).
  */
+const MENU_EASE_PX = 40
 function placeMenu(el: HTMLElement | null, big: number, e: number) {
   const nav = headerNav()
   if (!nav) return
@@ -116,14 +124,21 @@ function placeMenu(el: HTMLElement | null, big: number, e: number) {
     nav.style.transform = ''
     return
   }
+  const s = lerp(1, headerLogo() / big, e)
   const header = nav.parentElement as HTMLElement
   const navTop = header.getBoundingClientRect().top + nav.offsetTop
+  const navLeft = header.getBoundingClientRect().left + nav.offsetLeft
   const gap = 6
-  // Where it starts: just under the giant logo's letters, at full size.
   const m = logoMeasure.get(el)
-  const lettersBottom = PHONE_TOP + (m ? m.h * big : el.offsetHeight)
-  const start = Math.max(0, lettersBottom + gap - navTop)
-  const drop = start * (1 - e)
+  // The letters' bottom and right edge as the logo is now.
+  const top = lerp(logoTop(el, big), headerTop(), e)
+  const lettersBottom = top + ((m?.air ?? 0) * big + (m ? m.h * big : el.offsetHeight)) * s
+  const logoRight = headerSide() + el.offsetWidth * s
+  // Under the logo while it is at full width; rising as it narrows, until it is MENU_EASE_PX clear of the menu.
+  const fullRight = window.innerWidth - headerSide()
+  const clearX = navLeft - gap - MENU_EASE_PX
+  const over = Math.min(1, Math.max(0, (logoRight - clearX) / Math.max(1, fullRight - clearX)))
+  const drop = Math.max(0, lettersBottom + gap - navTop) * smooth(over)
   nav.style.transform = drop > 0.5 ? `translateY(${drop.toFixed(1)}px)` : ''
 }
 function placeLogo(el: HTMLElement | null) {
@@ -148,7 +163,8 @@ function placeLogo(el: HTMLElement | null) {
     }
     if (m) big = Math.min((window.innerWidth - 2 * headerSide()) / m.w, window.innerHeight * 0.3)
   }
-  const e = easeOut(Math.min(1, Math.max(0, window.scrollY) / (window.innerHeight * 0.45)))
+  // Phones: over a longer scroll, so the logo settles into its place (and the menu rises) unhurried.
+  const e = easeOut(Math.min(1, Math.max(0, window.scrollY) / (window.innerHeight * (isPhone() ? 0.8 : 0.45))))
   el.style.fontSize = `${big}px`
   el.style.left = `${headerSide()}px`
   el.style.transform = logoTransform(big, e, el)
@@ -169,6 +185,10 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   const [stage, setStage] = useState<Stage>('intro')
   // False on the server and while hydrating, then the session's truth (a re-render before paint, as `fast`).
   const seen = useSyncExternalStore(() => () => {}, readIntroPlayed, () => false)
+  // The next time the hero appears (coming back to the home page), it reads the session afresh.
+  useEffect(() => () => {
+    introPlayedAtMount = null
+  }, [])
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
@@ -377,6 +397,32 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     const id = setTimeout(() => setIdx((i) => i + 1), RULER_STEP_MS)
     return () => clearTimeout(id)
   }, [stage, N, skip])
+
+  const nudged = useRef(false)
+  // A hint that the page goes on (once): five seconds after the video has opened, if nobody has scrolled
+  // yet, the hero lifts a little and settles back, twice.
+  useEffect(() => {
+    if (stage !== 'over' || reduced || nudged.current) return
+    const id = setTimeout(() => {
+      const root = rootRef.current
+      if (!root || window.scrollY > 4) return
+      const lift = Math.round(Math.min(48, window.innerHeight * 0.05))
+      nudged.current = true
+      const ease = 'cubic-bezier(0.45, 0, 0.55, 1)'
+      root.animate(
+        [
+          { transform: 'none', offset: 0, easing: ease },
+          { transform: `translateY(-${lift}px)`, offset: 0.2, easing: ease },
+          { transform: 'none', offset: 0.45, easing: ease },
+          { transform: `translateY(-${lift}px)`, offset: 0.65, easing: ease },
+          { transform: 'none', offset: 0.9 },
+          { transform: 'none', offset: 1 },
+        ],
+        { duration: 1900 },
+      )
+    }, NUDGE_AFTER_MS)
+    return () => clearTimeout(id)
+  }, [stage, reduced])
 
   // After the first arrival has played (menu typed in), scrolling back up doesn't replay it.
   useEffect(() => {
