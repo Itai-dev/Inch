@@ -73,10 +73,10 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
   return (
     <>
       {/* Inside, behind the card: the same stock, in shade. */}
-      <div ref={back} style={OFF} className="absolute left-0 top-0 z-[1] origin-top-left bg-[#dcd9d1] shadow-[0_34px_44px_-30px_rgb(0_0_0/0.5),0_2px_6px_rgb(0_0_0/0.08)]" />
+      <div ref={back} style={OFF} className="envelope-paper absolute left-0 top-0 z-[1] origin-top-left shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09),0_34px_44px_-30px_rgb(0_0_0/0.5),0_2px_6px_rgb(0_0_0/0.08)]" />
       {/* In front of the card: the back of the envelope, its side and bottom folds meeting under the flap. */}
       <div ref={pocket} style={OFF} className="absolute left-0 top-0 z-[3] origin-top-left [filter:drop-shadow(0_-1px_1px_rgb(0_0_0/0.12))]">
-        <div className="paper absolute inset-0" style={{ clipPath: POCKET }}>
+        <div className="envelope-paper absolute inset-0" style={{ clipPath: POCKET }}>
           {/* The side flaps in a little shade towards the folds, so they read as two sheets meeting. */}
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgb(0 0 0 / 0.045), transparent 30%, transparent 70%, rgb(0 0 0 / 0.045))' }} />
           <svg aria-hidden viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
@@ -89,7 +89,7 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
       {/* The flap: closed over the top, the mark pressed into its tip; it opens up and back, showing its inside. */}
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
         <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
-          <div className="paper absolute inset-0" style={{ clipPath: FLAP }}>
+          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
             {/* Shaded towards its tip, so it reads as a sheet folded over. */}
             <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 20%, rgb(0 0 0 / 0.05))' }} />
           </div>
@@ -97,7 +97,7 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
             <DivisionMark division={division} size={26} />
           </span>
         </div>
-        <div className="absolute inset-0 bg-[#d6d2ca] [backface-visibility:hidden]" style={{ clipPath: FLAP_INSIDE, transform: 'rotateX(180deg)' }} />
+        <div className="envelope-paper absolute inset-0 [backface-visibility:hidden]" style={{ clipPath: FLAP_INSIDE, transform: 'rotateX(180deg)', boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.07)' }} />
       </div>
     </>
   )
@@ -196,21 +196,34 @@ export function CardOpening({
     const turn = fl.animate(
       [
         // Straightening slowly the whole time it grows and is held, so it never snaps square.
-        { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: 'cubic-bezier(0.3, 0.2, 0.5, 1)' },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(TURN_FROM), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(TURN_END) },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: 1 },
+        { transform: 'perspective(1800px) rotateZ(-7deg) rotateX(0deg) rotateY(180deg) skewY(0deg)', offset: 0, easing: 'cubic-bezier(0.3, 0.2, 0.5, 1)' },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateX(0deg) rotateY(180deg) skewY(0deg)', offset: o(TURN_FROM), easing: 'cubic-bezier(0.5, 0, 0.6, 0.6)' },
+        // Paper, not a board: it gives a little in the middle of the turn (lifting at a corner) and settles.
+        { transform: 'perspective(1800px) rotateZ(1.2deg) rotateX(7deg) rotateY(95deg) skewY(-2deg)', offset: o((TURN_FROM + TURN_END) / 2), easing: 'cubic-bezier(0.3, 0.5, 0.3, 1)' },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateX(-1.5deg) rotateY(-4deg) skewY(0deg)', offset: o(TURN_END - 60), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateX(0deg) rotateY(0deg) skewY(0deg)', offset: o(TURN_END + 120) },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateX(0deg) rotateY(0deg) skewY(0deg)', offset: 1 },
       ],
+      opts,
+    )
+    // The light slides across the paper as it turns, and again as it is carried to its place.
+    const light = el.animate(
+      [
+        { '--sheen': '20%', offset: 0 },
+        { '--sheen': '20%', offset: o(TURN_FROM) },
+        { '--sheen': '85%', offset: o(TURN_END) },
+        { '--sheen': '35%', offset: 1 },
+      ] as Keyframe[],
       opts,
     )
     // No fade: the stage is simply there, the card small and growing.
     if (stage.current) stage.current.style.opacity = '1'
     card.onfinish = () => done.current()
     // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
-    if (skipRef) skipRef.current = () => [turn, card].forEach((a) => a?.finish())
+    if (skipRef) skipRef.current = () => [turn, light, card].forEach((a) => a?.finish())
     return () => {
       if (skipRef) skipRef.current = null
-      ;[card, turn].forEach((a) => a?.cancel())
+      ;[card, turn, light].forEach((a) => a?.cancel())
     }
     // Plays once, from where the page is when it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -304,6 +317,36 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       ],
       opts,
     )
+    // Carried, the card isn't rigid: it sways a little as it moves and settles when it stops, and the
+    // light slides across it.
+    const sheet = el.firstElementChild as HTMLElement | null
+    const sway = sheet?.animate(
+      [
+        { transform: 'rotate(0deg) skewX(0deg)', offset: 0, easing: EASE },
+        { transform: 'rotate(-2.4deg) skewX(1.2deg)', offset: o(320), easing: EASE },
+        { transform: 'rotate(0.9deg) skewX(-0.5deg)', offset: o(560), easing: EASE },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: o(720) },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: o(800), easing: EASE },
+        { transform: 'rotate(1.8deg) skewX(-1deg)', offset: o(980), easing: EASE },
+        { transform: 'rotate(-0.6deg) skewX(0.3deg)', offset: o(1120), easing: EASE },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: o(1250) },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: o(1600), easing: EASE },
+        { transform: 'rotate(-0.8deg) skewX(0.6deg)', offset: o(1780), easing: EASE },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: o(1950) },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: 1 },
+      ],
+      opts,
+    )
+    const light = el.animate(
+      [
+        { '--sheen': '15%', offset: 0 },
+        { '--sheen': '70%', offset: o(600) },
+        { '--sheen': '70%', offset: o(800) },
+        { '--sheen': '30%', offset: o(1150) },
+        { '--sheen': '30%', offset: 1 },
+      ] as Keyframe[],
+      opts,
+    )
     const env = [
       { transform: at(ex, vh + 60, sc), offset: 0 },
       { transform: at(ex, vh + 60, sc), offset: o(1150), easing: EASE },
@@ -319,8 +362,10 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1550) },
         { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1970), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
         { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(2130) },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(2131), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(2300) },
+        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(2131), easing: 'cubic-bezier(0.3, 0.5, 0.4, 1)' },
+        // Paper: it comes down a touch past flat, and lies down.
+        { transform: flapAt(ex, ey, -6, ew, sc), zIndex: 4, offset: o(2270), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
+        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(2340) },
         { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: 1 },
       ],
       opts,
@@ -374,7 +419,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, flapClose, post, slotAnim, slotAnim2, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, post, slotAnim, slotAnim2, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -21,6 +21,7 @@ import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
 import { CardOpening, CardPost, type Place } from './CardMotion'
+import { PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { CountrySelect } from './CountrySelect'
 import { HeightTape } from './Tape'
@@ -161,7 +162,9 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   // form write in (writing); sending drops the card through a slot (posting) before the thanks.
   const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
   const asideRef = useRef<HTMLElement>(null)
-  const stripRef = useRef<HTMLDetailsElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  /** Phones: the comp card unfolded under its strip. */
+  const [stripOpen, setStripOpen] = useState(false)
   /** The card beside the form when it shows (desktop), else the strip it folds into. */
   const cardPlace = (): Place => {
     // The card itself, inside the aside's room for its tilt (scaled with its box to fit the screen).
@@ -455,7 +458,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
   /** The strip as the opening card turns into it (phones). */
   const compact = (
-    <div className="paper border border-[#d3d0c9] text-[#0a0a0a]">
+    <div className="paper border border-[#dcdad5] text-[#0a0a0a]">
       <div className="flex items-center gap-3 px-3.5 py-3">{stripRow}</div>
       <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
     </div>
@@ -522,10 +525,15 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       <h1 className="sr-only">{TITLE[step]}</h1>
 
       {/* Phones and tablets: the comp card folds into a strip above the form. */}
-      <details ref={stripRef} className="apply-in apply-strip paper shrink-0 border border-[#d3d0c9] text-[#0a0a0a] lg:hidden">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">{stripRow}</summary>
-        <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
-      </details>
+      <div ref={stripRef} className="apply-in apply-strip paper shrink-0 border border-[#dcdad5] text-[#0a0a0a] lg:hidden">
+        <button type="button" aria-expanded={stripOpen} onClick={() => setStripOpen((o) => !o)} className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left">
+          {stripRow}
+        </button>
+        {/* The card folds out from under the strip like paper, and back. */}
+        <PaperFold open={stripOpen}>
+          <div className="paper px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
+        </PaperFold>
+      </div>
 
       {/* The form and the card, centred in the space under the ruler: the card the larger of the two,
           at its own width (zoomed down to fit the screen's height, see above). */}
@@ -657,7 +665,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                         addPhoto(s.pose, e.dataTransfer.files[0])
                       }}
                     >
-                      <span className={`relative block aspect-[3/4] overflow-hidden ${p ? 'bg-line' : 'border-2 border-dashed border-fg/70 group-hover:border-fg'}`}>
+                      <span className={`relative block aspect-[3/4] ${p ? 'bg-line' : 'overflow-hidden border-2 border-dashed border-fg/70 group-hover:border-fg'}`}>
                         {p ? (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
