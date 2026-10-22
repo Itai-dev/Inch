@@ -101,7 +101,7 @@ const YOU_FIELDS: Record<string, string> = {
   'First name': 'input[autocomplete=given-name]',
   'Last name': 'input[autocomplete=family-name]',
   'Date of birth': 'input[type=date]',
-  Country: 'input[role=combobox]',
+  Country: 'select[data-country]',
   Email: 'input[type=email]',
   Phone: 'input[type=tel]',
 }
@@ -388,7 +388,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     ] as const
   ).filter(([, bad]) => bad).map(([k]) => k)
   const youNote = [
-    youGaps.filter((k) => k !== 'Date of birth' || !d.birthdate).length && `Still to fill in: ${youGaps.filter((k) => !(k === 'Date of birth' && d.birthdate)).map((k) => (k === 'Country' ? 'Country (pick it from the list)' : k)).join(', ')}.`,
+    youGaps.filter((k) => k !== 'Date of birth' || !d.birthdate).length && `Still to fill in: ${youGaps.filter((k) => !(k === 'Date of birth' && d.birthdate)).map((k) => (k)).join(', ')}.`,
     badDate && 'Check the date of birth (a four-digit year).',
   ].filter(Boolean).join(' ')
 
@@ -555,7 +555,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               <Field label="Date of birth" hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} inputClassName={big} />
+              <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} />
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
               <p className="sm:col-span-2 text-[13px] text-muted">{GUARDIAN_AGE} or younger? We’ll ask for a parent or guardian’s consent next.</p>

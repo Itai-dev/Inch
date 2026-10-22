@@ -238,6 +238,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   const pocket = useRef<HTMLDivElement>(null)
   const flap = useRef<HTMLDivElement>(null)
   const slot = useRef<HTMLDivElement>(null)
+  const shade = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
   useLayoutEffect(() => {
     done.current = onDone
@@ -275,7 +276,6 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + 46))
     const slotW = Math.round(ew * sc * 1.08)
     st.style.top = `${slotY}px`
-    st.style.width = `${slotW}px`
     // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
     const fromAt = r ? at(r.left, r.top, desk ? zoom : r.width / w) : at((innerWidth - w) / 2, vh + 20, 1)
     const fromClip = !desk && r ? `inset(0 0 ${Math.max(0, h - r.height / (r.width / w))}px 0)` : 'inset(0 0 0 0)'
@@ -332,22 +332,39 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       opts,
     )
     const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2250) * T * SLOW)
-    // The mail slot: a hairline drawn across the page, which opens into a slit (its shadow inside), and closes after.
+    // The mail slot, cut in the white page: a hairline drawn across it, which opens onto the dark
+    // inside (so it has depth), and closes after.
+    const px = (n: number) => `${n}px`
     const slotAnim = st.animate(
       [
-        { transform: 'translateX(-50%) scaleX(0) scaleY(0.12)', offset: 0 },
-        { transform: 'translateX(-50%) scaleX(0) scaleY(0.12)', offset: o(1750), easing: EASE },
-        { transform: 'translateX(-50%) scaleX(1) scaleY(0.12)', offset: o(1980), easing: EASE },
-        { transform: 'translateX(-50%) scaleX(1) scaleY(1)', offset: o(2200) },
-        { transform: 'translateX(-50%) scaleX(1) scaleY(1)', offset: o(2850), easing: EASE },
-        { transform: 'translateX(-50%) scaleX(1) scaleY(0.12)', offset: o(3050), easing: EASE },
-        { transform: 'translateX(-50%) scaleX(0) scaleY(0.12)', offset: 1 },
+        { width: px(0), height: px(2), opacity: 0, offset: 0 },
+        { width: px(0), height: px(2), opacity: 0, offset: o(1750), easing: EASE },
+        { width: px(slotW), height: px(2), opacity: 1, offset: o(1980), easing: EASE },
+        { width: px(slotW), height: px(8), opacity: 1, offset: o(2200) },
+        { width: px(slotW), height: px(8), opacity: 1, offset: o(2850), easing: EASE },
+        { width: px(slotW), height: px(2), opacity: 1, offset: o(3050), easing: EASE },
+        { width: px(0), height: px(2), opacity: 0, offset: 1 },
       ],
       opts,
     )
+    // As it goes in, the slot's shadow falls on the part of the envelope just above it (it is
+    // going somewhere deep): drawn each frame from where the envelope really is.
+    const sh = shade.current
+    let raf = 0
+    const follow = () => {
+      const env = back.current?.getBoundingClientRect()
+      if (sh && env) {
+        const inSlot = env.bottom > slotY && env.top < slotY
+        const top = Math.max(env.top, slotY - 30)
+        Object.assign(sh.style, { left: px(env.left), width: px(env.width), top: px(top), height: px(Math.max(0, slotY - top)), opacity: inSlot ? '1' : '0' })
+      }
+      raf = requestAnimationFrame(follow)
+    }
+    raf = requestAnimationFrame(follow)
     slotAnim.onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)
+      cancelAnimationFrame(raf)
       ;[card, flapClose, post, slotAnim, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -363,13 +380,11 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
             {front}
           </div>
         </div>
+        {/* The slot's shadow on the envelope as it goes in (above it, cut with it at the slot). */}
+        <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.08) 45%, rgb(0 0 0 / 0.38))' }} />
       </div>
-      {/* The mail slot, cut in the page: a thin grey slit, in shadow inside, its lower lip catching the light. */}
-      <div
-        ref={slot}
-        className="absolute left-1/2 h-[10px] -translate-y-1/2 rounded-[2px] bg-[#d9d6cf] shadow-[inset_0_3px_4px_rgb(0_0_0/0.4),inset_0_-1px_1px_rgb(0_0_0/0.12),0_1px_0_rgb(255_255_255/0.9),0_-1px_0_rgb(0_0_0/0.06)]"
-        style={{ transform: 'translateX(-50%) scaleX(0) scaleY(0.12)' }}
-      />
+      {/* The mail slot: white page, a 0.9px hairline round a dark inside. */}
+      <div ref={slot} className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[1px] border-[0.9px] border-[#b9b6af] bg-[#0a0a0a]" style={{ width: 0, height: 2, opacity: 0 }} />
     </div>
   )
 }
