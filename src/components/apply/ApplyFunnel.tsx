@@ -23,7 +23,7 @@ import { StepRuler } from './StepRuler'
 import { CardOpening, CardPost, type Place } from './CardMotion'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { CountrySelect } from './CountrySelect'
-import { HeightTape, Tape, type TapeScale } from './Tape'
+import { HeightTape } from './Tape'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
@@ -110,8 +110,9 @@ const PHOTOS_BUDGET = 3.6 * 1024 * 1024
 
 /** Sizes: T-shirt as letters; pants and shoes in EU sizes on tapes, each resting on a typical size before it's touched. */
 const TSHIRT = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL']
-const PANTS: TapeScale = { min: 30, max: 60, px: 16, snap: 2, every: 4 }
-const SHOES: TapeScale = { min: 34, max: 48, px: 32, snap: 0.5, every: 1 }
+/** Each size's choices, as the pickers list them (pants and shoes in EU sizes). */
+const range = (from: number, to: number, step: number) => Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => String(from + i * step))
+const SIZE_OPTIONS: Record<'tshirt' | 'pants' | 'shoes', string[]> = { tshirt: TSHIRT, pants: range(30, 60, 2), shoes: range(34, 48, 0.5) }
 const SIZE_KEYS: Size[] = ['tshirt', 'pants', 'shoes']
 type Size = 'tshirt' | 'pants' | 'shoes'
 const START = { tshirt: { women: 'S', men: 'M' }, pants: { women: 36, men: 48 }, shoes: { women: 39, men: 43 } }
@@ -265,12 +266,6 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   /** Sent through, but nothing delivers applications yet (email not set up). */
   const [unsent, setUnsent] = useState(false)
   const [unit, setUnit] = useState<Unit>('cm')
-  const [openSize, setOpenSize] = useState<Size | null>(null)
-  const tapeRef = useRef<HTMLDivElement>(null)
-  // The open tape takes the keyboard, so the arrow keys move it straight away.
-  useEffect(() => {
-    if (openSize) (tapeRef.current?.querySelector('[role=slider]') as HTMLElement | null)?.focus({ preventScroll: true })
-  }, [openSize])
   /** Continue was pressed with something still unset: say what. */
   const [tried, setTried] = useState(false)
   const startedAt = useRef(0)
@@ -470,16 +465,16 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
-        <p className="label text-muted"><TypeText text="Application received" at={100} ms={20} /></p>
+        <p className="label text-muted"><TypeText text="Application received" at={0} ms={12} /></p>
         <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
-          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={500} ms={45} />
+          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={220} ms={28} />
         </h1>
         <p className="text-[17px] leading-snug">
-          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={1100} ms={10} />
+          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={620} ms={5} />
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
+        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': '1350ms' } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
@@ -603,86 +598,43 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                 <HeightTape value={d.height} unit={unit} onChange={(cm) => set('height', cm)} />
                 <span className="text-[12px] text-muted">{d.height ? 'Drag the tape, or use the arrow keys.' : 'Drag the tape to your height.'}</span>
               </div>
-              {/* Each size is a closed field; tap one and its letters or its tape open below, full width. */}
-              <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-3 gap-x-6 gap-y-10 sm:gap-x-10">
-                  {SIZE_KEYS.map((k) => {
-                    const value = d[k]
-                    const open = openSize === k
-                    return (
-                      <div key={k} className="flex min-w-0 flex-col gap-1.5">
-                        <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
-                          {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
-                        </span>
-                        <button
-                          type="button"
-                          aria-expanded={open}
-                          aria-label={`${SIZE_NAME[k]}, ${value ? half(value) : 'not set'}`}
-                          onClick={() => {
-                            if (open) return setOpenSize(null)
-                            if (!value && k !== 'tshirt') set(k, String(START[k][division]))
-                            setOpenSize(k)
-                          }}
-                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
-                        >
-                          <span className={`min-w-0 flex-1 truncate ${value ? '' : 'text-muted/40'}`}>{half(value || START[k][division])}</span>
-                          <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
-                            <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
-                          </svg>
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-                {openSize && (
-                  <div ref={tapeRef} className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
-                        {SIZE_NAME[openSize]} {openSize !== 'tshirt' && <span className="text-muted">EU</span>}
+              {/* The sizes: pickers (the phone's own wheel, a list on a computer); only the height is a tape. */}
+              <div className="grid grid-cols-3 gap-x-6 gap-y-10 sm:gap-x-10">
+                {SIZE_KEYS.map((k) => {
+                  const value = d[k]
+                  return (
+                    <label key={k} className="flex min-w-0 flex-col gap-1.5">
+                      <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
+                        {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
-                      <button type="button" onClick={() => setOpenSize(null)} className="ink-line text-[12px] font-bold uppercase" style={narrow}>
-                        Done
-                      </button>
-                    </div>
-                    {openSize === 'tshirt' ? (
-                      <div role="radiogroup" aria-label="T-shirt size" className="flex flex-wrap gap-2 pt-2">
-                        {TSHIRT.map((x) => (
-                          <button
-                            key={x}
-                            type="button"
-                            role="radio"
-                            aria-checked={d.tshirt === x}
-                            onClick={() => {
-                              set('tshirt', x)
-                              setOpenSize(null)
-                            }}
-                            className={`h-11 min-w-14 border-2 px-3 text-[15px] font-bold uppercase ${d.tshirt === x ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg'}`}
-                            style={narrow}
-                          >
-                            {x}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <Tape
-                        key={openSize}
-                        label={SIZE_NAME[openSize]}
-                        value={d[openSize] ? Number(d[openSize]) : null}
-                        start={START[openSize][division]}
-                        scale={openSize === 'shoes' ? SHOES : PANTS}
-                        onChange={(x) => set(openSize, String(x))}
-                        valueText={(x) => `${half(x)} EU`}
-                        onDone={() => setOpenSize(null)}
-                      />
-                    )}
-                  </div>
-                )}
+                      <span className="relative block">
+                        <select
+                          value={value}
+                          onChange={(e) => set(k, e.target.value)}
+                          className={`w-full cursor-pointer appearance-none rounded-none border-b-2 bg-transparent pb-1.5 pr-5 text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${value ? 'border-fg' : 'border-line text-muted/40 focus-visible:border-fg'}`}
+                        >
+                          <option value="" disabled>
+                            {half(START[k][division])}
+                          </option>
+                          {SIZE_OPTIONS[k].map((x) => (
+                            <option key={x} value={x} className="text-fg">
+                              {half(x)}
+                            </option>
+                          ))}
+                        </select>
+                        <svg viewBox="0 0 12 8" aria-hidden className="pointer-events-none absolute right-0 top-1/2 w-3 -translate-y-[60%]">
+                          <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
               <div className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, 'Tap a size to set it.')}
+              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, 'Pick each size.')}
             </form>
           )}
 

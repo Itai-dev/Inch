@@ -115,9 +115,9 @@ const flapAt = (x: number, y: number, deg: number, ew: number, sc: number) =>
   `translate(${x - (ew * (1 - sc)) / 2}px, ${y}px) scale(${sc}) perspective(1400px) rotateX(${deg}deg)`
 /** Clear of the top bar above, and room for the slot below. */
 const ENV_TOP = 96
-const ENV_FOOT = 64
-/** The envelope's scale: whole on screen with its flap open above it (and the slot under it). */
-const envScale = (ew: number, eh: number, fh: number) => Math.min(1, (innerWidth * 0.72) / ew, (innerHeight - ENV_TOP - ENV_FOOT) / (eh + fh))
+const ENV_FOOT = 90
+/** The envelope's scale: small, whole on screen with its flap open above it (and the slot under it). */
+const envScale = (ew: number, eh: number, fh: number) => Math.min(0.8, (innerWidth * 0.56) / ew, ((innerHeight - ENV_TOP - ENV_FOOT) * 0.85) / (eh + fh))
 
 export function CardOpening({
   front,
@@ -253,83 +253,100 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const r = f?.el.getBoundingClientRect() ?? null
     const desk = !!f?.card
     const zoom = f?.zoom ?? 1
-    const w = cardWidth(desk ? r : null, zoom)
+    // The same comp card on every screen: beside the form on a computer, unfolding out of its strip on a phone.
+    const w = desk ? cardWidth(r, zoom) : Math.min(innerWidth - 40, 420)
     el.style.width = `${w}px`
     const h = el.offsetHeight
     const { pad, ew, eh, fh } = envSize(w, h)
     fit([back.current, pocket.current, flap.current], ew, eh, fh)
 
-    // The open envelope low in the middle (smaller if need be); the card above it; the slot just under it.
+    // First the card alone, whole in the middle of the screen.
+    const vh = window.visualViewport?.height ?? innerHeight
+    const show = Math.min(1, (vh * 0.55) / h, (innerWidth - 48) / w)
+    const showAt = at((innerWidth - w * show) / 2, (vh - h * show) / 2, show)
+    // Then the envelope, small, low in the middle; the card above it, then in it; the slot under it.
     const sc = envScale(ew, eh, fh)
     const ex = (innerWidth - ew * sc) / 2
-    // The open flap and the envelope together, centred in the room between the top bar and the slot.
-    const spare = Math.max(0, innerHeight - ENV_TOP - ENV_FOOT - (eh + fh) * sc)
-    const ey = ENV_TOP + fh * sc + spare / 2
+    const spare = Math.max(0, vh - ENV_TOP - ENV_FOOT - (eh + fh) * sc)
+    const ey = ENV_TOP + fh * sc + spare * 0.55
     const cx = ex + pad * sc
     const inY = ey + pad * sc
-    const rise = Math.max(0, Math.min(h * sc * 0.6, inY - ENV_TOP))
-    const slotY = Math.round(Math.min(innerHeight - 20, ey + eh * sc + 30))
-    st.style.top = `${slotY - 4}px`
-    st.style.width = `${ew * sc * 1.1}px`
-    // From the card beside the form; on phones, up from below the screen.
-    const fx = r && desk ? r.left : cx
-    const fy = r && desk ? r.top : innerHeight + 20
+    const rise = Math.max(0, Math.min(h * sc * 0.55, inY - ENV_TOP))
+    const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + 46))
+    const slotW = Math.round(ew * sc * 1.08)
+    st.style.top = `${slotY}px`
+    st.style.width = `${slotW}px`
+    // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
+    const fromAt = r ? at(r.left, r.top, desk ? zoom : r.width / w) : at((innerWidth - w) / 2, vh + 20, 1)
+    const fromClip = !desk && r ? `inset(0 0 ${Math.max(0, h - r.height / (r.width / w))}px 0)` : 'inset(0 0 0 0)'
+    const open = 'inset(0 0 0 0)'
 
-    const T = 4700
+    const T = 3300
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
-    const below = eh * sc + 80
     const card = el.animate(
       [
-        { transform: at(fx, fy, desk ? zoom : 1), offset: 0, easing: EASE },
-        { transform: at(cx, inY - rise, sc), offset: o(900) },
-        { transform: at(cx, inY - rise, sc), offset: o(1300), easing: EASE },
-        { transform: at(cx, inY, sc), offset: o(2100) },
-        { transform: at(cx, inY, sc), offset: 1 },
+        { transform: fromAt, clipPath: fromClip, offset: 0, easing: EASE },
+        { transform: showAt, clipPath: open, offset: o(600) },
+        { transform: showAt, clipPath: open, offset: o(800), easing: EASE },
+        { transform: at(cx, inY - rise, sc), clipPath: open, offset: o(1250), easing: EASE },
+        { transform: at(cx, inY, sc), clipPath: open, offset: o(1600) },
+        { transform: at(cx, inY, sc), clipPath: open, offset: 1 },
       ],
       opts,
     )
     const env = [
-      { transform: at(ex, innerHeight + 60, sc), offset: 0, easing: EASE },
-      { transform: at(ex, ey, sc), offset: o(1100) },
+      { transform: at(ex, vh + 60, sc), offset: 0 },
+      { transform: at(ex, vh + 60, sc), offset: o(650), easing: EASE },
+      { transform: at(ex, ey, sc), offset: o(1200) },
       { transform: at(ex, ey, sc), offset: 1 },
     ]
     const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
     // Open while the card goes in; it closes over it.
     const flapClose = flap.current?.animate(
       [
-        { transform: flapAt(ex, innerHeight + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: 0, easing: EASE },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1100) },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(2150), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(2450) },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(2451), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(2750) },
+        { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: 0 },
+        { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: o(650), easing: EASE },
+        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1200) },
+        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(1620), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
+        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(1780) },
+        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(1781), easing: 'cubic-bezier(0.2, 0.6, 0.3, 1)' },
+        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(1950) },
         { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: 1 },
       ],
       opts,
     )
-    // Sealed, the whole envelope is picked up: a little to the side and up, turned slightly, as in a
-    // hand; then posted, lower corner first, through the slot (everything below the slot is cut off).
+    // Sealed, it tips a little, then slides down into the slot (everything below the slot is cut off).
     g.style.transformOrigin = `${ex + (ew * sc) / 2}px ${ey + (eh * sc) / 2}px`
-    const dropY = slotY + below + pad - ey
+    const dropY = slotY + eh * sc + pad * sc + 20 - ey
     const post = g.animate(
       [
         { transform: 'none', offset: 0 },
-        { transform: 'none', offset: o(2850), easing: EASE_OUT },
-        { transform: 'translate(46px, -54px) rotate(-5deg)', offset: o(3350) },
-        { transform: 'translate(46px, -54px) rotate(-5deg)', offset: o(3480), easing: EASE_IN },
-        { transform: `translate(8px, ${dropY}px) rotate(-2deg)`, offset: o(4300) },
-        { transform: `translate(8px, ${dropY}px) rotate(-2deg)`, offset: 1 },
+        { transform: 'none', offset: o(2000), easing: EASE_OUT },
+        { transform: 'translateY(-14px) rotate(-1.5deg)', offset: o(2250), easing: EASE_IN },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: o(2850) },
+        { transform: `translateY(${dropY}px) rotate(0deg)`, offset: 1 },
       ],
       opts,
     )
-    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(3450) * T)
-    const open = st.animate([{ transform: 'translateX(-50%) scaleX(0)' }, { transform: 'translateX(-50%) scaleX(1)' }], { duration: 420, delay: 2950, easing: EASE, fill: 'both' })
-    const close = st.animate([{ transform: 'translateX(-50%) scaleX(1)' }, { transform: 'translateX(-50%) scaleX(0)' }], { duration: 380, delay: 4320, easing: EASE, fill: 'forwards' })
-    close.onfinish = () => done.current()
+    const cutAt = window.setTimeout(() => (c.style.height = `${slotY}px`), o(2250) * T)
+    // The mail slot: a hairline drawn across the page, which opens into a slit (its shadow inside), and closes after.
+    const slotAnim = st.animate(
+      [
+        { transform: 'translateX(-50%) scaleX(0) scaleY(0.12)', offset: 0 },
+        { transform: 'translateX(-50%) scaleX(0) scaleY(0.12)', offset: o(1750), easing: EASE },
+        { transform: 'translateX(-50%) scaleX(1) scaleY(0.12)', offset: o(1980), easing: EASE },
+        { transform: 'translateX(-50%) scaleX(1) scaleY(1)', offset: o(2200) },
+        { transform: 'translateX(-50%) scaleX(1) scaleY(1)', offset: o(2850), easing: EASE },
+        { transform: 'translateX(-50%) scaleX(1) scaleY(0.12)', offset: o(3050), easing: EASE },
+        { transform: 'translateX(-50%) scaleX(0) scaleY(0.12)', offset: 1 },
+      ],
+      opts,
+    )
+    slotAnim.onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)
-      ;[card, flapClose, post, open, close, ...parts].forEach((a) => a?.cancel())
+      ;[card, flapClose, post, slotAnim, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -345,8 +362,12 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
           </div>
         </div>
       </div>
-      {/* The slot: a thin dark cut in the page, a little wider than the envelope. */}
-      <div ref={slot} className="absolute left-1/2 h-[3px] bg-[#0a0a0a]" style={{ transform: 'translateX(-50%) scaleX(0)' }} />
+      {/* The mail slot, cut in the page: a thin grey slit, in shadow inside, its lower lip catching the light. */}
+      <div
+        ref={slot}
+        className="absolute left-1/2 h-[10px] -translate-y-1/2 rounded-[2px] bg-[#d9d6cf] shadow-[inset_0_3px_4px_rgb(0_0_0/0.4),inset_0_-1px_1px_rgb(0_0_0/0.12),0_1px_0_rgb(255_255_255/0.9),0_-1px_0_rgb(0_0_0/0.06)]"
+        style={{ transform: 'translateX(-50%) scaleX(0) scaleY(0.12)' }}
+      />
     </div>
   )
 }
