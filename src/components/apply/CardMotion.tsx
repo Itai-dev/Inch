@@ -61,11 +61,11 @@ function FlapPrint({ division }: { division: Division }) {
 }
 
 /**
- * The seal: a round gold foil sticker, its brushed foil catching the light, the house's mark
+ * The seal: a round black foil sticker, glossy, catching the light, the house's mark
  * (INCH”'s ”, DOT.'s ■) raised in the middle and its name and the application's run round the
  * edge, raised the same way (light on the upper edges, shade under).
  */
-function GoldSticker({ division, id }: { division: Division; id: string }) {
+function FoilSticker({ division, id }: { division: Division; id: string }) {
   const brand = SITES[siteForDivision(division)].brand
   const words = `${brand} Model Management · Model Application · `
   const mark =
@@ -87,13 +87,13 @@ function GoldSticker({ division, id }: { division: Division; id: string }) {
   // Raised: shade under and to the right, light over and to the left, the foil's own colour on top.
   const raised = (node: React.ReactNode) => (
     <>
-      <g fill="rgb(120 88 24 / 0.5)" transform="translate(0.45 0.65)">
+      <g fill="rgb(0 0 0 / 0.85)" transform="translate(0.45 0.65)">
         {node}
       </g>
-      <g fill="rgb(255 249 222 / 0.85)" transform="translate(-0.4 -0.5)">
+      <g fill="rgb(255 255 255 / 0.32)" transform="translate(-0.4 -0.5)">
         {node}
       </g>
-      <g fill="#d8ba6a">{node}</g>
+      <g fill="#141414">{node}</g>
     </>
   )
   return (
@@ -106,15 +106,15 @@ function GoldSticker({ division, id }: { division: Division; id: string }) {
         {raised(mark)}
       </svg>
       {/* Its edge: a fine bright rim. */}
-      <span className="absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 0 0.6px rgb(255 245 210 / 0.7), inset 0 -1px 1.5px rgb(110 80 20 / 0.25)' }} />
+      <span className="absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 0 0.6px rgb(255 255 255 / 0.28), inset 0 -1px 2px rgb(0 0 0 / 0.5)' }} />
     </div>
   )
 }
-/** Brushed gold foil: broad light across it, and the fine grain of the brushing. */
+/** Glossy black foil: deep black, the light lying across it in soft bands. */
 const FOIL = {
   backgroundImage: [
-    'repeating-linear-gradient(100deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 3px)',
-    'linear-gradient(125deg, #c8a24b 0%, #e9d08a 24%, #d5b05a 42%, #f3e3a6 56%, #cba54e 76%, #e4c97f 100%)',
+    'repeating-linear-gradient(100deg, rgb(255 255 255 / 0.025) 0 1px, transparent 1px 3px)',
+    'linear-gradient(125deg, #060606 0%, #232323 22%, #0a0a0a 40%, #4a4a4a 52%, #101010 62%, #0b0b0b 80%, #262626 100%)',
   ].join(','),
   backgroundSize: '100% 100%, 220% 220%',
   backgroundPosition: '0 0, 20% 20%',
@@ -210,8 +210,8 @@ function Envelope({
       {/* The seal: a sticker laid on where the flap's tip lies once it is closed. It goes on like
           paper: its top touches first and the rest is smoothed down after it (a bending leaf). */}
       <div ref={seal} style={OFF} className="pointer-events-none absolute left-0 top-0 z-[5] origin-top-left [container-type:size]">
-        <span data-sticker className="absolute left-1/2 top-[56%] block aspect-square" style={{ width: 'min(21cqw, 30cqh)', transform: 'translate(-50%, -50%)', perspective: '700px', visibility: 'hidden' }}>
-          <Leaf strips={10} shade={false} front={<GoldSticker division={division} id={sealId} />} back={<div className="absolute inset-0 rounded-full bg-[#f4f1ea]" />} />
+        <span data-sticker className="absolute left-1/2 top-[53%] block aspect-square" style={{ width: 'min(30cqw, 42cqh)', transform: 'translate(-50%, -50%)', perspective: '700px', visibility: 'hidden' }}>
+          <Leaf strips={10} shade={false} front={<FoilSticker division={division} id={sealId} />} back={<div className="absolute inset-0 rounded-full bg-[#1a1a1a]" />} />
         </span>
       </div>
     </>
@@ -223,9 +223,11 @@ function ClosedEnvelope({ division }: { division: Division }) {
   return (
     <div data-closed className="absolute left-0 top-0 origin-top-left">
       <div className="envelope-paper absolute inset-0 shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09)]" />
-      <div data-closed-flap className="absolute inset-x-0 top-0 [container-type:size] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
-        <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
-          <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+      <div data-closed-flap className="absolute inset-x-0 top-0 [container-type:size]">
+        <div className="absolute inset-0 [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
+          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
+            <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+          </div>
         </div>
         <FlapPrint division={division} />
         <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
@@ -279,6 +281,8 @@ const JITTER_TURN = 1.2
 /** Ours lands a touch askew too (deg). */
 const OURS_TILT = -0.8
 const easeOut = (t: number) => 1 - (1 - t) ** 3
+/** Slow away, then on: the drawer going in. */
+const easeIn = (t: number) => t * t * (1.4 - 0.4 * t)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2)
 const span = (ms: number, from: number, to: number) => Math.min(1, Math.max(0, (ms - from) / (to - from)))
 
@@ -495,7 +499,7 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 4700
+    const T = 4300
     const SLOW = 1.3
     const CARD_END = 1500
     const FLAP = 1250
@@ -507,8 +511,8 @@ export function CardPost({
     const TURN: [number, number, number] = [2000, 2420, 2850]
     const DROP = TURN[2]
     const LAND = 3550
-    // A beat with it lying in the drawer, then the drawer goes in.
-    const SHUT: [number, number] = [4200, 4600]
+    // As it lands the drawer starts in, slowly at first (it never stops), and goes in.
+    const SHUT: [number, number] = [LAND - 50, LAND + 650]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     // The card's path: a curve from its place, up over the opening, ending straight down into it
@@ -621,8 +625,8 @@ export function CardPost({
       [
         { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
         { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.4, 0, 0.3, 1)' },
-        { transform: pose(-24, 9, -3, -1.8), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        { transform: pose(-27, 8, -2, -1.5), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.5, 0.05, 0.3, 1)' },
+        { transform: pose(-46, 11, -3, -1.8), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-50, 10, -2, -1.5), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.5, 0.05, 0.3, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
         { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
@@ -670,7 +674,7 @@ export function CardPost({
       // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
       // k - shift deep (shown once it is past the slot line). Shut, it goes a touch past, so its last
       // line is gone too.
-      const p = ms < OPEN[1] ? easeInOut(span(ms, ...OPEN)) : 1 - 1.03 * easeInOut(span(ms, ...SHUT))
+      const p = ms < OPEN[1] ? easeInOut(span(ms, ...OPEN)) : 1 - 1.03 * easeIn(span(ms, ...SHUT))
       // The sticker: its top down first, the rest smoothed on after it.
       if (sticker && stickerLeaf) {
         const sp = span(ms, ...STICK)
@@ -716,7 +720,7 @@ export function CardPost({
     }
     raf = requestAnimationFrame(draw)
     // As the drawer goes in, the thanks' check comes up out of it (drawn back out of the depth).
-    const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), (o(SHUT[0] + 220) * T * SLOW))
+    const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), (o(SHUT[0] + 380) * T * SLOW))
     post.onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)

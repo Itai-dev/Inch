@@ -8,12 +8,13 @@
 export const LEAF_STRIPS = 12
 
 function LeafStrip({ k, n, front, back, shade }: { k: number; n: number; front: React.ReactNode; back: React.ReactNode; shade: boolean }) {
-  // Faces overlap the next strip by a pixel so no seam shows; the sheet inside stays aligned.
-  const slice = (i: number) => ({ height: `calc(${n} * (100% - 1px))`, top: `calc(${-i} * (100% - 1px))` })
+  // Faces overlap the next strip by a pixel so no seam shows; the sheet inside is placed against the
+  // strip itself (its height, 100cqh), so every slice lines up exactly with the next.
+  const slice = (i: number) => ({ height: `${n * 100}cqh`, top: `${-i * 100}cqh` })
   return (
     <div
       data-leaf-strip
-      className="absolute inset-x-0 origin-top [transform-style:preserve-3d]"
+      className="absolute inset-x-0 origin-top [container-type:size] [transform-style:preserve-3d]"
       style={k === 0 ? { top: 0, height: `${100 / n}%` } : { top: '100%', height: '100%' }}
     >
       <div className="absolute inset-x-0 top-0 h-[calc(100%+1px)] overflow-hidden [backface-visibility:hidden]">
