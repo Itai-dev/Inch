@@ -397,3 +397,13 @@ main:has([data-magazine]) + footer { margin-top: 0; }
 :focus-visible { outline-color: var(--fg); }
 html { -webkit-tap-highlight-color: transparent; }
 
+
+/* Phones, DOT.: the INCH” box in the header waits until the video has scrolled away (it shows on
+   the page itself, not over the video and the giant logo). */
+@media (max-width: 767px) {
+  [data-site-header] .site-switch { transition: transform 0.35s var(--ease-out), opacity 0.35s var(--ease-out); }
+  body:has([data-hero="intro"], [data-hero="open"], [data-hero="over"]) [data-site-header] .site-switch {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
