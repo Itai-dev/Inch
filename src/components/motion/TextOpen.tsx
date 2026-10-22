@@ -80,6 +80,8 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   const leftRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(MAX_FONT)
+  /** Written with its own line breaks: kept as set from tablets up (phones just wrap it). */
+  const lines = text.includes('\n')
 
   useEffect(() => {
     const el = wrapRef.current
@@ -87,12 +89,30 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     if (!el || !t) return
     // As large as the width allows, then smaller until the statement, centred and at its highest,
     // stays below the header: the height goes roughly with the square of the size (more lines too).
-    const fit = (width: number) => {
+    // Set lines (a statement written with line breaks, from tablets up): as large as its longest line allows.
+    const setLines = () => lines && matchMedia('(min-width: 768px)').matches
+    /** The longest set line's width at the size being tried. */
+    const lineWidth = () => {
+      const keep = [t.style.position, t.style.width, t.style.whiteSpace]
+      Object.assign(t.style, { position: 'absolute', width: 'max-content', whiteSpace: 'pre' })
+      const w = t.offsetWidth
+      ;[t.style.position, t.style.width, t.style.whiteSpace] = keep
+      return w
+    }
+    const fit = () => {
+      const width = Math.min(window.innerWidth * 0.9, 1500)
       const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + AIR))
-      let f = Math.min(MAX_FONT, width / WIDTH_PER_FONT)
+      let f = setLines() ? MAX_FONT : Math.min(MAX_FONT, width / WIDTH_PER_FONT)
       const was = t.style.fontSize
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 6; i++) {
         t.style.fontSize = `${f}px`
+        if (setLines()) {
+          const w = lineWidth()
+          if (w > width) {
+            f = Math.max(MIN_FONT, (f * width) / w) * 0.995
+            continue
+          }
+        }
         const h = t.offsetHeight
         if (h <= room) break
         f = Math.max(MIN_FONT, f * Math.sqrt(room / h) * 0.98)
@@ -100,10 +120,10 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
       t.style.fontSize = was
       setFont(f)
     }
-    const ro = new ResizeObserver(([e]) => fit(e.contentRect.width))
-    ro.observe(el)
+    const ro = new ResizeObserver(fit)
+    ro.observe(el.parentElement ?? el)
     return () => ro.disconnect()
-  }, [])
+  }, [lines])
 
 
   const markH = Math.round(font * 0.42)
@@ -211,14 +231,14 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[210vh] md:h-[270vh]'}`}>
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         {/* Placed from the layout effect below (its lift, then its exit). */}
-        <div ref={wrapRef} className="relative w-[min(90vw,1500px)]">
+        <div ref={wrapRef} className={`relative max-w-[min(90vw,1500px)] ${lines ? 'w-max md:max-w-none' : 'w-[min(90vw,1500px)]'}`}>
           <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">
             <QuoteStroke side="left" height={markH} />
           </div>
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p ref={textRef} className="m-0 font-bold" style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text}>
+          <p ref={textRef} className={`m-0 font-bold ${lines ? 'md:whitespace-pre-line' : ''}`} style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text.replace(/\s+/g, ' ')}>
             {text.split('').map((c, i) => {
               const k = slots.indexOf(i)
               return (

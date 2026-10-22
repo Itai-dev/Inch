@@ -176,15 +176,19 @@ export function CardOpening({
     const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
     const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
 
-    // It grows in from small, unhurried, turning slightly as it comes; then, quicker, turns over and goes to its place.
-    const T = 1900
+    // It grows in from small, unhurried, turning slightly as it comes; the headline is held a while
+    // to be read; then it turns over (unhurried too) and goes to its place.
+    const GROWN = 750
+    const TURN_FROM = 1850
+    const TURN_END = TURN_FROM + 500
+    const T = TURN_END + 650
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
     const card = el.animate(
       [
         { transform: place(fit * 0.55), clipPath: free, offset: 0, easing: EASE_OUT },
-        { transform: place(fit), clipPath: free, offset: o(750) },
-        { transform: place(fit), clipPath: free, offset: o(1300), easing: EASE },
+        { transform: place(fit), clipPath: free, offset: o(GROWN) },
+        { transform: place(fit), clipPath: free, offset: o(TURN_END + 50), easing: EASE },
         { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
       ],
       opts,
@@ -192,9 +196,10 @@ export function CardOpening({
     const turn = fl.animate(
       [
         { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: EASE_OUT },
-        { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(750), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(850), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(1250) },
+        { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(GROWN), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(GROWN + 100) },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(TURN_FROM), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(TURN_END) },
         { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: 1 },
       ],
       opts,

@@ -91,7 +91,9 @@ type Unit = 'in' | 'cm'
 /** The page's padding under the form and the card (pb-12), kept clear when the card is fitted to the screen. */
 const BODY_PB = 48
 /** The form keeps at least this much width beside the card. */
-const FORM_MIN_W = 520
+const FORM_MIN_W = 480
+/** At least this much air above and below the form and the card. */
+const MIN_AIR = 24
 /** The comp card's own width beside the form (scaled down from this when the screen is short or narrow). */
 const CARD_W = 820
 /** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
@@ -160,7 +162,10 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   // Beside the form, the card is its own layer, fixed on the screen: whatever the form does (a
   // size's tape opening, a step growing or scrolling) the card stays exactly where it is. Its
   // column in the grid only keeps the room. It is scaled down (never up) so that it is always
-  // whole on the screen, under the top bar and the ruler, however short or narrow the window.
+  // whole on the screen, under the top bar and the ruler, however short or narrow the window; and
+  // the form and the card are centred together in the room under the ruler (measured as each step
+  // opens, so nothing moves while it is filled in).
+  const rulerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
   const scaleBoxRef = useRef<HTMLDivElement>(null)
@@ -169,31 +174,43 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     const sheet = sheetRef.current
     const aside = asideRef.current
     const grid = gridRef.current
+    const ruler = rulerRef.current
     const layer = layerRef.current
     const box = scaleBoxRef.current
     const inner = box?.firstElementChild as HTMLElement | null | undefined
-    if (!sheet || !aside || !grid || !layer || !box || !inner) return
+    const form = grid?.firstElementChild as HTMLElement | null | undefined
+    if (!sheet || !aside || !grid || !ruler || !layer || !box || !inner || !form) return
+    // The step's form as it opens (before any of its menus do).
+    const formH = form.offsetHeight
     const fit = () => {
-      if (!aside.offsetParent) return
+      if (!aside.offsetParent) {
+        grid.style.paddingTop = ''
+        return
+      }
       const h = inner.offsetHeight // the card at its own width (transforms don't count)
       const gs = getComputedStyle(grid)
       const ls = getComputedStyle(layer)
       const padX = parseFloat(ls.paddingLeft) + parseFloat(ls.paddingRight)
-      const padY = parseFloat(ls.paddingTop) + parseFloat(ls.paddingBottom)
-      // Where the form starts, on the screen with the page at the top: the card starts level with it.
-      const top = grid.getBoundingClientRect().top - sheet.getBoundingClientRect().top + sheet.scrollTop + parseFloat(gs.paddingTop)
-      const room = sheet.clientHeight - top - BODY_PB - padY
+      const padTop = parseFloat(ls.paddingTop)
+      const padY = padTop + parseFloat(ls.paddingBottom)
+      // The room under the ruler, on the screen with the page at the top.
+      const top = ruler.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top + sheet.scrollTop
+      const room = sheet.clientHeight - top - BODY_PB
       // Also narrow enough to leave the form its width beside it.
       const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap) - padX
-      const s = Math.max(0.4, Math.min(1, room / h, width / CARD_W))
+      const s = Math.max(0.4, Math.min(1, (room - 2 * MIN_AIR - padY) / h, width / CARD_W))
       cardScale.current = s
       inner.style.transform = s < 1 ? `scale(${s})` : ''
       const w = Math.round(CARD_W * s)
+      const cardH = Math.round(h * s)
       box.style.width = `${w}px`
-      box.style.height = `${Math.round(h * s)}px`
-      // The column keeps the card's room; the card itself is laid over it, fixed.
+      box.style.height = `${cardH}px`
+      // The form and the card together, centred in that room (the taller of them sets it).
+      const air = Math.max(MIN_AIR, (room - Math.max(cardH, formH)) / 2)
+      grid.style.paddingTop = `${Math.round(air)}px`
+      // The column keeps the card's room; the card itself is laid over it, fixed, level with the form.
       aside.style.width = `${w + padX}px`
-      layer.style.top = `${Math.round(top - parseFloat(ls.paddingTop))}px`
+      layer.style.top = `${Math.round(top + air - padTop)}px`
       layer.style.left = `${Math.round(aside.getBoundingClientRect().left)}px`
     }
     fit()
@@ -437,7 +454,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 
   if (!body) body = (
-    <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
+    <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
       {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} skipRef={skipCard} onDone={() => setPhase(skipped.current ? 'ready' : 'writing')} />}
       {phase === 'posting' && (
@@ -454,7 +471,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
       {/* Phones and tablets: it stays in view under the top bar while the form scrolls, not cut off by it. */}
-      <div className="apply-ruler apply-in mx-auto w-full max-w-[720px] shrink-0 overflow-hidden pb-1 max-lg:sticky max-lg:top-[var(--bar,72px)] max-lg:z-[9] max-lg:-mt-2 max-lg:bg-bg max-lg:pb-3 max-lg:pt-2">
+      <div ref={rulerRef} className="apply-ruler apply-in mx-auto w-full max-w-[720px] shrink-0 overflow-hidden pb-1 max-lg:sticky max-lg:top-[var(--bar,72px)] max-lg:z-[9] max-lg:-mt-2 max-lg:bg-bg max-lg:pb-3 max-lg:pt-2">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}
@@ -472,7 +489,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
 
       {/* The form and the card, centred in the space under the ruler: the card the larger of the two,
           at its own width (zoomed down to fit the screen's height, see above). */}
-      <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,520px)_auto] lg:content-start lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-6">
+      <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,480px)_auto] lg:content-start lg:items-start lg:justify-center lg:gap-x-[clamp(40px,5vw,96px)] lg:pb-6">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form
@@ -704,7 +721,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         {/* The card's column: it only keeps the room. The card is its own layer over it, fixed on the
             screen (see above), with room round it for its tilt and shadow, so neither is cut off. */}
         <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start lg:block">
-          <div ref={layerRef} className="fixed z-[5] p-9">
+          <div ref={layerRef} className="fixed z-[5] p-7">
             <div ref={scaleBoxRef} style={{ width: CARD_W }}>
               <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card()}</div>
             </div>

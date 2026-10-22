@@ -39,6 +39,8 @@ function NamePage({ name, n }: { name: string; n: number }) {
 
 /** The page corners away from the spine are a little rounded, as on a printed magazine. */
 const RADIUS = 'clamp(2px, 0.22vw, 3.5px)'
+/** The spine's corners, and the cover's where it wraps onto it: rounder, as the bound edge is. */
+const SPINE_R = 'clamp(3px, 0.45vw, 7px)'
 
 /** Coated paper: a soft band of light across the page, sliding with the mouse (--gx on the stage). */
 function Gloss({ strength = 0.16 }: { strength?: number }) {
@@ -83,6 +85,33 @@ function CoverPage({ pic, division, number, heading }: { pic: Pic; division: Div
 /** The fold: pages darken a little toward the spine. */
 const fold = (side: 'left' | 'right') =>
   `linear-gradient(to ${side === 'left' ? 'left' : 'right'}, rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.03) 7%, transparent 16%)`
+
+/**
+ * The cover's hinge: a crease pressed in a little way from the spine (a dark line with the light
+ * catching its far lip), and the strip between it and the spine rounding away into shade, as a
+ * cover does where it wraps round. `side` is the side the spine is on.
+ */
+function Hinge({ side, strength = 1 }: { side: 'left' | 'right'; strength?: number }) {
+  const dir = side === 'left' ? 'to right' : 'to left'
+  const at = '3.2%'
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      style={{
+        opacity: strength,
+        backgroundImage: [
+          // The crease: in shadow, then its lip in the light.
+          `linear-gradient(${dir}, transparent ${at}, rgb(0 0 0 / 0.3) ${at}, rgb(0 0 0 / 0.3) calc(${at} + 1px), rgb(255 255 255 / 0.28) calc(${at} + 1px), rgb(255 255 255 / 0.28) calc(${at} + 2px), transparent calc(${at} + 2px))`,
+          // The cover rounding over onto the spine: darker toward the edge, a soft highlight just before the crease.
+          `linear-gradient(${dir}, rgb(0 0 0 / 0.32), rgb(0 0 0 / 0.08) 1.2%, rgb(255 255 255 / 0.07) 2.4%, transparent ${at})`,
+          // A faint dip just past the crease, where the board bends.
+          `linear-gradient(${dir}, transparent calc(${at} + 2px), rgb(0 0 0 / 0.07) calc(${at} + 4px), transparent 6.5%)`,
+        ].join(','),
+      }}
+    />
+  )
+}
 
 /** How many strips a leaf is cut into, and how far its free edge leads at the middle of a turn. */
 const STRIPS = 18
@@ -172,8 +201,9 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
       style={{ transform: 'rotateZ(-90deg) rotateY(90deg)' }}
     >
       {/* Cover. */}
-      <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]" style={{ transform: `translateZ(${half})`, borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
+      <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]" style={{ transform: `translateZ(${half})`, borderRadius: `${SPINE_R} ${RADIUS} ${RADIUS} ${SPINE_R}` }}>
         <CoverPage pic={cover} division={division} number={number} heading={heading} />
+        <Hinge side="left" />
         <span data-shade="cover" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
         {/* The light catching the glossy cover as it turns toward you. */}
         <span
@@ -182,6 +212,10 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
           style={{ opacity: 0, backgroundImage: 'linear-gradient(118deg, transparent 38%, rgb(255 255 255 / 0.55) 50%, transparent 62%)', backgroundSize: '260% 100%', backgroundRepeat: 'no-repeat' }}
         />
       </div>
+      {/* The back cover, its hinge pressed in the same way. */}
+      <div className="absolute inset-0 overflow-hidden bg-[#111] [backface-visibility:hidden]" style={{ transform: `rotateY(180deg) translateZ(${half})`, borderRadius: `${RADIUS} ${SPINE_R} ${SPINE_R} ${RADIUS}` }}>
+        <Hinge side="right" />
+      </div>
       {/* The pages' edges: top, bottom and the side opposite the spine. */}
       <div className="absolute inset-x-0 [backface-visibility:hidden]" style={{ height: css(SPINE_T), top: css(`${SPINE_T} / -2`), transform: 'rotateX(90deg)', backgroundImage: paper('bottom') }} />
       <div className="absolute inset-x-0 [backface-visibility:hidden]" style={{ height: css(SPINE_T), bottom: css(`${SPINE_T} / -2`), transform: 'rotateX(-90deg)', backgroundImage: paper('bottom') }} />
@@ -189,7 +223,7 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
       {/* The spine, on the cover's left edge, a little rounded by the light. */}
       <div
         className="absolute inset-y-0 overflow-hidden bg-[#121212] text-white [backface-visibility:hidden]"
-        style={{ width: css(SPINE_T), left: css(`${SPINE_T} / -2`), transform: 'rotateY(-90deg)' }}
+        style={{ width: css(SPINE_T), left: css(`${SPINE_T} / -2`), transform: 'rotateY(-90deg)', borderRadius: SPINE_R }}
       >
         {/* Laid out lengthwise, then turned onto the spine: it reads left to right once the magazine lies across. */}
         <div
@@ -207,7 +241,8 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
             {new Date().getFullYear()}
           </span>
         </div>
-        <span aria-hidden className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgb(0 0 0 / 0.35), rgb(255 255 255 / 0.08) 45%, rgb(255 255 255 / 0.04) 60%, rgb(0 0 0 / 0.4))' }} />
+        {/* Rounded across: in shade at both folds, the light along its middle. */}
+        <span aria-hidden className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to right, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.12) 14%, rgb(255 255 255 / 0.12) 42%, rgb(255 255 255 / 0.06) 62%, rgb(0 0 0 / 0.12) 86%, rgb(0 0 0 / 0.55))' }} />
         <span data-shade="spine" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
       </div>
     </div>
@@ -626,13 +661,15 @@ export function Magazine({
                   front={
                     <>
                       {f.front}
-                      {k > 0 && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />}
+                      {k > 0 ? <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} /> : <Hinge side="left" />}
                     </>
                   }
                   back={
                     <>
                       {f.back}
                       <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('left') }} />
+                      {/* Inside the cover, the same crease seen from the other side. */}
+                      {k === 0 && <Hinge side="right" strength={0.55} />}
                     </>
                   }
                 />
