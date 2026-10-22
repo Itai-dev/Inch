@@ -3,9 +3,9 @@
 /**
  * The application card's two moments, on heavy letterpress paper.
  * - CardOpening: the page opens on the card, simply there in the middle, its back showing (the
- *   application's headline). In one move it turns over about its upright axis as it goes to its
- *   place: beside the form it becomes the comp card (desktop); on phones it shrinks into the
- *   folded strip, so it is the strip. The page writes itself in before it arrives.
+ *   application's headline), growing a touch. In one move it turns over about its upright axis as
+ *   it goes to its place: beside the form it becomes the comp card (desktop); on phones it shrinks
+ *   into the folded strip, so it is the strip. The page writes itself in before it arrives.
  * - CardPost: once the application is sent, in one continuous move the card arcs up over an
  *   envelope rising under it and down into it, the flap closes, and the envelope goes on down into
  *   a drawer (seen from above, among others' envelopes) that slides shut on it.
@@ -13,6 +13,7 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { DivisionMark } from '@/components/brand/Marks'
+import { bendLeaf, Leaf } from './Leaf'
 import { SITES, siteForDivision } from '@/lib/sites'
 import type { Division } from '@/sanity/lib/types'
 
@@ -33,13 +34,13 @@ const envSize = (w: number, h: number) => {
 }
 /** The pocket: the envelope's back with the V of its open top cut out, meeting where the flap's tip lands. */
 const POCKET = 'polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%)'
-/** The flap: a short straight side at each end, then the two slopes to its tip (as a real one is cut). */
-/** The flap in two parts, hinged across 55% of its height (so it can curve): its upper part, and its tip.
- * Each inside face is the same cut, upside down, because that face is itself turned over (rotateX) so it shows from behind. */
+/** The flap: a short straight side at each end, then the two slopes to its tip (as a real one is cut);
+ * its inside, as seen when it stands open (tip up). */
+const FLAP = 'polygon(0 0, 100% 0, 100% 16%, 50% 100%, 0 16%)'
+const FLAP_INSIDE = 'polygon(0 100%, 100% 100%, 100% 84%, 50% 0, 0 84%)'
+/** The same flap in two parts, its upper part and its tip (the sealed envelopes standing in the drawer draw it so). */
 const FLAP_BASE = 'polygon(0 0, 100% 0, 100% 29.1%, 76.8% 100%, 23.2% 100%, 0 29.1%)'
-const FLAP_BASE_INSIDE = 'polygon(0 100%, 100% 100%, 100% 70.9%, 76.8% 0, 23.2% 0, 0 70.9%)'
 const FLAP_TIP = 'polygon(23.2% 0, 76.8% 0, 50% 100%)'
-const FLAP_TIP_INSIDE = 'polygon(23.2% 100%, 76.8% 100%, 50% 0)'
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
 
@@ -72,7 +73,7 @@ function Headline({ division }: { division: Division }) {
 }
 
 /** A classic envelope's three layers, placed by the caller: its inside, the pocket in front of the card, and the flap. */
-function Envelope({ division, back, pocket, flap, tip }: { division: Division; back: React.Ref<HTMLDivElement>; pocket: React.Ref<HTMLDivElement>; flap: React.Ref<HTMLDivElement>; tip: React.Ref<HTMLDivElement> }) {
+function Envelope({ division, back, pocket, flap }: { division: Division; back: React.Ref<HTMLDivElement>; pocket: React.Ref<HTMLDivElement>; flap: React.Ref<HTMLDivElement> }) {
   return (
     <>
       {/* Inside, behind the card: the same stock, in shade. No shadow under it: nothing is behind it to fall on. */}
@@ -89,28 +90,24 @@ function Envelope({ division, back, pocket, flap, tip }: { division: Division; b
           </svg>
         </div>
       </div>
-      {/* The flap: closed over the top, the mark pressed into its tip; it opens up and back, showing
-          its inside. It is paper, so it curves as it moves: its tip (hinged to the rest across the
-          middle) lags behind and catches up. */}
+      {/* The flap: closed over the top, the mark pressed into its tip; open, it stands up behind,
+          showing its inside. It is paper: a leaf that bends as it turns (as the magazine's pages do). */}
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
-        <div className="absolute inset-x-0 top-0 h-[55%] [transform-style:preserve-3d]">
-          <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
-            <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_BASE }} />
-          </div>
-          <div className="envelope-paper absolute inset-0 [backface-visibility:hidden]" style={{ clipPath: FLAP_BASE_INSIDE, transform: 'rotateX(180deg)', boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />
-        </div>
-        <div ref={tip} className="absolute inset-x-0 top-[55%] h-[45%] origin-top [transform-style:preserve-3d]">
-          <div className="absolute inset-0 [backface-visibility:hidden] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
-            <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_TIP }}>
-              {/* Shaded towards its point, so it reads as a sheet folded over. */}
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+        <Leaf
+          strips={14}
+          front={
+            <div className="absolute inset-0 [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.15))]">
+              <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
+                {/* Shaded towards its point, so it reads as a sheet folded over. */}
+                <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+              </div>
+              <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
+                <DivisionMark division={division} size={26} />
+              </span>
             </div>
-            <span className="absolute bottom-[31%] left-1/2 -translate-x-1/2" style={blind}>
-              <DivisionMark division={division} size={26} />
-            </span>
-          </div>
-          <div className="envelope-paper absolute inset-0 [backface-visibility:hidden]" style={{ clipPath: FLAP_TIP_INSIDE, transform: 'rotateX(180deg)', boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />
-        </div>
+          }
+          back={<div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_INSIDE, boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />}
+        />
       </div>
     </>
   )
@@ -252,31 +249,21 @@ export function CardOpening({
     const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
     const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
 
-    // Beside the form (desktop) it all happens in the card's own place, leaving the form free: the
-    // card is there, its back up (the headline), and grows a touch for a second so it reads; then
-    // it turns over about its upright axis as it settles back. On phones it is there in the middle,
-    // then in one move turns over as it goes into its strip. Either way the page writes itself in
-    // before it is done.
+    // It is there in the middle of the screen, its back up (the headline), growing a touch while it
+    // is read; then in one move it turns over about its upright axis as it goes to its place
+    // (beside the form, or into its strip on phones). The page writes itself in on the way.
     const glide = 'cubic-bezier(0.55, 0, 0.25, 1)'
-    const HOLD = toCard ? 1000 : 700
-    const T = HOLD + (toCard ? 950 : 1150)
-    const WRITE = toCard ? 250 : HOLD + 650
+    const HOLD = 750
+    const T = HOLD + 1100
+    const WRITE = HOLD + 350
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
-    // At its place, grown k times about its middle.
-    const grown = (k: number) => at(tx - (w * zoom * (k - 1)) / 2, ty - (h * zoom * (k - 1)) / 2, zoom * k)
     const card = el.animate(
-      toCard
-        ? [
-            { transform: grown(1), clipPath: free, offset: 0, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
-            { transform: grown(1.08), clipPath: free, offset: o(HOLD), easing: glide },
-            { transform: grown(1), clipPath: free, offset: 1 },
-          ]
-        : [
-            { transform: place(fit), clipPath: free, offset: 0 },
-            { transform: place(fit), clipPath: free, offset: o(HOLD), easing: glide },
-            { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
-          ],
+      [
+        { transform: place(fit), clipPath: free, offset: 0, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' },
+        { transform: place(fit * 1.04), clipPath: free, offset: o(HOLD), easing: glide },
+        { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
+      ],
       opts,
     )
     const turn = fl.animate(
@@ -343,7 +330,6 @@ export function CardPost({
   const back = useRef<HTMLDivElement>(null)
   const pocket = useRef<HTMLDivElement>(null)
   const flap = useRef<HTMLDivElement>(null)
-  const tip = useRef<HTMLDivElement>(null)
   const drawer = useRef<SVGSVGElement>(null)
   const standing = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
@@ -472,34 +458,19 @@ export function CardPost({
       { transform: at(ex, ey, sc), offset: 1 },
     ]
     const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
-    // Open while the card goes in; it closes over it as it lands.
+    // Open while the card goes in; it closes over it as it lands, bending as it comes (its tip lags
+    // and catches up, as a page does), turned each frame below.
     const flapClose = flap.current?.animate(
       [
-        { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: 0 },
-        { transform: flapAt(ex, vh + 60 + fh * sc, 180, ew, sc), zIndex: 1, offset: o(UP[0]), easing: EASE_OUT },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(UP[1]) },
-        { transform: flapAt(ex, ey, 180, ew, sc), zIndex: 1, offset: o(FLAP), easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 1, offset: o(FLAP + 160) },
-        { transform: flapAt(ex, ey, 90, ew, sc), zIndex: 4, offset: o(FLAP + 161), easing: 'cubic-bezier(0.3, 0.5, 0.4, 1)' },
-        // Paper: it comes down a touch past flat, and lies down.
-        { transform: flapAt(ex, ey, -6, ew, sc), zIndex: 4, offset: o(FLAP + 300), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: o(FLAP + 370) },
-        { transform: flapAt(ex, ey, 0, ew, sc), zIndex: 4, offset: 1 },
+        { transform: flapAt(ex, vh + 60 + fh * sc, 0, ew, sc), offset: 0 },
+        { transform: flapAt(ex, vh + 60 + fh * sc, 0, ew, sc), offset: o(UP[0]), easing: EASE_OUT },
+        { transform: flapAt(ex, ey, 0, ew, sc), offset: o(UP[1]) },
+        { transform: flapAt(ex, ey, 0, ew, sc), offset: 1 },
       ],
       opts,
     )
-    // As the flap comes down over the card, its tip lags, so the flap curves, and catches up as it lies down.
-    const tipBend = tip.current?.animate(
-      [
-        { transform: 'rotateX(0deg)', offset: 0 },
-        { transform: 'rotateX(0deg)', offset: o(FLAP + 161), easing: 'cubic-bezier(0.3, 0.5, 0.4, 1)' },
-        { transform: 'rotateX(20deg)', offset: o(FLAP + 240), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
-        { transform: 'rotateX(-5deg)', offset: o(FLAP + 330), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
-        { transform: 'rotateX(0deg)', offset: o(FLAP + 420) },
-        { transform: 'rotateX(0deg)', offset: 1 },
-      ],
-      opts,
-    )
+    const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
+    const FLAP_MS = 420
     // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
     // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
     // it over (drawn the same), so it can go in with it.
@@ -562,6 +533,11 @@ export function CardPost({
       const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - 1.03 * easeInOut(span(ms, ...SHUT))
       const shift = DRAWER_UNITS * (1 - p)
       dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
+      // The flap: open (stood up behind) until it closes; behind the card while more than upright.
+      const fp = span(ms, FLAP, FLAP + FLAP_MS)
+      const fa = 180 * (1 - easeInOut(fp))
+      if (flapLeaf) bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
+      if (flap.current) flap.current.style.zIndex = fa > 90 ? '1' : '4'
       // Lighter the further away it is.
       const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
         set(ln, { x1, x2, y1: yAt(d), y2: yAt(d), 'stroke-opacity': tone / (1 + Math.max(0, d) * 0.12), visibility: d >= 0 ? 'inherit' : 'hidden' })
@@ -596,7 +572,7 @@ export function CardPost({
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, tipBend, post, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -630,7 +606,7 @@ export function CardPost({
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
         <div ref={group} className="absolute inset-0">
-          <Envelope division={division} back={back} pocket={pocket} flap={flap} tip={tip} />
+          <Envelope division={division} back={back} pocket={pocket} flap={flap} />
           <div ref={box} className="absolute left-0 top-0 z-[2] origin-top-left" style={{ transform: 'translateY(200vh)' }}>
             {front}
           </div>
