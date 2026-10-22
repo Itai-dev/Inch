@@ -273,7 +273,8 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const ey = ENV_TOP + fh * sc + spare * 0.55
     const cx = ex + pad * sc
     const inY = ey + pad * sc
-    const rise = Math.max(0, Math.min(h * sc * 0.55, inY - ENV_TOP))
+    // It waits wholly above the envelope's opening (in front of the open flap), then slides down into it.
+    const rise = Math.max(0, Math.min(h * sc + pad * sc + 6, inY - 60))
     const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + 46))
     const slotW = Math.round(ew * sc * 1.08)
     st.style.top = `${slotY}px`
@@ -296,8 +297,7 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
         { transform: fromAt, clipPath: fromClip, zIndex: 5, offset: 0, easing: EASE },
         { transform: showAt, clipPath: open, zIndex: 5, offset: o(600) },
         { transform: showAt, clipPath: open, zIndex: 5, offset: o(800), easing: EASE },
-        { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 5, offset: o(1150) },
-        { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 5, offset: o(1599) },
+        { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 2, offset: o(1150) },
         { transform: at(cx, inY - rise, sc), clipPath: open, zIndex: 2, offset: o(1600), easing: EASE },
         { transform: at(cx, inY, sc), clipPath: open, zIndex: 2, offset: o(1950) },
         { transform: at(cx, inY, sc), clipPath: open, zIndex: 2, offset: 1 },
