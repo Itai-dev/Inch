@@ -407,7 +407,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       // As it lies open, it goes on up.
       await new Promise((r) => setTimeout(r, FOLD_OPEN_MS))
     }
-    setPhase('posting')
+    // The card's copy takes over as soon as it is ready (its photos decoded): then the posting phase.
     setPostAlive(true)
   }
 
@@ -785,7 +785,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start lg:block">
           <div ref={layerRef} className="fixed z-[5] p-7">
             <div ref={scaleBoxRef} style={{ width: CARD_W }}>
-              <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card()}</div>
+              <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card('', false, cardMoving)}</div>
             </div>
           </div>
         </aside>
@@ -814,7 +814,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       </div>
       {body}
       {/* The card into the envelope and the drawer: over the page, and still finishing as the thanks comes. */}
-      {postAlive && <CardPost front={card('', false, true)} division={division} from={cardPlace} onShut={posted} onDone={() => setPostAlive(false)} />}
+      {postAlive && <CardPost front={card('', false, true)} division={division} from={cardPlace} onStart={() => setPhase('posting')} onShut={posted} onDone={() => setPostAlive(false)} />}
     </div>
   )
 }

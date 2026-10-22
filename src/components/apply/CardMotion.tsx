@@ -513,6 +513,8 @@ export function CardOpening({
           </div>
           <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] origin-left bg-[#dedbd3]" style={{ transform: 'translateZ(1px) rotateY(90deg)' }} />
           <span aria-hidden className="absolute inset-y-0 right-0 w-[2px] origin-right bg-[#d6d3cb]" style={{ transform: 'translateZ(1px) rotateY(-90deg)' }} />
+          <span aria-hidden className="absolute inset-x-0 top-0 h-[2px] origin-top bg-[#e2dfd8]" style={{ transform: 'translateZ(1px) rotateX(-90deg)' }} />
+          <span aria-hidden className="absolute inset-x-0 bottom-0 h-[2px] origin-bottom bg-[#d2cfc7]" style={{ transform: 'translateZ(1px) rotateX(90deg)' }} />
           <Headline division={division} />
         </div>
       </div>
@@ -524,12 +526,15 @@ export function CardPost({
   front,
   division,
   from,
+  onStart,
   onShut,
   onDone,
 }: {
   front: React.ReactNode
   division: Division
   from: () => Place
+  /** Ready and moving: the real card can go (the copy has taken its place). */
+  onStart: () => void
   /** As the drawer goes in: where its slot is (the thanks' check comes up out of it). */
   onShut: (slot: { x: number; y: number }) => void
   /** All gone. */
@@ -546,9 +551,11 @@ export function CardPost({
   const standing = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
   const shut = useRef(onShut)
+  const start = useRef(onStart)
   useLayoutEffect(() => {
     done.current = onDone
     shut.current = onShut
+    start.current = onStart
   })
 
   // Before the first paint, so the card never shows anywhere but where it is.
@@ -559,276 +566,293 @@ export function CardPost({
     const st = standing.current
     const g = group.current
     if (!el || !c || !dr || !st || !g) return
-    const f = from()
-    const r = f?.el.getBoundingClientRect() ?? null
-    const desk = !!f?.card
-    const zoom = f?.zoom ?? 1
-    // The same comp card on every screen: beside the form on a computer, unfolding out of its strip on a phone.
-    const w = desk ? cardWidth(r, zoom) : Math.min(innerWidth - 40, 420)
-    el.style.width = `${w}px`
-    const h = el.offsetHeight
-    const { pad, ew, eh, fh } = envSize(w, h)
-    fit([back.current, pocket.current, flap.current], ew, eh, fh)
-    if (seal.current) Object.assign(seal.current.style, { width: `${ew}px`, height: `${eh}px` })
+    // Set up once the copy's photos are decoded (so it never shows an empty frame), then take over
+    // from the real card (onStart).
+    const run = () => {
+      const f = from()
+      const r = f?.el.getBoundingClientRect() ?? null
+      const desk = !!f?.card
+      const zoom = f?.zoom ?? 1
+      // The same comp card on every screen: beside the form on a computer, unfolding out of its strip on a phone.
+      const w = desk ? cardWidth(r, zoom) : Math.min(innerWidth - 40, 420)
+      el.style.width = `${w}px`
+      const h = el.offsetHeight
+      const { pad, ew, eh, fh } = envSize(w, h)
+      fit([back.current, pocket.current, flap.current], ew, eh, fh)
+      if (seal.current) Object.assign(seal.current.style, { width: `${ew}px`, height: `${eh}px` })
 
-    const vh = window.visualViewport?.height ?? innerHeight
-    // The envelope, small, low in the middle; the card goes up over it and down into it; the drawer under it.
-    const sc = envScale(ew, eh, fh)
-    const ex = (innerWidth - ew * sc) / 2
-    const spare = Math.max(0, vh - ENV_TOP - ENV_FOOT - (eh + fh) * sc)
-    const ey = ENV_TOP + fh * sc + spare * 0.55
-    const cx = ex + pad * sc
-    const inY = ey + pad * sc
-    // Wholly above the envelope's opening (in front of the open flap) at the top of its arc.
-    const rise = Math.max(0, Math.min(h * sc + pad * sc + 6, inY - 60))
-    // The drawer under it: its front edge (the slot line) low enough that its back clears the
-    // envelope; wide enough that ours fills its share of it where it goes in.
-    const slotW = (ew * sc) / (OURS_SHARE * fz(OURS_U))
-    const vp = Math.min(slotW * DRAWER_RISE, vh * DRAWER_RISE_MAX)
-    const tops = vp * OURS_SHOW
-    const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + vp * (1 - fz(DRAWER_UNITS)) + 14))
-    const baseY = slotY - vp * (1 - fz(OURS_U))
-    // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
-    const [sx, sy, ss] = r ? [r.left, r.top, desk ? zoom : r.width / w] : [(innerWidth - w) / 2, vh + 20, 1]
-    const folded = !desk && r ? Math.max(0, h - r.height / (r.width / w)) : 0
-    // The card as it was beside the form: turned toward the pointer (its own tilt), from there.
-    const tilt = (f?.el.firstElementChild as HTMLElement | null)?.style.transform ?? ''
-    const num = (fn: string, unit: string) => Number(tilt.match(new RegExp(`${fn}\\((-?[\\d.]+)${unit}\\)`))?.[1] ?? (fn === 'scale' ? 1 : 0))
-    const lean = (rx: number, ry: number, ty: number, k: number, rz: number, sk: number) =>
-      `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(${ty}px) scale(${k}) rotate(${rz}deg) skewX(${sk}deg)`
-    const from0 = lean(num('rotateX', 'deg'), num('rotateY', 'deg'), num('translateY', 'px'), num('scale', ''), 0, 0)
+      const vh = window.visualViewport?.height ?? innerHeight
+      // The envelope, small, low in the middle; the card goes up over it and down into it; the drawer under it.
+      const sc = envScale(ew, eh, fh)
+      const ex = (innerWidth - ew * sc) / 2
+      // Centred on the screen as the card goes in (its open flap kept clear of the top bar); it is
+      // lifted above the middle for the sticker, and goes down into the drawer below.
+      const ey = Math.max(ENV_TOP + fh * sc, (vh - eh * sc) / 2)
+      const cx = ex + pad * sc
+      const inY = ey + pad * sc
+      // Wholly above the envelope's opening (in front of the open flap) at the top of its arc.
+      const rise = Math.max(0, Math.min(h * sc + pad * sc + 6, inY - 60))
+      // The drawer under it: its front edge (the slot line) low enough that its back clears the
+      // envelope; wide enough that ours fills its share of it where it goes in.
+      const slotW = (ew * sc) / (OURS_SHARE * fz(OURS_U))
+      const vp = Math.min(slotW * DRAWER_RISE, vh * DRAWER_RISE_MAX)
+      const tops = vp * OURS_SHOW
+      const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + vp * (1 - fz(DRAWER_UNITS)) + 14))
+      const baseY = slotY - vp * (1 - fz(OURS_U))
+      // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
+      const [sx, sy, ss] = r ? [r.left, r.top, desk ? zoom : r.width / w] : [(innerWidth - w) / 2, vh + 20, 1]
+      const folded = !desk && r ? Math.max(0, h - r.height / (r.width / w)) : 0
+      // The card as it was beside the form: turned toward the pointer (its own tilt), from there.
+      const tilt = (f?.el.firstElementChild as HTMLElement | null)?.style.transform ?? ''
+      const num = (fn: string, unit: string) => Number(tilt.match(new RegExp(`${fn}\\((-?[\\d.]+)${unit}\\)`))?.[1] ?? (fn === 'scale' ? 1 : 0))
+      const lean = (rx: number, ry: number, ty: number, k: number, rz: number, sk: number) =>
+        `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(${ty}px) scale(${k}) rotate(${rz}deg) skewX(${sk}deg)`
+      const from0 = lean(num('rotateX', 'deg'), num('rotateY', 'deg'), num('translateY', 'px'), num('scale', ''), 0, 0)
 
-    // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
-    // lifts from its place and arcs up over the envelope rising under it, comes straight down into
-    // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 4250
-    const SLOW = 1.3
-    const CARD_END = 1500
-    const FLAP = 1250
-    // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
-    // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [2550, 2950]
-    // Closed, it is taken up as if in a hand (TURN: lifted from, held, let go), the sticker put on
-    // while it is held, and it goes down into the drawer.
-    const TURN: [number, number, number] = [2000, 2650, 2650]
-    const DROP = TURN[2]
-    const LAND = 3500
-    // As it lands the drawer starts in, slowly at first (it never stops), and goes in.
-    const SHUT: [number, number] = [LAND - 50, LAND + 650]
-    const o = (ms: number) => ms / T
-    const opts = { duration: T * SLOW, fill: 'forwards' as const }
-    // The card's path: a curve from its place, up over the opening, ending straight down into it
-    // (so it is square over the opening well before it goes in). Sampled finely, timed by one easing.
-    const top = inY - rise - rise * 0.3
-    const P = [
-      [sx, sy],
-      [cx, Math.min(sy, top)],
-      [cx, top],
-      [cx, inY],
-    ]
-    const bez = (t: number, i: number) => (1 - t) ** 3 * P[0][i] + 3 * (1 - t) ** 2 * t * P[1][i] + 3 * (1 - t) * t ** 2 * P[2][i] + t ** 3 * P[3][i]
-    const N = 64
-    const path = Array.from({ length: N + 1 }, (_, i) => {
-      // A soft ease (sine), so it is under way at once and comes to rest as it lands.
-      const t = 0.5 - 0.5 * Math.cos(Math.PI * (i / N))
-      const k = Math.min(1, t / 0.6)
-      return { x: bez(t, 0), y: bez(t, 1), s: ss + (sc - ss) * (k * k * (3 - 2 * k)), t, at: (i / N) * CARD_END }
-    })
-    // It goes behind the envelope's front at the top of its arc (wholly above the opening then).
-    const peak = path.reduce((m, q, i) => (q.y < path[m].y ? i : m), 0)
-    const card = el.animate(
-      [
-        ...path.map((q, i) => ({
-          transform: at(q.x, q.y, q.s),
-          clipPath: `inset(0 0 ${(folded * (1 - Math.min(1, q.t / 0.3))).toFixed(1)}px 0)`,
-          zIndex: i <= peak ? 5 : 2,
-          offset: o(q.at),
-        })),
-        { transform: at(cx, inY, sc), clipPath: 'inset(0 0 0px 0)', zIndex: 2, offset: 1 },
-      ],
-      opts,
-    )
-    // Carried, the card isn't rigid: one soft lean as it is lifted, settling as it goes in; the light
-    // slides across it.
-    const sheet = el.firstElementChild as HTMLElement | null
-    const sway = sheet?.animate(
-      [
-        { transform: from0, offset: 0, easing: EASE },
-        { transform: lean(0, 0, 0, 1, -1, 0.4), offset: o(500), easing: EASE },
-        { transform: lean(0, 0, 0, 1, 0, 0), offset: o(1200) },
-        { transform: lean(0, 0, 0, 1, 0, 0), offset: 1 },
-      ],
-      opts,
-    )
-    const light = el.animate(
-      [
-        { '--sheen': '15%', offset: 0 },
-        { '--sheen': '70%', offset: o(900) },
-        { '--sheen': '30%', offset: o(CARD_END) },
-        { '--sheen': '30%', offset: 1 },
-      ] as Keyframe[],
-      opts,
-    )
-    // The envelope comes up under it while it is still on its way, in place before it comes down.
-    const upAt = path[peak].at
-    const UP: [number, number] = [Math.max(0, upAt - 800), Math.max(300, upAt - 40)]
-    const env = [
-      { transform: at(ex, vh + 60, sc), offset: 0 },
-      { transform: at(ex, vh + 60, sc), offset: o(UP[0]), easing: EASE_OUT },
-      { transform: at(ex, ey, sc), offset: o(UP[1]) },
-      { transform: at(ex, ey, sc), offset: 1 },
-    ]
-    const parts = [back.current, pocket.current, seal.current].map((p) => p?.animate(env, opts))
-    // Open while the card goes in; it closes over it as it lands, bending as it comes (its tip lags
-    // and catches up, as a page does), turned each frame below.
-    const flapClose = flap.current?.animate(
-      [
-        { transform: flapAt(ex, vh + 60 + fh * sc, 0, ew, sc), offset: 0 },
-        { transform: flapAt(ex, vh + 60 + fh * sc, 0, ew, sc), offset: o(UP[0]), easing: EASE_OUT },
-        { transform: flapAt(ex, ey, 0, ew, sc), offset: o(UP[1]) },
-        { transform: flapAt(ex, ey, 0, ew, sc), offset: 1 },
-      ],
-      opts,
-    )
-    const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
-    const flapFlat = flap.current?.querySelector<HTMLElement>('[data-flap-flat]')
-    const FLAP_MS = 750
-    // As the flap lies down, the sticker goes on (turned each frame below); the light on its foil
-    // moves only as the envelope (and the sticker itself) turns.
-    // Soon after the flap is down, as it is held up, the sticker goes on.
-    const STICK: [number, number] = [FLAP + FLAP_MS + 250, FLAP + FLAP_MS + 730]
-    const sticker = seal.current?.querySelector<HTMLElement>('[data-sticker]')
-    const stickerLeaf = sticker?.querySelector<HTMLElement>('[data-leaf]')
-    const foil = [...(sticker?.querySelectorAll<HTMLElement>('[data-foil]') ?? [])]
-    // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
-    // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
-    // it over (drawn the same), so it can go in with it.
-    const ox = ex + (ew * sc) / 2
-    const oy = ey + (eh * sc) / 2
-    g.style.transformOrigin = `${ox}px ${oy}px`
-    const dropY = baseY - tops - ey
-    // Closed, it is picked up: lifted a little, tipped back and turned a touch, as a hand holds it
-    // to put the sticker on (the foil catching the light); then it is let go down into the drawer,
-    // coming straight as it goes.
-    const pose = (y: number, rx: number, ry: number, rz = 0) => `translateY(${y}px) perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${rz}deg)`
-    const rest = pose(dropY, 0, 0, OURS_TILT)
-    const post = g.animate(
-      [
-        { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
-        { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.45, 0, 0.4, 1)' },
-        // Taken up, turning, as the sticker goes on; then straight down into the drawer: one move up, one down.
-        { transform: pose(-82, 14, -7, -4), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.35, 1)' },
-        { transform: rest, visibility: 'visible', offset: o(LAND) },
-        { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
-        { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
-        { transform: rest, visibility: 'hidden', offset: 1 },
-      ],
-      opts,
-    )
-    const cutAt = window.setTimeout(() => (c.style.height = `${baseY}px`), o(DROP) * T * SLOW)
-    // The drawer, drawn each frame from the score: opened `p` of the way, every line sits as deep
-    // as it would p times over (so the rails stay straight and the vanishing point stays put).
-    const mid = innerWidth / 2
-    const q = <E extends Element>(sel: string) => [...dr.querySelectorAll<E>(sel)]
-    const majors = q<SVGLineElement>('[data-major]')
-    const rails = q<SVGLineElement>('[data-rail]')
-    const ticks = q<SVGLineElement>('[data-tick]')
-    const set = (n: Element, a: Record<string, number | string>) => Object.entries(a).forEach(([k, v]) => n.setAttribute(k, typeof v === 'number' ? v.toFixed(2) : v))
-    const yAt = (u: number) => slotY - vp * (1 - fz(u))
-    const halfAt = (u: number) => (slotW / 2) * fz(u)
-    // The envelopes standing in it: each drawn as ours is (the same layers, at its scale), cut at its
-    // line. Laid out as when open; while the drawer is part open, each is drawn in toward the middle
-    // and pressed down to its line (as deep again times p, as the lines are).
-    const stands = [...st.querySelectorAll<HTMLElement>('[data-stand]')].map((wrap) => {
-      const env = wrap.firstElementChild as HTMLElement
-      Object.assign(env.style, { width: `${ew}px`, height: `${eh}px` })
-      ;(env.querySelector('[data-closed-flap]') as HTMLElement).style.height = `${fh}px`
-      const ours = wrap.dataset.stand === 'ours'
-      const [u, ws, hs] = ['u', 'ws', 'hs'].map((k) => Number(wrap.dataset[k]))
-      let pose: string
-      if (ours) {
-        // Exactly where the real one came to rest (turned about its middle), so taking over shows nothing.
-        pose = `translate(${ox}px, ${oy + dropY}px) rotate(${OURS_TILT}deg) translate(${-ox}px, ${-oy}px) translate(${ex}px, ${ey}px) scale(${sc})`
-      } else {
-        // A little out of line, differently each time.
-        const dx = (Math.random() * 2 - 1) * JITTER_SHIFT
-        const tilt = (Math.random() * 2 - 1) * JITTER_TURN
-        const w = ws * 2 * halfAt(u)
-        const h = (tops / fz(OURS_U)) * hs * fz(u)
-        pose = `translate(${mid + dx * 2 * halfAt(u)}px, ${yAt(u)}px) rotate(${tilt}deg) translate(${-w / 2}px, ${-h}px) scale(${w / ew})`
+      // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
+      // lifts from its place and arcs up over the envelope rising under it, comes straight down into
+      // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
+      const T = 4250
+      const SLOW = 1.3
+      const CARD_END = 1500
+      const FLAP = 1250
+      // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
+      // slides back in, all of it (its last line too).
+      const OPEN: [number, number] = [2550, 2950]
+      // Closed, it is taken up as if in a hand (TURN: lifted from, held, let go), the sticker put on
+      // while it is held, and it goes down into the drawer.
+      const TURN: [number, number, number] = [2000, 2650, 2650]
+      const DROP = TURN[2]
+      const LAND = 3500
+      // As it lands the drawer starts in, slowly at first (it never stops), and goes in.
+      const SHUT: [number, number] = [LAND - 50, LAND + 650]
+      const o = (ms: number) => ms / T
+      const opts = { duration: T * SLOW, fill: 'forwards' as const }
+      // The card's path: a curve from its place, up over the opening, ending straight down into it
+      // (so it is square over the opening well before it goes in). Sampled finely, timed by one easing.
+      const top = inY - rise - rise * 0.3
+      const P = [
+        [sx, sy],
+        [cx, Math.min(sy, top)],
+        [cx, top],
+        [cx, inY],
+      ]
+      const bez = (t: number, i: number) => (1 - t) ** 3 * P[0][i] + 3 * (1 - t) ** 2 * t * P[1][i] + 3 * (1 - t) * t ** 2 * P[2][i] + t ** 3 * P[3][i]
+      const N = 64
+      const path = Array.from({ length: N + 1 }, (_, i) => {
+        // A soft ease (sine), so it is under way at once and comes to rest as it lands.
+        const t = 0.5 - 0.5 * Math.cos(Math.PI * (i / N))
+        const k = Math.min(1, t / 0.6)
+        return { x: bez(t, 0), y: bez(t, 1), s: ss + (sc - ss) * (k * k * (3 - 2 * k)), t, at: (i / N) * CARD_END }
+      })
+      // It goes behind the envelope's front at the top of its arc (wholly above the opening then).
+      const peak = path.reduce((m, q, i) => (q.y < path[m].y ? i : m), 0)
+      const card = el.animate(
+        [
+          ...path.map((q, i) => ({
+            transform: at(q.x, q.y, q.s),
+            clipPath: `inset(0 0 ${(folded * (1 - Math.min(1, q.t / 0.3))).toFixed(1)}px 0)`,
+            zIndex: i <= peak ? 5 : 2,
+            offset: o(q.at),
+          })),
+          { transform: at(cx, inY, sc), clipPath: 'inset(0 0 0px 0)', zIndex: 2, offset: 1 },
+        ],
+        opts,
+      )
+      // Carried, the card isn't rigid: one soft lean as it is lifted, settling as it goes in; the light
+      // slides across it.
+      const sheet = el.firstElementChild as HTMLElement | null
+      const sway = sheet?.animate(
+        [
+          { transform: from0, offset: 0, easing: EASE },
+          { transform: lean(0, 0, 0, 1, -1, 0.4), offset: o(500), easing: EASE },
+          { transform: lean(0, 0, 0, 1, 0, 0), offset: o(1200) },
+          { transform: lean(0, 0, 0, 1, 0, 0), offset: 1 },
+        ],
+        opts,
+      )
+      const light = el.animate(
+        [
+          { '--sheen': '15%', offset: 0 },
+          { '--sheen': '70%', offset: o(900) },
+          { '--sheen': '30%', offset: o(CARD_END) },
+          { '--sheen': '30%', offset: 1 },
+        ] as Keyframe[],
+        opts,
+      )
+      // The envelope comes up under it while it is still on its way, in place before it comes down.
+      const upAt = path[peak].at
+      const UP: [number, number] = [Math.max(0, upAt - 800), Math.max(300, upAt - 40)]
+      const env = [
+        { transform: at(ex, vh + 60, sc), offset: 0 },
+        { transform: at(ex, vh + 60, sc), offset: o(UP[0]), easing: EASE_OUT },
+        { transform: at(ex, ey, sc), offset: o(UP[1]) },
+        { transform: at(ex, ey, sc), offset: 1 },
+      ]
+      const parts = [back.current, pocket.current, seal.current].map((p) => p?.animate(env, opts))
+      // Open while the card goes in; it closes over it as it lands, bending as it comes (its tip lags
+      // and catches up, as a page does), turned each frame below.
+      const flapClose = flap.current?.animate(
+        [
+          { transform: flapAt(ex, vh + 60 + fh * sc, 0, ew, sc), offset: 0 },
+          { transform: flapAt(ex, vh + 60 + fh * sc, 0, ew, sc), offset: o(UP[0]), easing: EASE_OUT },
+          { transform: flapAt(ex, ey, 0, ew, sc), offset: o(UP[1]) },
+          { transform: flapAt(ex, ey, 0, ew, sc), offset: 1 },
+        ],
+        opts,
+      )
+      const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
+      const flapFlat = flap.current?.querySelector<HTMLElement>('[data-flap-flat]')
+      const FLAP_MS = 750
+      // As the flap lies down, the sticker goes on (turned each frame below); the light on its foil
+      // moves only as the envelope (and the sticker itself) turns.
+      // Soon after the flap is down, as it is held up, the sticker goes on.
+      const STICK: [number, number] = [FLAP + FLAP_MS + 250, FLAP + FLAP_MS + 730]
+      const sticker = seal.current?.querySelector<HTMLElement>('[data-sticker]')
+      const stickerLeaf = sticker?.querySelector<HTMLElement>('[data-leaf]')
+      const foil = [...(sticker?.querySelectorAll<HTMLElement>('[data-foil]') ?? [])]
+      // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
+      // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
+      // it over (drawn the same), so it can go in with it.
+      const ox = ex + (ew * sc) / 2
+      const oy = ey + (eh * sc) / 2
+      g.style.transformOrigin = `${ox}px ${oy}px`
+      const dropY = baseY - tops - ey
+      // Closed, it is picked up: lifted a little, tipped back and turned a touch, as a hand holds it
+      // to put the sticker on (the foil catching the light); then it is let go down into the drawer,
+      // coming straight as it goes.
+      const pose = (y: number, rx: number, ry: number, rz = 0) => `translateY(${y}px) perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${rz}deg)`
+      const rest = pose(dropY, 0, 0, OURS_TILT)
+      const post = g.animate(
+        [
+          { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
+          { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.45, 0, 0.4, 1)' },
+          // Taken up, turning, as the sticker goes on; then straight down into the drawer: one move up, one down.
+          { transform: pose(-82, 14, -7, -4), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.35, 1)' },
+          { transform: rest, visibility: 'visible', offset: o(LAND) },
+          { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
+          { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
+          { transform: rest, visibility: 'hidden', offset: 1 },
+        ],
+        opts,
+      )
+      const cutAt = window.setTimeout(() => (c.style.height = `${baseY}px`), o(DROP) * T * SLOW)
+      // The drawer, drawn each frame from the score: opened `p` of the way, every line sits as deep
+      // as it would p times over (so the rails stay straight and the vanishing point stays put).
+      const mid = innerWidth / 2
+      const q = <E extends Element>(sel: string) => [...dr.querySelectorAll<E>(sel)]
+      const majors = q<SVGLineElement>('[data-major]')
+      const rails = q<SVGLineElement>('[data-rail]')
+      const ticks = q<SVGLineElement>('[data-tick]')
+      const set = (n: Element, a: Record<string, number | string>) => Object.entries(a).forEach(([k, v]) => n.setAttribute(k, typeof v === 'number' ? v.toFixed(2) : v))
+      const yAt = (u: number) => slotY - vp * (1 - fz(u))
+      const halfAt = (u: number) => (slotW / 2) * fz(u)
+      // The envelopes standing in it: each drawn as ours is (the same layers, at its scale), cut at its
+      // line. Laid out as when open; while the drawer is part open, each is drawn in toward the middle
+      // and pressed down to its line (as deep again times p, as the lines are).
+      const stands = [...st.querySelectorAll<HTMLElement>('[data-stand]')].map((wrap) => {
+        const env = wrap.firstElementChild as HTMLElement
+        Object.assign(env.style, { width: `${ew}px`, height: `${eh}px` })
+        ;(env.querySelector('[data-closed-flap]') as HTMLElement).style.height = `${fh}px`
+        const ours = wrap.dataset.stand === 'ours'
+        const [u, ws, hs] = ['u', 'ws', 'hs'].map((k) => Number(wrap.dataset[k]))
+        let pose: string
+        if (ours) {
+          // Exactly where the real one came to rest (turned about its middle), so taking over shows nothing.
+          pose = `translate(${ox}px, ${oy + dropY}px) rotate(${OURS_TILT}deg) translate(${-ox}px, ${-oy}px) translate(${ex}px, ${ey}px) scale(${sc})`
+        } else {
+          // A little out of line, differently each time.
+          const dx = (Math.random() * 2 - 1) * JITTER_SHIFT
+          const tilt = (Math.random() * 2 - 1) * JITTER_TURN
+          const w = ws * 2 * halfAt(u)
+          const h = (tops / fz(OURS_U)) * hs * fz(u)
+          pose = `translate(${mid + dx * 2 * halfAt(u)}px, ${yAt(u)}px) rotate(${tilt}deg) translate(${-w / 2}px, ${-h}px) scale(${w / ew})`
+        }
+        return { wrap, env, ours, u, pose }
+      })
+      let raf = 0
+      const draw = () => {
+        const ms = Number(post.currentTime ?? 0) / SLOW
+        // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
+        // k - shift deep (shown once it is past the slot line). Shut, it goes a touch past, so its last
+        // line is gone too.
+        const p = ms < OPEN[1] ? easeInOut(span(ms, ...OPEN)) : 1 - 1.03 * easeIn(span(ms, ...SHUT))
+        // The sticker: its top down first, the rest smoothed on after it.
+        if (sticker && stickerLeaf) {
+          const sp = span(ms, ...STICK)
+          sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
+          const se = easeOut(sp)
+          const press = 70 * (1 - se)
+          bendLeaf(stickerLeaf, press, Math.sin(Math.PI * se) * 45)
+          // The light on the foil, from how the envelope (and the sticker on it) is turned right now.
+          const m = new DOMMatrix(getComputedStyle(g).transform)
+          const ry = (Math.asin(Math.max(-1, Math.min(1, m.m13))) * 180) / Math.PI
+          const rx = (Math.asin(Math.max(-1, Math.min(1, -m.m23))) * 180) / Math.PI
+          const pos = `0 0, ${(50 - ry * 7).toFixed(1)}% ${(50 + (rx + press * 0.3) * 4).toFixed(1)}%`
+          foil.forEach((f) => (f.style.backgroundPosition = pos))
+        }
+        const shift = DRAWER_UNITS * (1 - p)
+        dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
+        // The flap: open (stood up behind) until it closes; behind the card while more than upright.
+        const fp = span(ms, FLAP, FLAP + FLAP_MS)
+        const fa = 180 * (0.5 + 0.5 * Math.cos(Math.PI * fp))
+        if (flapLeaf) bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
+        // Closed, the flat flap stands in for the strips.
+        const flat = fa < 0.05
+        if (flapLeaf) flapLeaf.style.visibility = flat ? 'hidden' : ''
+        if (flapFlat) flapFlat.style.visibility = flat ? 'inherit' : 'hidden'
+        if (flap.current) flap.current.style.zIndex = fa > 90 ? '1' : '4'
+        // Lighter the further away it is.
+        const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
+          set(ln, { x1, x2, y1: yAt(d), y2: yAt(d), 'stroke-opacity': tone / (1 + Math.max(0, d) * 0.12), visibility: d >= 0 ? 'inherit' : 'hidden' })
+        majors.forEach((ln) => {
+          const d = Number(ln.dataset.major) - shift
+          line(ln, d, mid - halfAt(d), mid + halfAt(d))
+        })
+        rails.forEach((ln) => {
+          const side = Number(ln.dataset.rail)
+          const back = DRAWER_UNITS - shift
+          set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: back > 0 ? 'inherit' : 'hidden' })
+        })
+        ticks.forEach((ln) => {
+          const d = Number(ln.dataset.tick) - shift
+          const side = Number(ln.dataset.side)
+          const edge = mid + side * halfAt(d)
+          line(ln, d, edge, edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(d), 0.85)
+        })
+        // The envelopes ride in it, rising out of the slot line and going back under it.
+        stands.forEach(({ wrap, env, ours, u, pose }) => {
+          const d = u - shift
+          const by = yAt(d)
+          const k = fz(d) / fz(u)
+          wrap.style.visibility = ms >= OPEN[0] && d > -1.5 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
+          wrap.style.clipPath = `inset(0 0 calc(100% - ${Math.min(by, slotY).toFixed(2)}px) 0)`
+          env.style.transform = `translate(${mid}px, ${by}px) scale(${k}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
+        })
+        raf = requestAnimationFrame(draw)
       }
-      return { wrap, env, ours, u, pose }
-    })
-    let raf = 0
-    const draw = () => {
-      const ms = Number(post.currentTime ?? 0) / SLOW
-      // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
-      // k - shift deep (shown once it is past the slot line). Shut, it goes a touch past, so its last
-      // line is gone too.
-      const p = ms < OPEN[1] ? easeInOut(span(ms, ...OPEN)) : 1 - 1.03 * easeIn(span(ms, ...SHUT))
-      // The sticker: its top down first, the rest smoothed on after it.
-      if (sticker && stickerLeaf) {
-        const sp = span(ms, ...STICK)
-        sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
-        const se = easeOut(sp)
-        const press = 70 * (1 - se)
-        bendLeaf(stickerLeaf, press, Math.sin(Math.PI * se) * 45)
-        // The light on the foil, from how the envelope (and the sticker on it) is turned right now.
-        const m = new DOMMatrix(getComputedStyle(g).transform)
-        const ry = (Math.asin(Math.max(-1, Math.min(1, m.m13))) * 180) / Math.PI
-        const rx = (Math.asin(Math.max(-1, Math.min(1, -m.m23))) * 180) / Math.PI
-        const pos = `0 0, ${(50 - ry * 7).toFixed(1)}% ${(50 + (rx + press * 0.3) * 4).toFixed(1)}%`
-        foil.forEach((f) => (f.style.backgroundPosition = pos))
-      }
-      const shift = DRAWER_UNITS * (1 - p)
-      dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
-      // The flap: open (stood up behind) until it closes; behind the card while more than upright.
-      const fp = span(ms, FLAP, FLAP + FLAP_MS)
-      const fa = 180 * (0.5 + 0.5 * Math.cos(Math.PI * fp))
-      if (flapLeaf) bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
-      // Closed, the flat flap stands in for the strips.
-      const flat = fa < 0.05
-      if (flapLeaf) flapLeaf.style.visibility = flat ? 'hidden' : ''
-      if (flapFlat) flapFlat.style.visibility = flat ? 'inherit' : 'hidden'
-      if (flap.current) flap.current.style.zIndex = fa > 90 ? '1' : '4'
-      // Lighter the further away it is.
-      const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
-        set(ln, { x1, x2, y1: yAt(d), y2: yAt(d), 'stroke-opacity': tone / (1 + Math.max(0, d) * 0.12), visibility: d >= 0 ? 'inherit' : 'hidden' })
-      majors.forEach((ln) => {
-        const d = Number(ln.dataset.major) - shift
-        line(ln, d, mid - halfAt(d), mid + halfAt(d))
-      })
-      rails.forEach((ln) => {
-        const side = Number(ln.dataset.rail)
-        const back = DRAWER_UNITS - shift
-        set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: back > 0 ? 'inherit' : 'hidden' })
-      })
-      ticks.forEach((ln) => {
-        const d = Number(ln.dataset.tick) - shift
-        const side = Number(ln.dataset.side)
-        const edge = mid + side * halfAt(d)
-        line(ln, d, edge, edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(d), 0.85)
-      })
-      // The envelopes ride in it, rising out of the slot line and going back under it.
-      stands.forEach(({ wrap, env, ours, u, pose }) => {
-        const d = u - shift
-        const by = yAt(d)
-        const k = fz(d) / fz(u)
-        wrap.style.visibility = ms >= OPEN[0] && d > -1.5 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
-        wrap.style.clipPath = `inset(0 0 calc(100% - ${Math.min(by, slotY).toFixed(2)}px) 0)`
-        env.style.transform = `translate(${mid}px, ${by}px) scale(${k}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
-      })
       raf = requestAnimationFrame(draw)
+      // As the drawer goes in, the thanks' check comes up out of it (drawn back out of the depth).
+      const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), (o(SHUT[0] + 380) * T * SLOW))
+      post.onfinish = () => done.current()
+      return () => {
+        clearTimeout(cutAt)
+        clearTimeout(shutAt)
+        cancelAnimationFrame(raf)
+        ;[card, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
+      }
     }
-    raf = requestAnimationFrame(draw)
-    // As the drawer goes in, the thanks' check comes up out of it (drawn back out of the depth).
-    const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), (o(SHUT[0] + 380) * T * SLOW))
-    post.onfinish = () => done.current()
+    let live = true
+    let stop: (() => void) | undefined
+    const imgs = [...el.querySelectorAll('img')]
+    Promise.all(imgs.map((i) => i.decode().catch(() => undefined))).then(() => {
+      if (!live) return
+      stop = run()
+      start.current()
+    })
     return () => {
-      clearTimeout(cutAt)
-      clearTimeout(shutAt)
-      cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
+      live = false
+      stop?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
