@@ -153,17 +153,14 @@ const flapAt = (x: number, y: number, deg: number, ew: number, sc: number) =>
  * to a vanishing point above. Depth `u` runs 0 (the slot line, at the front) to DRAWER_UNITS (the
  * back); a line `u` deep sits vp * (1 - fz(u)) px above the slot and fz(u) of its width.
  */
-const DRAWER_UNITS = 10
+const DRAWER_UNITS = 8
 /** How far up the vanishing point is, against the drawer's width at the front (and at most against the screen's height). */
-const DRAWER_RISE = 0.55
-const DRAWER_RISE_MAX = 0.24
-const fz = (u: number) => 1 / (1 + u * 0.22)
-/** The inch ruler's ticks along both its edges between the whole steps: [depth within a step, length]. */
-const DRAWER_TICKS: [number, number][] = [
-  [0.25, 0.45],
-  [0.5, 0.7],
-  [0.75, 0.45],
-]
+const DRAWER_RISE = 0.7
+const DRAWER_RISE_MAX = 0.28
+const fz = (u: number) => 1 / (1 + u * 0.16)
+/** The inch ruler's ticks along both its edges between the whole steps, as on every ruler on the
+ * site: nine short ones, the middle one taller. [depth within a step, length]. */
+const DRAWER_TICKS: [number, number][] = Array.from({ length: 9 }, (_, i) => [(i + 1) / 10, i === 4 ? 0.7 : 0.45])
 /** A tick at full length, as a share of the drawer's width there. */
 const DRAWER_TICK = 0.14
 /** Where ours goes in: between the two nearest lines. How much of it shows above them (against the rise), and its share of the width there. */
@@ -176,8 +173,8 @@ const DRAWER_ENVELOPES: [number, number, number][] = [
   [1.5, 0.76, 1],
   [2.5, 0.8, 1.15],
   [4.5, 0.74, 0.9],
-  [6.5, 0.78, 1.1],
-  [8.5, 0.76, 1],
+  [5.5, 0.78, 1.1],
+  [7.5, 0.76, 1],
 ]
 const JITTER_SHIFT = 0.025
 const JITTER_TURN = 1.2
@@ -390,14 +387,13 @@ export function CardPost({
     // The score (ms, played SLOW times longer): the card alone in the middle; then it settles, small,
     // where the envelope's opening will be (in front of everything); only then does the envelope
     // rise to meet it, and the card goes in. Sealed, it goes through the slot.
-    const T = 4080
+    const T = 4000
     const SLOW = 1.3
-    // The drawer: it opens as the flap comes down, ours lands in it at LAND, and it shuts after a beat;
-    // as its lines come together its last one draws in to nothing (GO).
+    // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
+    // slides back in, all of it (its last line too).
     const OPEN: [number, number] = [2150, 2480]
     const LAND = 3200
     const SHUT: [number, number] = [3600, 3930]
-    const GO: [number, number] = [3640, 3990]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     const card = el.animate(
@@ -544,33 +540,38 @@ export function CardPost({
     let raf = 0
     const draw = () => {
       const ms = Number(post.currentTime ?? 0) / SLOW
-      const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - easeInOut(span(ms, ...SHUT))
+      // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
+      // k - shift deep (shown once it is past the slot line). Shut, it goes a touch past, so its last
+      // line is gone too.
+      const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - 1.03 * easeInOut(span(ms, ...SHUT))
+      const shift = DRAWER_UNITS * (1 - p)
       dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
-      // Shutting, it draws in to its middle as it goes, so the last line is gone with it.
-      dr.style.transform = st.style.transform = `scaleX(${(1 - easeInOut(span(ms, ...GO))).toFixed(4)})`
-      const flat = p < 0.002
+      // Lighter the further away it is.
+      const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
+        set(ln, { x1, x2, y1: yAt(d), y2: yAt(d), 'stroke-opacity': tone / (1 + Math.max(0, d) * 0.12), visibility: d >= 0 ? 'inherit' : 'hidden' })
       majors.forEach((ln) => {
-        const k = Number(ln.dataset.major)
-        const u = k * p
-        set(ln, { x1: mid - halfAt(u), x2: mid + halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat && k > 0 ? 'hidden' : 'inherit' })
+        const d = Number(ln.dataset.major) - shift
+        line(ln, d, mid - halfAt(d), mid + halfAt(d))
       })
       rails.forEach((ln) => {
         const side = Number(ln.dataset.rail)
-        const back = DRAWER_UNITS * p
-        set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: flat ? 'hidden' : 'inherit' })
+        const back = DRAWER_UNITS - shift
+        set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: back > 0 ? 'inherit' : 'hidden' })
       })
       ticks.forEach((ln) => {
-        const u = Number(ln.dataset.tick) * p
+        const d = Number(ln.dataset.tick) - shift
         const side = Number(ln.dataset.side)
-        const edge = mid + side * halfAt(u)
-        set(ln, { x1: edge, x2: edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat ? 'hidden' : 'inherit' })
+        const edge = mid + side * halfAt(d)
+        line(ln, d, edge, edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(d), 0.85)
       })
+      // The envelopes ride in it, rising out of the slot line and going back under it.
       stands.forEach(({ wrap, env, ours, u, pose }) => {
-        const by = yAt(u * p)
-        const kx = fz(u * p) / fz(u)
-        wrap.style.visibility = p > 0.01 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
-        wrap.style.clipPath = `inset(0 0 calc(100% - ${by.toFixed(2)}px) 0)`
-        env.style.transform = `translate(${mid}px, ${by}px) scale(${kx}, ${kx * p}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
+        const d = u - shift
+        const by = yAt(d)
+        const k = fz(d) / fz(u)
+        wrap.style.visibility = d > -1.5 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
+        wrap.style.clipPath = `inset(0 0 calc(100% - ${Math.min(by, slotY).toFixed(2)}px) 0)`
+        env.style.transform = `translate(${mid}px, ${by}px) scale(${k}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
       })
       raf = requestAnimationFrame(draw)
     }
@@ -587,23 +588,23 @@ export function CardPost({
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-30">
       {/* The drawer, behind the envelope coming down into it (drawn each frame). */}
-      <svg ref={drawer} className="absolute inset-0 size-full origin-center" style={{ visibility: 'hidden' }}>
+      <svg ref={drawer} className="absolute inset-0 size-full" style={{ visibility: 'hidden' }}>
         <g stroke="rgb(150 147 141)" strokeWidth={0.9} fill="none">
           {Array.from({ length: DRAWER_UNITS + 1 }, (_, u) => (
-            <line key={u} data-major={u} strokeOpacity={(1 / (1 + u * 0.12)).toFixed(3)} />
+            <line key={u} data-major={u} />
           ))}
           {[-1, 1].map((side) => (
             <line key={side} data-rail={side} />
           ))}
           {Array.from({ length: DRAWER_UNITS }, (_, k) =>
             DRAWER_TICKS.flatMap(([d, len]) =>
-              [-1, 1].map((side) => <line key={`${k + d}${side}`} data-tick={k + d} data-side={side} data-len={len} strokeOpacity={(0.85 / (1 + (k + d) * 0.12)).toFixed(3)} />),
+              [-1, 1].map((side) => <line key={`${k + d}${side}`} data-tick={k + d} data-side={side} data-len={len} />),
             ),
           )}
         </g>
       </svg>
       {/* The envelopes in it, the farthest first (ours, at the front, last), each cut at its line. */}
-      <div ref={standing} className="absolute inset-0 origin-center">
+      <div ref={standing} className="absolute inset-0">
         {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1]]).map(([u, ws, hs], i, all) => (
           <div key={u} data-stand={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} className="absolute inset-0" style={{ visibility: 'hidden' }}>
             <ClosedEnvelope division={division} />
