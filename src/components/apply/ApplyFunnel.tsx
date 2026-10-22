@@ -161,6 +161,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   // The page opens on the card turning over and moving aside (opening), then the ruler and the
   // form write in (writing); sending drops the card through a slot (posting) before the thanks.
   const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
+  /** The opening card still on its way to its place (the page writes in under it before it lands). */
+  const [cardMoving, setCardMoving] = useState(true)
   const asideRef = useRef<HTMLElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   /** Phones: the comp card unfolded under its strip. */
@@ -500,9 +502,22 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 
   if (!body) body = (
-    <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-var(--bar,80px))] md:pt-6">
+    <div data-apply-phase={shownPhase} data-card-moving={cardMoving && !reduced ? '' : undefined} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-var(--bar,80px))] md:pt-6">
       {trap}
-      {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} skipRef={skipCard} onDone={() => setPhase(skipped.current ? 'ready' : 'writing')} />}
+      {cardMoving && !reduced && (
+        <CardOpening
+          front={card()}
+          compact={compact}
+          division={division}
+          target={cardPlace}
+          skipRef={skipCard}
+          onWrite={() => setPhase(skipped.current ? 'ready' : 'writing')}
+          onDone={() => {
+            setCardMoving(false)
+            setPhase((ph) => (ph === 'opening' ? 'ready' : ph))
+          }}
+        />
+      )}
       {phase === 'posting' && (
         <CardPost
           front={card('', false, true)}

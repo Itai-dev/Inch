@@ -293,6 +293,8 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
    ruler draws and the form writes in, field by field; sending fades it all as the card goes. */
 [data-apply-phase="opening"] .apply-in,
 [data-apply-phase="opening"] .apply-card,
+[data-card-moving] .apply-card,
+[data-card-moving] .apply-strip,
 [data-apply-phase="posting"] .apply-card { visibility: hidden; }
 /* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
    in place: the card turned into it.) */
