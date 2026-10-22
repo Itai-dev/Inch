@@ -387,16 +387,19 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 3350
+    const T = 3800
     const SLOW = 1.3
-    const CARD_END = 1500
-    const FLAP = 1250
+    const CARD_END = 1750
+    // It hangs over the opening a beat (from LIFTED to LOWER) before it goes in.
+    const LIFTED = 1050
+    const LOWER = 1250
+    const FLAP = 1650
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [1750, 2080]
-    const DROP = 1900
-    const LAND = 2550
-    const SHUT: [number, number] = [2950, 3280]
+    const OPEN: [number, number] = [2050, 2380]
+    const DROP = 2300
+    const LAND = 2950
+    const SHUT: [number, number] = [3400, 3730]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     // The card's path: a curve from its place, up over the opening, ending straight down into it
@@ -409,20 +412,21 @@ export function CardPost({
       [cx, inY],
     ]
     const bez = (t: number, i: number) => (1 - t) ** 3 * P[0][i] + 3 * (1 - t) ** 2 * t * P[1][i] + 3 * (1 - t) * t ** 2 * P[2][i] + t ** 3 * P[3][i]
-    const N = 48
+    // The top of its arc, where it hangs a beat.
+    const peakT = Array.from({ length: 201 }, (_, i) => i / 200).reduce((m, t) => (bez(t, 1) < bez(m, 1) ? t : m), 0)
+    const N = 64
     const path = Array.from({ length: N + 1 }, (_, i) => {
-      const t = easeInOut(i / N)
+      const at = (i / N) * CARD_END
+      const t = at <= LIFTED ? peakT * easeInOut(at / LIFTED) : at < LOWER ? peakT : peakT + (1 - peakT) * easeInOut((at - LOWER) / (CARD_END - LOWER))
       const k = Math.min(1, t / 0.6)
-      return { x: bez(t, 0), y: bez(t, 1), s: ss + (sc - ss) * (k * k * (3 - 2 * k)), t, at: (i / N) * CARD_END }
+      return { x: bez(t, 0), y: bez(t, 1), s: ss + (sc - ss) * (k * k * (3 - 2 * k)), t, at }
     })
-    // It goes behind the envelope's front at the top of its arc (wholly above the opening then).
-    const peak = path.reduce((m, q, i) => (q.y < path[m].y ? i : m), 0)
     const card = el.animate(
       [
-        ...path.map((q, i) => ({
+        ...path.map((q) => ({
           transform: at(q.x, q.y, q.s),
           clipPath: `inset(0 0 ${(folded * (1 - Math.min(1, q.t / 0.3))).toFixed(1)}px 0)`,
-          zIndex: i <= peak ? 5 : 2,
+          zIndex: q.at < LOWER ? 5 : 2,
           offset: o(q.at),
         })),
         { transform: at(cx, inY, sc), clipPath: 'inset(0 0 0px 0)', zIndex: 2, offset: 1 },
@@ -451,7 +455,7 @@ export function CardPost({
       opts,
     )
     // The envelope comes up under it while it is still on its way, in place before it comes down.
-    const upAt = path[peak].at
+    const upAt = LIFTED
     const UP: [number, number] = [Math.max(0, upAt - 800), Math.max(300, upAt - 40)]
     const env = [
       { transform: at(ex, vh + 60, sc), offset: 0 },

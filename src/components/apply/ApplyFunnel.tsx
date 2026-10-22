@@ -400,7 +400,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     const phone = !asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent
     if (phone && !stripOpen) {
       setStripOpen(true)
-      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS * 0.85))
+      // Wholly open, and a beat to be seen, before it goes up.
+      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS + 180))
     }
     setPhase('posting')
   }
@@ -583,7 +584,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </button>
         {/* The card folds out from under the strip like paper, and back. */}
         <PaperFold open={stripOpen}>
-          <div data-strip-card className="paper px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
+          {/* The same card that then goes into the envelope (laid flat in the strip's paper), so it goes from here without a jump. */}
+          <div data-strip-card>{card('border-0! shadow-none!', false, true)}</div>
         </PaperFold>
       </div>
 
