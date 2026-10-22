@@ -20,7 +20,7 @@ import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
-import { CardOpening, CardPost, CHECK, CHECK_BOX, CHECK_STROKE, type Place } from './CardMotion'
+import { CardOpening, CardPost, type Place } from './CardMotion'
 import { PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { CountrySelect } from './CountrySelect'
@@ -161,8 +161,6 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   // The page opens on the card turning over and moving aside (opening), then the ruler and the
   // form write in (writing); sending drops the card through a slot (posting) before the thanks.
   const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
-  // Where the slot's check stood when the card had gone through (the thanks' check comes on from there).
-  const [checkFrom, setCheckFrom] = useState<{ left: number; top: number } | null>(null)
   const asideRef = useRef<HTMLElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   /** Phones: the comp card unfolded under its strip. */
@@ -470,12 +468,12 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   /** What to know before starting, at the top of the first step. */
   const BEFORE = 'No experience needed: we look at every application ourselves. You’ll need four photos taken today; phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes. About 3 minutes.'
   // The thanks, in the middle of the screen once the card has gone through the slot.
-  // The words follow the check once it has come up from the slot.
-  const lag = checkFrom ? CHECK_FLY_MS : 0
+  // The words follow the check, once it is written.
+  const lag = CHECK_MS
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
-        <ReceivedCheck from={checkFrom} />
+        <ReceivedCheck />
         <p className="label text-muted"><TypeText text="Application received" at={lag} ms={12} /></p>
         <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
           <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={lag + 220} ms={28} />
@@ -510,8 +508,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           front={card('', false, true)}
           division={division}
           from={cardPlace}
-          onDone={(check) => {
-            setCheckFrom(check)
+          onDone={() => {
             setPhase('ready')
             go('done')
           }}
@@ -770,24 +767,13 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 }
 
-const CHECK_FLY_MS = 700
+const CHECK_MS = 520
 
-/** The check the slot's line became: it comes up from where it was to its place over the thanks. */
-function ReceivedCheck({ from }: { from: { left: number; top: number } | null }) {
-  const ref = useRef<SVGSVGElement>(null)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el || !from) return
-    const r = el.getBoundingClientRect()
-    const a = el.animate([{ transform: `translate(${from.left - r.left}px, ${from.top - r.top}px)` }, { transform: 'none' }], {
-      duration: CHECK_FLY_MS,
-      easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
-    })
-    return () => a.cancel()
-  }, [from])
+/** A check, written in one stroke (the short side, then the long one) over the thanks. */
+function ReceivedCheck() {
   return (
-    <svg ref={ref} aria-hidden width={CHECK_BOX} height={CHECK_BOX} viewBox={`0 0 ${CHECK_BOX} ${CHECK_BOX}`} className="shrink-0 overflow-visible">
-      <polyline points={CHECK.map((pt) => pt.join(',')).join(' ')} fill="none" stroke="currentColor" strokeWidth={CHECK_STROKE} strokeLinecap="round" strokeLinejoin="round" />
+    <svg aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0">
+      <polyline points="4,22 16,34 40,8" pathLength={1} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="check-write" style={{ animationDuration: `${CHECK_MS}ms` }} />
     </svg>
   )
 }

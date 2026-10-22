@@ -449,3 +449,21 @@ html { -webkit-tap-highlight-color: transparent; }
     pointer-events: none;
   }
 }
+
+/* The thanks' check, written in one stroke. Reduced motion: simply there. */
+.check-write {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: check-write ease-in-out forwards;
+}
+@keyframes check-write {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .check-write {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
