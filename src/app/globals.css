@@ -278,6 +278,8 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 [data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.5s; }
 [data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.55s; }
 [data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.6s; }
+/* The buttons aren't typed in letter by letter: they simply fade up with their row. */
+[data-apply-phase="writing"] .apply-form form > :has(.apply-nav) { animation: hero-fade 0.35s var(--ease-out) 0.6s both; }
 /* A photo just added: it comes in a little large and lifted, then is pasted down onto its spot. */
 @keyframes photo-paste {
   from { opacity: 0; transform: scale(1.16) rotate(-2.5deg) translateY(-6%); box-shadow: 0 24px 40px -14px rgb(0 0 0 / 0.45); }

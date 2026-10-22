@@ -157,33 +157,44 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     if (a && a.offsetParent) return { el: a, card: true, zoom: cardScale.current }
     return stripRef.current ? { el: stripRef.current, card: false } : null
   }
-  // Beside the form, the card is scaled down (never up) so that it is always whole on the screen,
-  // under the top bar and the ruler, however short the window: no scrolling to see all of it. A
-  // transform, with its box sized to match, so every browser lays it out and measures it alike.
+  // Beside the form, the card is its own layer, fixed on the screen: whatever the form does (a
+  // size's tape opening, a step growing or scrolling) the card stays exactly where it is. Its
+  // column in the grid only keeps the room. It is scaled down (never up) so that it is always
+  // whole on the screen, under the top bar and the ruler, however short or narrow the window.
   const gridRef = useRef<HTMLDivElement>(null)
+  const layerRef = useRef<HTMLDivElement>(null)
   const scaleBoxRef = useRef<HTMLDivElement>(null)
   const cardScale = useRef(1)
   useLayoutEffect(() => {
     const sheet = sheetRef.current
     const aside = asideRef.current
     const grid = gridRef.current
+    const layer = layerRef.current
     const box = scaleBoxRef.current
     const inner = box?.firstElementChild as HTMLElement | null | undefined
-    if (!sheet || !aside || !grid || !box || !inner) return
+    if (!sheet || !aside || !grid || !layer || !box || !inner) return
     const fit = () => {
       if (!aside.offsetParent) return
       const h = inner.offsetHeight // the card at its own width (transforms don't count)
-      const top = grid.getBoundingClientRect().top - sheet.getBoundingClientRect().top + sheet.scrollTop
       const gs = getComputedStyle(grid)
-      const as = getComputedStyle(aside)
-      const room = sheet.clientHeight - top - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - BODY_PB - parseFloat(as.paddingTop) - parseFloat(as.paddingBottom)
+      const ls = getComputedStyle(layer)
+      const padX = parseFloat(ls.paddingLeft) + parseFloat(ls.paddingRight)
+      const padY = parseFloat(ls.paddingTop) + parseFloat(ls.paddingBottom)
+      // Where the form starts, on the screen with the page at the top: the card starts level with it.
+      const top = grid.getBoundingClientRect().top - sheet.getBoundingClientRect().top + sheet.scrollTop + parseFloat(gs.paddingTop)
+      const room = sheet.clientHeight - top - BODY_PB - padY
       // Also narrow enough to leave the form its width beside it.
-      const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap) - parseFloat(as.paddingLeft) - parseFloat(as.paddingRight)
+      const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap) - padX
       const s = Math.max(0.4, Math.min(1, room / h, width / CARD_W))
       cardScale.current = s
       inner.style.transform = s < 1 ? `scale(${s})` : ''
-      box.style.width = `${Math.round(CARD_W * s)}px`
+      const w = Math.round(CARD_W * s)
+      box.style.width = `${w}px`
       box.style.height = `${Math.round(h * s)}px`
+      // The column keeps the card's room; the card itself is laid over it, fixed.
+      aside.style.width = `${w + padX}px`
+      layer.style.top = `${Math.round(top - parseFloat(ls.paddingTop))}px`
+      layer.style.left = `${Math.round(aside.getBoundingClientRect().left)}px`
     }
     fit()
     const ro = new ResizeObserver(fit)
@@ -414,7 +425,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     )
 
   const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
+    <div className="apply-nav flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
       <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
       </button>
@@ -461,7 +472,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
 
       {/* The form and the card, centred in the space under the ruler: the card the larger of the two,
           at its own width (zoomed down to fit the screen's height, see above). */}
-      <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,520px)_auto] lg:content-center lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-6">
+      <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,520px)_auto] lg:content-start lg:items-start lg:justify-center lg:gap-x-[clamp(24px,3vw,64px)] lg:py-6">
         <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
             <form
@@ -690,10 +701,13 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           )}
         </div>
 
-        {/* Room round the card for its tilt and shadow, so neither is cut off. It stays in view while a long step scrolls. */}
-        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start p-9 lg:sticky lg:top-[calc(var(--bar,90px)+8px)] lg:block">
-          <div ref={scaleBoxRef} style={{ width: CARD_W }}>
-            <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card()}</div>
+        {/* The card's column: it only keeps the room. The card is its own layer over it, fixed on the
+            screen (see above), with room round it for its tilt and shadow, so neither is cut off. */}
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start lg:block">
+          <div ref={layerRef} className="fixed z-[5] p-9">
+            <div ref={scaleBoxRef} style={{ width: CARD_W }}>
+              <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card()}</div>
+            </div>
           </div>
         </aside>
       </div>

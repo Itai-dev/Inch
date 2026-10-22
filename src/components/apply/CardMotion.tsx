@@ -35,6 +35,8 @@ const envSize = (w: number, h: number) => {
 const POCKET = 'polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%)'
 /** The flap: a short straight side at each end, then the two slopes to its tip (as a real one is cut). */
 const FLAP = 'polygon(0 0, 100% 0, 100% 16%, 50% 100%, 0 16%)'
+/** The flap's inside: the same cut, upside down, because that face is itself turned over (rotateX) so it shows from behind. */
+const FLAP_INSIDE = 'polygon(0 100%, 100% 100%, 100% 84%, 50% 0, 0 84%)'
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
 
@@ -95,7 +97,7 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
             <DivisionMark division={division} size={26} />
           </span>
         </div>
-        <div className="absolute inset-0 bg-[#d6d2ca] [backface-visibility:hidden]" style={{ clipPath: FLAP, transform: 'rotateX(180deg)' }} />
+        <div className="absolute inset-0 bg-[#d6d2ca] [backface-visibility:hidden]" style={{ clipPath: FLAP_INSIDE, transform: 'rotateX(180deg)' }} />
       </div>
     </>
   )
@@ -111,8 +113,11 @@ const at = (x: number, y: number, scale = 1) => `translate(${x}px, ${y}px) scale
 /** The flap turns about its top edge's middle; `x` is where its top-left corner lands, at scale `sc`. */
 const flapAt = (x: number, y: number, deg: number, ew: number, sc: number) =>
   `translate(${x - (ew * (1 - sc)) / 2}px, ${y}px) scale(${sc}) perspective(1400px) rotateX(${deg}deg)`
-/** The envelope's scale: whole on screen, with room above for the card to rise out of it. */
-const envScale = (ew: number, eh: number) => Math.min(1, (innerWidth * 0.82) / ew, (innerHeight * 0.6) / eh)
+/** Clear of the top bar above, and room for the slot below. */
+const ENV_TOP = 96
+const ENV_FOOT = 64
+/** The envelope's scale: whole on screen with its flap open above it (and the slot under it). */
+const envScale = (ew: number, eh: number, fh: number) => Math.min(1, (innerWidth * 0.72) / ew, (innerHeight - ENV_TOP - ENV_FOOT) / (eh + fh))
 
 export function CardOpening({
   front,
@@ -167,7 +172,9 @@ export function CardOpening({
     const tx = r ? r.left : (innerWidth - w) / 2
     const ty = r ? r.top : (innerHeight - h) / 2
     // Phones: cut to the strip's folded height as it lands, so it is the strip.
-    const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : 'inset(0 0 0 0)'
+    // Until then nothing is cut: while it turns, its near edge swings out past its own box.
+    const free = `inset(-${h}px -${w}px -${h}px -${w}px)`
+    const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : free
 
     // It grows in from small, unhurried, turning slightly as it comes; then, quicker, turns over and goes to its place.
     const T = 1900
@@ -175,9 +182,9 @@ export function CardOpening({
     const opts = { duration: T, fill: 'forwards' as const }
     const card = el.animate(
       [
-        { transform: place(fit * 0.55), clipPath: 'inset(0 0 0 0)', offset: 0, easing: EASE_OUT },
-        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(750) },
-        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1300), easing: EASE },
+        { transform: place(fit * 0.55), clipPath: free, offset: 0, easing: EASE_OUT },
+        { transform: place(fit), clipPath: free, offset: o(750) },
+        { transform: place(fit), clipPath: free, offset: o(1300), easing: EASE },
         { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
       ],
       opts,
@@ -249,12 +256,14 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     fit([back.current, pocket.current, flap.current], ew, eh, fh)
 
     // The open envelope low in the middle (smaller if need be); the card above it; the slot just under it.
-    const sc = envScale(ew, eh)
+    const sc = envScale(ew, eh, fh)
     const ex = (innerWidth - ew * sc) / 2
-    const ey = Math.min(innerHeight - eh * sc - 60, Math.max(80, (innerHeight - eh * sc) / 2 + h * sc * 0.2))
+    // The open flap and the envelope together, centred in the room between the top bar and the slot.
+    const spare = Math.max(0, innerHeight - ENV_TOP - ENV_FOOT - (eh + fh) * sc)
+    const ey = ENV_TOP + fh * sc + spare / 2
     const cx = ex + pad * sc
     const inY = ey + pad * sc
-    const rise = Math.min(h * sc * 0.6, inY - 70)
+    const rise = Math.max(0, Math.min(h * sc * 0.6, inY - ENV_TOP))
     const slotY = Math.round(Math.min(innerHeight - 20, ey + eh * sc + 30))
     st.style.top = `${slotY - 4}px`
     st.style.width = `${ew * sc * 1.1}px`
