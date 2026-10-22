@@ -577,7 +577,7 @@ export function Magazine({
           <div className="flex h-full flex-col p-[9%] text-[#0a0a0a]">
             <p className="text-[clamp(7px,0.75vw,11px)] uppercase tracking-[0.2em] text-[#6f6f6f]">{brand} — {pad(number)}</p>
             <h3 className="wordmark mt-auto text-[clamp(26px,4.2vw,68px)] uppercase leading-[0.85]">{heading}</h3>
-            <p className="mt-[6%] max-w-[34ch] text-[clamp(9px,1.05vw,15px)] leading-snug">{text}</p>
+            <p className="mt-[6%] text-[clamp(10px,1.4vw,21px)] leading-[1.3] [text-wrap:pretty]">{text}</p>
           </div>
           <Folio n={2} side="left" />
         </div>

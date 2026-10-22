@@ -1,6 +1,6 @@
-/** Fallback copy until it's entered in the Studio. Its line breaks are kept from tablets up. */
+/** Fallback copy until it's entered in the Studio (line breaks typed there are kept from tablets up). */
 export const DEFAULT_STATEMENT =
-  'Inch is a boutique model agency:\na small board of distinctive women,\nchosen with a precise eye and\nmanaged by hand. The right face for your brand,\nto the inch.'
+  'Inch is a boutique model agency: a small board of distinctive women, chosen with a precise eye and managed by hand. The right face for your brand, to the inch.'
 
 /** Contact details shown until the real ones are in the Studio (Site settings). TODO: demo values. */
 export const DEMO_CONTACT = {

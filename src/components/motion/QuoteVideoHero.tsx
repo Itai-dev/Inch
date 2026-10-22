@@ -203,6 +203,19 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   const winRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<HTMLDivElement>(null)
   const blinkAnim = useRef<Animation | null>(null)
+  /** When the blinking started (performance.now()), to open exactly as the mark next appears. */
+  const blinkStart = useRef<number | null>(null)
+  // A picture for the window to open onto: the first video's still (or the first image), loaded.
+  // Without it the window could open onto an empty black box on a slow connection.
+  const [picReady, setPicReady] = useState(!firstPic)
+  const [late, setLate] = useState(false) // the usual wait is over
+  const [hard, setHard] = useState(false) // the longest wait is over: open whatever there is
+  useEffect(() => {
+    if (!firstPic) return
+    const img = new Image()
+    img.onload = img.onerror = () => setPicReady(true)
+    img.src = firstPic
+  }, [firstPic])
 
   useEffect(() => {
     const on = () => setVp({ w: window.innerWidth, h: window.innerHeight })
@@ -231,17 +244,21 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         ],
         { duration: BLINK_MS, iterations: Infinity },
       ) ?? null
-    // Counted from when the blinking starts: two whole blinks are always seen, three at most.
+    blinkStart.current = performance.now()
+    // Counted from when the blinking starts: two whole blinks are always seen, three at most when
+    // the video is slow (it opens onto its still); longer only if not even the still has come.
     const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
-    const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
+    const b = setTimeout(() => setLate(true), MAX_WAIT_MS)
+    const c = setTimeout(() => setHard(true), MAX_WAIT_MS + BLINK_MS * 4)
     return () => {
       clearTimeout(a)
       clearTimeout(b)
+      clearTimeout(c)
     }
   }, [reduced, fast, seen])
 
   const skip = reduced || seen // no loader / reveal / intro choreography
-  const opening = !skip && (fast || (ready && waited)) // flips true once, starts the open
+  const opening = !skip && (fast || (waited && (ready || (late && picReady) || hard))) // flips true once, starts the open
 
   // Reveal, drawn frame by frame straight onto the DOM (no React render per frame).
   // Phase 1 (SPLIT): the ” splits as a window opens between its strokes.
@@ -319,8 +336,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     let raf = 0
     let done = false
     // Start as the ” next appears (halfway through a blink), so it opens from a whole mark.
-    const t = blinkAnim.current?.currentTime
-    const into = typeof t === 'number' ? t % BLINK_MS : BLINK_MS / 2
+    const into = blinkStart.current === null ? BLINK_MS / 2 : (performance.now() - blinkStart.current) % BLINK_MS
     const until = (BLINK_MS / 2 - into + BLINK_MS) % BLINK_MS
     // (Just past it: start now rather than a whole blink later.)
     const wait = until > BLINK_MS - 120 ? 0 : until

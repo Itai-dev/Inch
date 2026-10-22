@@ -178,7 +178,7 @@ export function CardOpening({
 
     // It grows in from small, unhurried, turning slightly as it comes; the headline is held a while
     // to be read; then it turns over (unhurried too) and goes to its place.
-    const GROWN = 750
+    const GROWN = 1000
     const TURN_FROM = 1850
     const TURN_END = TURN_FROM + 500
     const T = TURN_END + 650
@@ -195,9 +195,8 @@ export function CardOpening({
     )
     const turn = fl.animate(
       [
-        { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: EASE_OUT },
-        { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(GROWN), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(GROWN + 100) },
+        // Straightening slowly the whole time it grows and is held, so it never snaps square.
+        { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: 'cubic-bezier(0.3, 0.2, 0.5, 1)' },
         { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(TURN_FROM), easing: EASE },
         { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(TURN_END) },
         { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: 1 },

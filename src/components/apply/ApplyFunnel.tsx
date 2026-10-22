@@ -285,6 +285,23 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     ro.observe(bar)
     return () => ro.disconnect()
   }, [])
+  // The page doesn't scroll when everything is in view (it only does when a step is taller than the screen).
+  useEffect(() => {
+    const sheet = sheetRef.current
+    const body = sheet?.lastElementChild as HTMLElement | null | undefined
+    if (!sheet || !body) return
+    const lock = () => {
+      sheet.style.setProperty('overflow-y', 'hidden')
+      const fits = sheet.scrollHeight <= sheet.clientHeight + 1
+      if (!fits) sheet.style.removeProperty('overflow-y')
+      else sheet.scrollTo({ top: 0 })
+    }
+    lock()
+    const ro = new ResizeObserver(lock)
+    ro.observe(sheet)
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [step])
   const router = useRouter()
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
@@ -479,7 +496,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 
   if (!body) body = (
-    <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
+    <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-var(--bar,80px))] md:pt-6">
       {trap}
       {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} skipRef={skipCard} onDone={() => setPhase(skipped.current ? 'ready' : 'writing')} />}
       {phase === 'posting' && (
@@ -763,7 +780,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 
   return (
-    <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
+    <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-none bg-bg text-fg">
       {/* Top bar, as on the model page: the logo (home, asking first if the form was started), and close. */}
       <div ref={barRef} className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
         <Link

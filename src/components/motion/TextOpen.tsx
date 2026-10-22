@@ -14,18 +14,18 @@ import { useScrollProgress } from '@/hooks/useScrollProgress'
 
 // Moved, split and written by 78% of the zone's scroll, then held to be read.
 const ANIM_END = 0.78
-/** First the ” comes up from under the video, a little larger, to the middle of the screen. Then,
- * with the scroll, it moves slowly to the left, shrinking to its size, to the statement's start
+/** First the ” comes up from under the video, at its own size, to the middle of the screen. Then,
+ * with the scroll, it moves slowly to the left, to the statement's start
  * (MOVE_FROM to MOVE_END of the writing: about half a screen of scrolling), then splits (to DROP_END).
  * It stays at the middle of the screen's height the whole way: the statement starts there and
  * runs down from it, the block rising as it is written until it sits centred. */
-const MARK_BIG = 2.2
+const MARK_BIG = 1
 const MOVE_FROM = 0.03
 const MOVE_END = 0.4
 const DROP_END = 0.48
 const EXIT_UP = 40
 const AIR = 48 // kept clear above and below the written statement (its exit, and room to breathe)
-const WIDTH_PER_FONT = 12.5 // container width ÷ font size
+const WIDTH_PER_FONT = 11 // container width ÷ font size (as large as the height then allows)
 /** Phones: larger, the statement filling most of the screen (fewer words a line). */
 const WIDTH_PER_FONT_PHONE = 7.6
 const AIR_PHONE = 20
@@ -103,7 +103,8 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
       return w
     }
     const fit = () => {
-      const width = Math.min(window.innerWidth * 0.9, 1500)
+      // Tablets up: as wide as the open magazine below it (its spread: min(94vw, 100dvh)); phones: the screen.
+      const width = window.innerWidth < 768 ? window.innerWidth * 0.9 : Math.min(window.innerWidth * 0.94, window.innerHeight)
       const phone = window.innerWidth < 768
       const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + (phone ? AIR_PHONE : AIR)))
       let f = setLines() ? MAX_FONT : Math.min(MAX_FONT, width / (phone ? WIDTH_PER_FONT_PHONE : WIDTH_PER_FONT))
@@ -235,14 +236,14 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[210vh] md:h-[270vh]'}`}>
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         {/* Placed from the layout effect below (its lift, then its exit). */}
-        <div ref={wrapRef} className={`relative max-w-[min(90vw,1500px)] ${lines ? 'w-max md:max-w-none' : 'w-[min(90vw,1500px)]'}`}>
+        <div ref={wrapRef} className={`relative max-w-[90vw] md:max-w-[min(94vw,100dvh)] ${lines ? 'w-max md:max-w-none' : 'w-[90vw] md:w-[min(94vw,100dvh)]'}`}>
           <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">
             <QuoteStroke side="left" height={markH} />
           </div>
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p ref={textRef} className={`m-0 font-bold ${lines ? 'md:whitespace-pre-line' : ''}`} style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text.replace(/\s+/g, ' ')}>
+          <p ref={textRef} className={`m-0 font-bold ${lines ? 'md:whitespace-pre-line' : '[text-wrap:balance]'}`} style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text.replace(/\s+/g, ' ')}>
             {text.split('').map((c, i) => {
               const k = slots.indexOf(i)
               return (
