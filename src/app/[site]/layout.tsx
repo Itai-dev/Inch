@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { notFound } from 'next/navigation'
 import { Cursor } from '@/components/Cursor'
 import { Footer } from '@/components/Footer'
@@ -29,6 +29,12 @@ export async function generateMetadata({ params }: LayoutProps<'/[site]'>): Prom
     description: s.description,
     openGraph: { type: 'website', siteName: s.brand },
   }
+}
+
+/** Phones: the browser's own bars in the site's colour (white for INCH”, black for DOT.). */
+export async function generateViewport({ params }: LayoutProps<'/[site]'>): Promise<Viewport> {
+  const { site } = await params
+  return { themeColor: site === 'dot' ? '#0a0a0a' : '#ffffff' }
 }
 
 export default async function SiteLayout({ children, params }: LayoutProps<'/[site]'>) {

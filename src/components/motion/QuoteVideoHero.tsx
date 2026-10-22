@@ -31,7 +31,7 @@ const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
 const BLINK_MS = 900 // one blink, as the text cursor's: on half the time, off half, hard cuts; the open always starts at the top of one
-const MIN_BLINKS = 2 // even when the video is cached
+const MIN_BLINKS = 2 // whole blinks seen, even when the video is cached
 const MAX_WAIT_MS = BLINK_MS * 3 // open anyway after three blinks if the video is slow (its poster shows until it plays)
 const OPEN_MS = 2400
 const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the video fills the screen
@@ -153,19 +153,17 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     blinkAnim.current =
       blinkRef.current?.animate(
         [
-          { opacity: 1, offset: 0 },
-          { opacity: 1, offset: 0.5 },
+          // Starting from nothing: the first beat is the mark appearing, on the white page.
+          { opacity: 0, offset: 0 },
           { opacity: 0, offset: 0.5 },
-          { opacity: 0, offset: 1 },
+          { opacity: 1, offset: 0.5 },
+          { opacity: 1, offset: 1 },
         ],
         { duration: BLINK_MS, iterations: Infinity },
       ) ?? null
-    // Counted from when the page was asked for (the mark shows from the first paint), not from
-    // when the scripts woke up: two blinks at least, three at most, whatever the connection.
-    if (blinkAnim.current) blinkAnim.current.startTime = 0
-    const since = performance.now()
-    const a = setTimeout(() => setWaited(true), Math.max(0, BLINK_MS * MIN_BLINKS - since))
-    const b = setTimeout(() => setReady(true), Math.max(0, MAX_WAIT_MS - since))
+    // Counted from when the blinking starts: two whole blinks are always seen, three at most.
+    const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
+    const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
     return () => {
       clearTimeout(a)
       clearTimeout(b)
@@ -250,11 +248,12 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     openedRef.current = true
     let raf = 0
     let done = false
-    // Start at the top of a blink so the ” never jumps from half-faded.
+    // Start as the ” next appears (halfway through a blink), so it opens from a whole mark.
     const t = blinkAnim.current?.currentTime
-    // (Just past the top, as when the wait runs out on the beat: start now rather than a whole blink later.)
-    const into = typeof t === 'number' ? t % BLINK_MS : 0
-    const wait = into < 150 ? 0 : BLINK_MS - into
+    const into = typeof t === 'number' ? t % BLINK_MS : BLINK_MS / 2
+    const until = (BLINK_MS / 2 - into + BLINK_MS) % BLINK_MS
+    // (Just past it: start now rather than a whole blink later.)
+    const wait = until > BLINK_MS - 120 ? 0 : until
     const timer = setTimeout(() => {
       blinkAnim.current?.cancel()
       const draw = dot ? layoutDot : grow ? layoutGrow : layout
@@ -458,7 +457,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
           <div>
             {/* Sized in CSS (dvh), not from JS, so it's right from the first frame — no jump on load. */}
-            <span ref={blinkRef} className="block [&>svg]:h-[6.5dvh] [&>svg]:w-auto">
+            <span ref={blinkRef} className="block [&>svg]:h-[6.5dvh] [&>svg]:w-auto" style={{ opacity: 0 }}>
               {dot ? <span className="block size-[4.5dvh] bg-fg" /> : <QuoteMark />}
             </span>
           </div>

@@ -26,6 +26,9 @@ const DROP_END = 0.48
 const EXIT_UP = 40
 const AIR = 48 // kept clear above and below the written statement (its exit, and room to breathe)
 const WIDTH_PER_FONT = 12.5 // container width ÷ font size
+/** Phones: larger, the statement filling most of the screen (fewer words a line). */
+const WIDTH_PER_FONT_PHONE = 7.6
+const AIR_PHONE = 20
 const MAX_FONT = 104
 const MIN_FONT = 26
 const LINE_HEIGHT = 1.28
@@ -101,8 +104,9 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     }
     const fit = () => {
       const width = Math.min(window.innerWidth * 0.9, 1500)
-      const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + AIR))
-      let f = setLines() ? MAX_FONT : Math.min(MAX_FONT, width / WIDTH_PER_FONT)
+      const phone = window.innerWidth < 768
+      const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + (phone ? AIR_PHONE : AIR)))
+      let f = setLines() ? MAX_FONT : Math.min(MAX_FONT, width / (phone ? WIDTH_PER_FONT_PHONE : WIDTH_PER_FONT))
       const was = t.style.fontSize
       for (let i = 0; i < 6; i++) {
         t.style.fontSize = `${f}px`

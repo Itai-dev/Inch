@@ -65,13 +65,14 @@ export async function Footer({ site }: { site: Site }) {
   const colAt = (c: number) => 300 + c * 160
   const cut = (at: number) => ({ '--at': `${at}ms` }) as React.CSSProperties
 
+  // Phones: the footer is a whole screen, the details at the top and the wordmark at the foot.
   return (
-    <footer className="relative mt-24 overflow-hidden bg-ink pt-[clamp(64px,8vw,140px)] text-paper [--fg:var(--paper)]">
+    <footer className="relative mt-24 flex min-h-[100svh] flex-col overflow-hidden bg-ink pt-12 text-paper md:pt-[clamp(64px,8vw,140px)] [--fg:var(--paper)] md:block md:min-h-0">
       <TypeOnView className="px-gutter">
-        <div className="grid gap-y-14 md:grid-cols-12 md:gap-x-6">
+        <div className="grid gap-y-10 md:grid-cols-12 md:gap-x-6 md:gap-y-14">
           <div className="flex flex-col gap-4 md:col-span-5">
             <p className="label text-[#8a8a8a]"><TypeText text="Bookings" /></p>
-            <a href={enquiry} className="ink-line wordmark w-fit text-[clamp(30px,3.6vw,64px)] leading-none">
+            <a href={enquiry} className="ink-line wordmark w-fit text-[clamp(30px,9vw,44px)] leading-none md:text-[clamp(30px,3.6vw,64px)]">
               <TypeText text={email} at={emailAt} ms={24} />
             </a>
             <p className="max-w-[440px] text-[15px] leading-snug text-[#8a8a8a]">
@@ -86,11 +87,11 @@ export async function Footer({ site }: { site: Site }) {
               </Link>
             </div>
           </div>
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4 md:col-span-7">
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 md:col-span-7 md:gap-y-10">
             {columns.map((c, ci) => (
               <div key={c.title} className="flex flex-col gap-3">
                 <p className="label text-[#8a8a8a]"><TypeText text={c.title} at={colAt(ci)} /></p>
-                <ul className="flex flex-col gap-2 text-[16px] leading-snug md:text-[18px]">
+                <ul className="flex flex-col gap-3 text-[17px] leading-snug md:gap-2 md:text-[18px]">
                   {c.items.map((it, i) => {
                     const at = colAt(ci) + 140 + i * 90
                     if (it === 'sel')
@@ -116,14 +117,14 @@ export async function Footer({ site }: { site: Site }) {
           </nav>
         </div>
 
-        <div className="label mt-[clamp(56px,7vw,120px)] flex flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
+        <div className="label mt-10 flex md:mt-[clamp(56px,7vw,120px)] flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
           <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
           <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
         </div>
       </TypeOnView>
 
       {/* The wordmark, the whole width, growing in from the left; the page ends halfway down it. */}
-      <div className="mt-6 px-gutter">
+      <div className="mt-auto px-gutter pt-6 md:mt-6 md:pt-0">
         <FooterMark ratio={s.division === 'men' ? 52 / 24 : 849 / 310}>
           <Logo division={s.division} as="div" className="w-full" />
         </FooterMark>
