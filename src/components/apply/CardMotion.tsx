@@ -95,8 +95,9 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
         <Leaf
           strips={14}
+          shade={false}
           front={
-            <div className="absolute inset-0 [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.15))]">
+            <div className="absolute inset-0">
               <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP }}>
                 {/* Shaded towards its point, so it reads as a sheet folded over. */}
                 <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
@@ -337,7 +338,8 @@ export function CardPost({
     done.current = onDone
   })
 
-  useEffect(() => {
+  // Before the first paint, so the card never shows anywhere but where it is.
+  useLayoutEffect(() => {
     const el = box.current
     const c = clip.current
     const dr = drawer.current
@@ -385,16 +387,16 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 3150
+    const T = 3350
     const SLOW = 1.3
     const CARD_END = 1500
-    const FLAP = 1380
+    const FLAP = 1250
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [1450, 1780]
-    const DROP = 1760
-    const LAND = 2350
-    const SHUT: [number, number] = [2750, 3080]
+    const OPEN: [number, number] = [1750, 2080]
+    const DROP = 1900
+    const LAND = 2550
+    const SHUT: [number, number] = [2950, 3280]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     // The card's path: a curve from its place, up over the opening, ending straight down into it
@@ -470,7 +472,7 @@ export function CardPost({
       opts,
     )
     const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
-    const FLAP_MS = 420
+    const FLAP_MS = 750
     // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
     // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
     // it over (drawn the same), so it can go in with it.
@@ -535,7 +537,7 @@ export function CardPost({
       dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
       // The flap: open (stood up behind) until it closes; behind the card while more than upright.
       const fp = span(ms, FLAP, FLAP + FLAP_MS)
-      const fa = 180 * (1 - easeInOut(fp))
+      const fa = 180 * (0.5 + 0.5 * Math.cos(Math.PI * fp))
       if (flapLeaf) bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
       if (flap.current) flap.current.style.zIndex = fa > 90 ? '1' : '4'
       // Lighter the further away it is.

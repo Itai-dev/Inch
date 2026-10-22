@@ -296,6 +296,9 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 [data-card-moving] .apply-card,
 [data-card-moving] .apply-strip,
 [data-apply-phase="posting"] .apply-card { visibility: hidden; }
+/* Sending: the form clears at once, leaving the card (on phones, unfolding from its strip). */
+[data-clearing] .apply-form,
+[data-clearing] .apply-ruler { visibility: hidden; }
 /* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
    in place: the card turned into it.) */
 [data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 0.5s cubic-bezier(0.45, 0, 0.25, 1) both; }

@@ -51,8 +51,8 @@ export function PaperFold({ open, children, className = '' }: { open: boolean; c
       const p = Math.min(1, (performance.now() - t0) / dur)
       const e = opening ? easeOut(p) : easeInOut(p)
       const angle = opening ? FOLDED * (1 - e) : FOLDED * e
-      // The foot lags behind the way it is going, most in the middle of the move.
-      const bend = Math.sin(Math.PI * p) * (opening ? -55 : 40)
+      // The foot lags behind the way it is going, most in the middle of the move (flat again as it settles).
+      const bend = Math.sin(Math.PI * e) * (opening ? -55 : 40)
       const angles = bendLeaf(leaf, angle, bend)
       // The room it takes: how tall it stands on the page as it turns.
       const tall = angles.reduce((sum, a) => sum + Math.max(0, Math.cos((a * Math.PI) / 180)), 0) * (H / angles.length)

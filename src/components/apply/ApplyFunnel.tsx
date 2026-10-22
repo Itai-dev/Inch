@@ -163,6 +163,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
   /** The opening card still on its way to its place (the page writes in under it before it lands). */
   const [cardMoving, setCardMoving] = useState(true)
+  /** Sending: the form has cleared, leaving the card. */
+  const [clearing, setClearing] = useState(false)
   const asideRef = useRef<HTMLElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   /** Phones: the comp card unfolded under its strip. */
@@ -354,9 +356,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     }
   }
 
-  async function submit() {
-    setSending(true)
-    setError(null)
+  /** Sends the application; says what went wrong, if anything. */
+  async function send(): Promise<string | null> {
     const fd = new FormData(document.getElementById('apply-trap') as HTMLFormElement)
     Object.entries(d).forEach(([k, v]) => fd.append(k, v === null ? '' : String(v)))
     fd.append('division', division)
@@ -369,23 +370,52 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     }
     SLOTS.forEach((s, i) => photos[s.pose] && fd.append('digitals', blobs[i], `${s.pose}.jpg`))
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
-    setSending(false)
     if (!res?.ok) {
       // Say what the site answered, so a failure can be followed up (the API's own reason, or the status).
       const why = res ? ((await res.json().catch(() => null))?.error ?? `error ${res.status}`) : 'no connection'
-      setError(`Something went wrong (${why}). Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
-      return
+      return `Something went wrong (${why}). Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`
     }
     setUnsent(!!(await res.json().catch(() => ({})))?.unsent)
-    // Sent: the card goes into the envelope and the drawer (CardPost), then the thanks. On phones
-    // the card is first unfolded from its strip, and goes from there.
+    return null
+  }
+  /** The application on its way while the card goes into the envelope. */
+  const outcome = useRef<Promise<string | null>>(Promise.resolve(null))
+
+  async function submit() {
+    setSending(true)
+    setError(null)
     if (reduced) {
+      const err = await send()
+      setSending(false)
+      if (err) return setError(err)
       setPhase('ready')
       go('done')
-    } else if (!asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent && !stripOpen) {
+      return
+    }
+    // One movement from the tap: the form clears, leaving the card (on phones it unfolds from its
+    // strip and, as it settles, goes on up), and the card goes into the envelope and the drawer
+    // while the application is sent.
+    setClearing(true)
+    outcome.current = send()
+    const phone = !asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent
+    if (phone && !stripOpen) {
       setStripOpen(true)
-      setTimeout(() => setPhase('posting'), FOLD_OPEN_MS + 60)
-    } else setPhase('posting')
+      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS * 0.85))
+    }
+    setPhase('posting')
+  }
+
+  /** The card is in the drawer: the thanks once the application has gone; if it didn't, back to the form, saying why. */
+  async function posted() {
+    const err = await outcome.current
+    setSending(false)
+    setPhase('ready')
+    if (err) {
+      setClearing(false)
+      setError(err)
+      return
+    }
+    go('done')
   }
 
   // What the first step still needs (in the form's order).
@@ -509,7 +539,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 
   if (!body) body = (
-    <div data-apply-phase={shownPhase} data-card-moving={cardMoving && !reduced ? '' : undefined} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-var(--bar,80px))] md:pt-6">
+    <div data-apply-phase={shownPhase} data-card-moving={cardMoving && !reduced ? '' : undefined} data-clearing={clearing ? '' : undefined} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-var(--bar,80px))] md:pt-6">
       {trap}
       {cardMoving && !reduced && (
         <CardOpening
@@ -530,10 +560,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           front={card('', false, true)}
           division={division}
           from={cardPlace}
-          onDone={() => {
-            setPhase('ready')
-            go('done')
-          }}
+          onDone={posted}
         />
       )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
