@@ -13,7 +13,7 @@
  */
 import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { DivisionMark, LEFT_PATH, QuoteMark, RIGHT_PATH } from '@/components/brand/Marks'
+import { LEFT_PATH, QuoteMark, RIGHT_PATH } from '@/components/brand/Marks'
 import { bendLeaf, Leaf } from './Leaf'
 import { SITES, siteForDivision } from '@/lib/sites'
 import type { Division } from '@/sanity/lib/types'
@@ -144,23 +144,82 @@ const press = { textShadow: '0 1px 0 rgb(255 255 255 / 0.75)' } as const
 /** Blind deboss: no ink, just the shape pushed into the paper. */
 const blind = { filter: 'drop-shadow(0 1px 0 rgb(255 255 255 / 0.95)) drop-shadow(0 -1px 0 rgb(0 0 0 / 0.18))', color: '#d6d3cb' } as const
 
-/** The card's back: the application's headline, and nothing else to read. */
+/**
+ * A seal pressed blind into the card (no ink): the house's mark in the middle, its name and the
+ * application's run round it, a dotted ring inside and a fine toothed edge outside, as an
+ * embossing press leaves them. Sunk into the paper: shade along the upper edges, light along the
+ * lower ones.
+ */
+function BlindSeal({ division, id }: { division: Division; id: string }) {
+  const brand = SITES[siteForDivision(division)].brand
+  const words = `${brand} Model Management · Official Model Application · `
+  const ring = (r: number, n: number, f: (a: number) => React.ReactNode) => Array.from({ length: n }, (_, i) => f((i / n) * Math.PI * 2))
+  const at = (a: number, r: number) => [50 + r * Math.cos(a), 50 + r * Math.sin(a)].map((v) => v.toFixed(2))
+  const teeth = ring(47, 150, (a) => `M${at(a, 45.4).join(' ')} L${at(a, 48.6).join(' ')}`).join(' ')
+  const shapes = (
+    <>
+      <path d={teeth} stroke="currentColor" strokeWidth="0.5" fill="none" />
+      <circle cx="50" cy="50" r="44.4" stroke="currentColor" strokeWidth="0.45" fill="none" />
+      {ring(29.5, 64, (a) => {
+        const [cx, cy] = at(a, 29.5)
+        return <circle key={a} cx={cx} cy={cy} r="0.42" />
+      })}
+      <text fontSize="5.2" fontWeight="700" letterSpacing="0.75" style={{ textTransform: 'uppercase', fontStretch: '85%' }}>
+        <textPath href={`#${id}-ring`} textLength="231" lengthAdjust="spacing">
+          {words}
+        </textPath>
+      </text>
+      {division === 'men' ? (
+        <rect x="42" y="42" width="16" height="16" />
+      ) : (
+        <g transform="translate(40.4 39.2) scale(0.3)">
+          <path d={LEFT_PATH} />
+          <path d={RIGHT_PATH} />
+        </g>
+      )}
+    </>
+  )
+  return (
+    <svg viewBox="0 0 100 100" className="block size-full overflow-visible" aria-hidden>
+      <defs>
+        <path id={`${id}-ring`} d="M50 50 m-37.4 0 a37.4 37.4 0 1 1 74.8 0 a37.4 37.4 0 1 1 -74.8 0" />
+      </defs>
+      <g color="rgb(255 255 255 / 0.95)" fill="currentColor" transform="translate(0.3 0.45)">
+        {shapes}
+      </g>
+      <g color="rgb(60 50 30 / 0.3)" fill="currentColor" transform="translate(-0.22 -0.32)">
+        {shapes}
+      </g>
+      <g color="#f2f1ec" fill="currentColor">
+        {shapes}
+      </g>
+    </svg>
+  )
+}
+
+/** The card's back: the house's name printed in black, the seal pressed into it, and what it is. */
 function Headline({ division }: { division: Division }) {
   const s = SITES[siteForDivision(division)]
+  const id = `blind-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
-    <div className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden]" style={{ transform: 'rotateY(180deg)' }}>
+    <div className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden] [container-type:size]" style={{ transform: 'rotateY(180deg)' }}>
       {/* The plate's impression, a hairline inside the edge. */}
       <span aria-hidden className="pointer-events-none absolute inset-[10px] shadow-[inset_0_1px_1px_rgb(0_0_0/0.07),inset_0_-1px_0_rgb(255_255_255/0.6)]" />
-      {/* The mark at the top, the headline in the middle, the house at the foot. */}
-      <span className="mt-[10%]" style={blind}>
-        <DivisionMark division={division} size={30} />
+      {/* The name at the top, the seal in the middle, what it is under it, the house at the foot. */}
+      <span className="mt-[3%] text-[#0a0a0a]" style={{ fontSize: 'min(9cqw, 8cqh)' }}>
+        <Logo division={division} />
       </span>
-      <p className="wordmark my-auto text-[clamp(44px,4.8vw,72px)] uppercase leading-[0.92]" style={press}>
-        Model
-        <br />
-        Application
-      </p>
-      <span className="mb-[4%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
+      <div className="my-auto flex flex-col items-center" style={{ gap: '3cqh' }}>
+        <span className="block aspect-square" style={{ width: 'min(56cqw, 48cqh)' }}>
+          <BlindSeal division={division} id={id} />
+        </span>
+        <p className="wordmark uppercase leading-[0.92]" style={{ ...press, fontSize: 'min(5.6cqw, 6.2cqh)' }}>
+          Official
+          <br />
+          Model Application
+        </p>
+      </div>
+      <span className="mb-[3%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
         {s.brand} Model Management
       </span>
     </div>
