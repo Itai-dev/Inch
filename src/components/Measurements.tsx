@@ -46,7 +46,7 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
  */
 export function UnitToggle({ unit, onChange, className = '' }: { unit: Unit; onChange: (u: Unit) => void; className?: string }) {
   const option = (u: Unit) => (
-    <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onChange(u)} className="inline-grid uppercase hover:opacity-60">
+    <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onChange(u)} className="kern inline-grid uppercase hover:opacity-60">
       <span aria-hidden className="invisible font-bold [grid-area:1/1]">{u}</span>
       <span className={`[grid-area:1/1] ${unit === u ? 'font-bold' : 'font-light'}`}>{u}</span>
     </button>

@@ -63,10 +63,26 @@ const readSkipLoader = () => {
   }
 }
 
-// Set once the intro has played in this page load. Module memory survives in-site
-// navigation but not a reload, so coming back to the home page (from DOT., a model, …)
-// shows the hero already open, while a fresh visit or reload still gets the intro.
+// Set once the intro has played: in module memory (in-site navigation) and for the browser
+// session (sessionStorage), so coming back to the home page by any route (from DOT., a model,
+// the application, a reload, a link) shows the hero already open; only the first visit of a
+// session gets the loader, the video opening and the logo arriving.
 let introPlayed = false
+const INTRO_PLAYED = 'inch:intro-played'
+const readIntroPlayed = () => {
+  if (introPlayed) return true
+  try {
+    return sessionStorage.getItem(INTRO_PLAYED) === '1'
+  } catch {
+    return false
+  }
+}
+const markIntroPlayed = () => {
+  introPlayed = true
+  try {
+    sessionStorage.setItem(INTRO_PLAYED, '1')
+  } catch {}
+}
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
@@ -94,7 +110,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   const N = videos.length
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
-  const [seen] = useState(() => introPlayed) // false on the server and on a fresh load
+  // False on the server and while hydrating, then the session's truth (a re-render before paint, as `fast`).
+  const seen = useSyncExternalStore(() => () => {}, readIntroPlayed, () => false)
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
@@ -241,7 +258,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         if (p < 1) raf = requestAnimationFrame(tick)
         else {
           done = true
-          introPlayed = true
+          markIntroPlayed()
           setStage('over')
           try {
             sessionStorage.removeItem(SKIP_HERO_LOADER) // the skip is used up once fully open
@@ -555,7 +572,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
                 data-sound
                 aria-pressed={audible}
                 aria-label={audible ? 'Sound off' : 'Sound on'}
-                className="absolute bottom-[calc(100%+clamp(10px,1.4vw,22px))] right-[var(--gutter)] -m-2 flex items-center gap-2 p-2 text-[clamp(12px,0.9vw,15px)] font-bold uppercase leading-none"
+                className="kern absolute bottom-[calc(100%+clamp(10px,1.4vw,22px))] right-[var(--gutter)] -m-2 flex items-center gap-2 p-2 text-[clamp(12px,0.9vw,15px)] font-bold uppercase leading-none"
                 style={{ fontStretch: '80%' }}
               >
                 <SoundIcon on={audible} />

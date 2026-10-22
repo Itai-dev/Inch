@@ -95,12 +95,13 @@ export function CompCard({
         ))}
       </dl>
 
-      <div className="grid grid-cols-3 gap-[3px]">
+      {/* The four digitals in a row; a new one is pasted down onto its spot (keyed by the picture, so a replacement is too). */}
+      <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${photos.length}, minmax(0, 1fr))` }}>
         {photos.map((p) => (
           <div key={p.label} className="relative aspect-[3/4] overflow-hidden border border-dashed border-muted/40">
             {p.url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.url} alt={p.label} className="absolute inset-0 size-full object-cover" />
+              <img key={p.url} src={p.url} alt={p.label} className={`absolute inset-0 size-full object-cover ${still || flat ? '' : 'photo-paste'}`} />
             ) : (
               <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-[0.15em] text-muted">{p.label}</span>
             )}

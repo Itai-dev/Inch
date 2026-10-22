@@ -55,8 +55,10 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(Object.fromEntries([...form.entries()].filter(([, v]) => typeof v === 'string')))
   if (!parsed.success) {
     // Which fields, in the deployment's logs.
+    const fields = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')))].filter(Boolean)
     console.error('[apply] Invalid application', parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '))
-    return NextResponse.json({ error: 'Invalid application' }, { status: 400 })
+    // Which fields, so the applicant can put them right.
+    return NextResponse.json({ error: `please check ${fields.join(', ') || 'the form'}` }, { status: 400 })
   }
   const d = parsed.data
 

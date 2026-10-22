@@ -90,6 +90,8 @@ type Unit = 'in' | 'cm'
 
 /** The page's padding under the form and the card (pb-12), kept clear when the card is fitted to the screen. */
 const BODY_PB = 48
+/** The form keeps at least this much width beside the card. */
+const FORM_MIN_W = 520
 /** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
 const PHOTOS_BUDGET = 3.6 * 1024 * 1024
 
@@ -166,10 +168,12 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       if (!aside.offsetParent) return
       aside.style.zoom = '1'
       const top = grid.getBoundingClientRect().top - sheet.getBoundingClientRect().top + sheet.scrollTop
-      const gridPad = parseFloat(getComputedStyle(grid).paddingTop) + parseFloat(getComputedStyle(grid).paddingBottom)
-      const room = sheet.clientHeight - top - gridPad - BODY_PB
-      const h = aside.getBoundingClientRect().height
-      aside.style.zoom = String(Math.max(0.4, Math.min(1, room / h)))
+      const gs = getComputedStyle(grid)
+      const room = sheet.clientHeight - top - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - BODY_PB
+      const r = aside.getBoundingClientRect()
+      // Also narrow enough to leave the form its width beside it.
+      const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap)
+      aside.style.zoom = String(Math.max(0.4, Math.min(1, room / r.height, width / r.width)))
     }
     fit()
     const ro = new ResizeObserver(fit)
@@ -184,8 +188,26 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const shownPhase = reduced && phase !== 'posting' ? 'ready' : phase
   useEffect(() => {
     if (phase !== 'writing') return
-    const id = setTimeout(() => setPhase('ready'), 1300)
+    const id = setTimeout(() => setPhase('ready'), 900)
     return () => clearTimeout(id)
+  }, [phase])
+  // No patience: a tap or a key anywhere while the card is opening or the form is writing in
+  // shows everything at once (the card jumps to its place, the ruler and the fields are simply there).
+  const skipCard = useRef<(() => void) | null>(null)
+  const skipped = useRef(false)
+  useEffect(() => {
+    if (phase !== 'opening' && phase !== 'writing') return
+    const hurry = () => {
+      skipped.current = true
+      skipCard.current?.()
+      setPhase('ready')
+    }
+    window.addEventListener('pointerdown', hurry, { passive: true })
+    window.addEventListener('keydown', hurry)
+    return () => {
+      window.removeEventListener('pointerdown', hurry)
+      window.removeEventListener('keydown', hurry)
+    }
   }, [phase])
   const [furthest, setFurthest] = useState(0)
   const [d, setD] = useState<Data>(initial)
@@ -315,7 +337,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       division={division}
       name={fullName}
       stats={stats}
-      photos={SLOTS.slice(0, 3).map((s) => ({ label: s.label, url: photos[s.pose]?.url }))}
+      photos={SLOTS.map((s) => ({ label: s.label, url: photos[s.pose]?.url }))}
       contact={[d.email || 'Email —', d.instagram ? `@${d.instagram}` : 'Instagram —']}
       className={className}
     />
@@ -331,11 +353,11 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     </form>
   )
 
-  /** The folded strip's row (phones): the three photos small, the name, a line of details. */
+  /** The folded strip's row (phones): the four photos small, the name, a line of details. */
   const stripRow = (
     <>
       <span className="flex shrink-0 gap-0.5">
-        {SLOTS.slice(0, 3).map((s) => (
+        {SLOTS.map((s) => (
           <span key={s.pose} className="relative block h-[29px] w-[22px] overflow-hidden border border-dashed border-muted/40">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {photos[s.pose] && <img src={photos[s.pose]!.url} alt="" className="absolute inset-0 size-full object-cover" />}
@@ -375,16 +397,16 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-        <button type="button" onClick={close} className="scale-in self-start text-[14px] font-bold uppercase underline" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
+        <button type="button" onClick={close} className="kern ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': '2300ms' } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
   const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
-      <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
+      <button type="submit" disabled={disabled} className="kern h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
       </button>
-      <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
+      <button type="button" onClick={back} className="kern text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
         Back
       </button>
       {note && <span className="text-[13px] text-muted">{note}</span>}
@@ -394,7 +416,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (!body) body = (
     <div data-apply-phase={shownPhase} className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
       {trap}
-      {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} onDone={() => setPhase('writing')} />}
+      {shownPhase === 'opening' && <CardOpening front={card()} compact={compact} division={division} target={cardPlace} skipRef={skipCard} onDone={() => setPhase(skipped.current ? 'ready' : 'writing')} />}
       {phase === 'posting' && (
         <CardPost
           front={card('', false, true)}
@@ -523,7 +545,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                       <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                         {SIZE_NAME[openSize]} {openSize !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
-                      <button type="button" onClick={() => setOpenSize(null)} className="text-[12px] font-bold uppercase underline" style={narrow}>
+                      <button type="button" onClick={() => setOpenSize(null)} className="kern ink-line text-[12px] font-bold uppercase" style={narrow}>
                         Done
                       </button>
                     </div>
@@ -589,7 +611,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                         {p ? (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p.url} alt={s.label} className="absolute inset-0 size-full object-cover" />
+                            <img key={p.url} src={p.url} alt={s.label} className="photo-paste absolute inset-0 size-full object-cover" />
                             <span className="absolute bottom-2 right-2 bg-bg px-1.5 py-0.5 text-[11px] font-bold uppercase" style={narrow}>Replace</span>
                           </>
                         ) : (
@@ -649,8 +671,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           )}
         </div>
 
-        {/* Room round the card for its tilt and shadow, so neither is cut off. */}
-        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden w-[720px] self-start p-9 lg:block">{card()}</aside>
+        {/* Room round the card for its tilt and shadow, so neither is cut off. It stays in view while a long step scrolls. */}
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden w-[820px] self-start p-9 lg:sticky lg:top-[calc(var(--bar,90px)+8px)] lg:block">{card()}</aside>
       </div>
     </div>
   )

@@ -102,7 +102,7 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                   href={l.href}
                   onClick={() => setOpen(false)}
                   aria-current={path === l.href || path.startsWith(`${l.href}/`) ? 'page' : undefined}
-                  className="wordmark self-start text-[clamp(52px,16vw,88px)] uppercase leading-[1] aria-[current=page]:opacity-40"
+                  className="kern wordmark self-start text-[clamp(52px,16vw,88px)] uppercase leading-[1] aria-[current=page]:opacity-40"
                   style={type(k)}
                 >
                   {l.text}
@@ -114,7 +114,7 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
                   setOpen(false)
                   openSelection(true)
                 }}
-                className="wordmark self-start text-left text-[clamp(52px,16vw,88px)] uppercase leading-[1]"
+                className="kern wordmark self-start text-left text-[clamp(52px,16vw,88px)] uppercase leading-[1]"
                 style={type(links.length)}
               >
                 Selection<sup className="ml-[0.08em] align-[0.9em] text-[0.36em] tabular-nums">({items.length})</sup>

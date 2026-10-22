@@ -35,7 +35,7 @@ export async function Header({ site }: { site: Site }) {
       >
         {/* DOT.: the way back to INCH”, the house, first in the menu (a white box, inverting with the header). */}
         {site === 'dot' && (
-          <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="site-switch flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-[1.9em] text-ink">
+          <SiteSwitchLink href={sitePath('inch')} toInch label="INCH” — Women" className="site-switch flex items-center bg-paper pb-[0.16em] pl-[0.18em] pr-[0.16em] pt-[0.16em] text-[1.2em] text-ink">
             <Logo division="women" className="text-[1em] [&_svg]:!h-[0.74em]" />
           </SiteSwitchLink>
         )}

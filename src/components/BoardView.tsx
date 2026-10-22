@@ -31,7 +31,7 @@ const subscribe = (l: () => void) => {
 export function BoardView({ grid, list }: { grid: React.ReactNode; list: React.ReactNode }) {
   const view = useSyncExternalStore(subscribe, read, () => 'grid' as View)
   const option = (v: View, label: string) => (
-    <button type="button" aria-pressed={view === v} onClick={() => write(v)} className={view === v ? 'border-b border-fg' : 'text-muted hover:text-fg'}>
+    <button type="button" aria-pressed={view === v} onClick={() => write(v)} className={`kern ${view === v ? 'border-b border-fg' : 'text-muted hover:text-fg'}`}>
       {label}
     </button>
   )

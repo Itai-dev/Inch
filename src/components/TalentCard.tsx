@@ -35,7 +35,7 @@ export function TalentCard({ talent, priority, n }: { talent: TalentCardType; pr
             />
           )}
         </div>
-        <h3 className="wordmark mt-3 px-1 text-center text-[19px] uppercase leading-none md:text-[26px]">
+        <h3 className="kern wordmark mt-3 px-1 text-center text-[19px] uppercase leading-none md:text-[26px]">
           {talent.name}
         </h3>
       </Link>
@@ -90,7 +90,7 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
               <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2 group-hover:scale-[1.06] md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
               </span>
-              <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2">
+              <span className="kern wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2">
                 {t.name}
               </span>
               <span aria-hidden className="label text-muted transition-opacity md:opacity-0 md:group-hover:opacity-100">View →</span>

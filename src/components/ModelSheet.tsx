@@ -55,7 +55,7 @@ const onWide = (cb: () => void) => {
   m.addEventListener('change', cb)
   return () => m.removeEventListener('change', cb)
 }
-const tabCls = (on: boolean) => `uppercase transition-colors ${on ? 'text-fg' : 'text-muted hover:text-fg'}`
+const tabCls = (on: boolean) => `kern uppercase transition-colors ${on ? 'text-fg' : 'text-muted hover:text-fg'}`
 const narrow = { fontStretch: '80%' } as const
 
 export function ModelSheet({
@@ -302,22 +302,22 @@ export function ModelSheet({
   const bookActions = (stacked = false) => (
     <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
       {book && N > 0 && (
-        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
+        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="kern intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
           {view === 'book' ? 'Thumbnails' : 'Book'}
         </button>
       )}
       {compCard && (
-        <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
+        <a href={compCard} className="kern intro-write hover:opacity-60" style={write('Comp card')}>
           Comp card
         </a>
       )}
       {talent && (
-        <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
+        <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="kern intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
           {selected ? 'Selected' : '+ Selection'}
         </button>
       )}
       {enquiry && (
-        <a href={enquiry} className="intro-write uppercase underline decoration-2 underline-offset-[5px] hover:opacity-60" style={write('Book her →')}>
+        <a href={enquiry} className="kern intro-write uppercase underline decoration-2 underline-offset-[5px] hover:opacity-60" style={write('Book her →')}>
           {division === 'men' ? 'Book him →' : 'Book her →'}
         </a>
       )}

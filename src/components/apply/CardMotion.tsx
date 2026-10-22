@@ -115,6 +115,7 @@ export function CardOpening({
   division,
   target,
   onDone,
+  skipRef,
 }: {
   /** The comp card, for beside the form. */
   front: React.ReactNode
@@ -124,6 +125,8 @@ export function CardOpening({
   /** Where the card ends up: the aside (desktop) or the folded strip (phones). */
   target: () => Place
   onDone: () => void
+  /** Set to a function that jumps the card to its place at once (for the impatient: a tap anywhere). */
+  skipRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const stage = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -161,15 +164,15 @@ export function CardOpening({
     // Phones: cut to the strip's folded height as it lands, so it is the strip.
     const clipTo = !toCard && r ? `inset(0 0 ${Math.max(0, h - r.height + 1)}px 0)` : 'inset(0 0 0 0)'
 
-    const T = 2500
+    // It grows in from small, unhurried, turning slightly as it comes; then, quicker, turns over and goes to its place.
+    const T = 1900
     const o = (ms: number) => ms / T
     const opts = { duration: T, fill: 'forwards' as const }
-    // It grows in from small, turning slightly as it comes; rests a moment; turns over; goes to its place.
     const card = el.animate(
       [
         { transform: place(fit * 0.55), clipPath: 'inset(0 0 0 0)', offset: 0, easing: EASE_OUT },
         { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(750) },
-        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1650), easing: EASE },
+        { transform: place(fit), clipPath: 'inset(0 0 0 0)', offset: o(1300), easing: EASE },
         { transform: at(tx, ty, zoom), clipPath: clipTo, offset: 1 },
       ],
       opts,
@@ -178,15 +181,18 @@ export function CardOpening({
       [
         { transform: 'perspective(1800px) rotateZ(-7deg) rotateY(180deg)', offset: 0, easing: EASE_OUT },
         { transform: 'perspective(1800px) rotateZ(-1.5deg) rotateY(180deg)', offset: o(750), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(1000), easing: EASE },
-        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(1550) },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(180deg)', offset: o(850), easing: EASE },
+        { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: o(1250) },
         { transform: 'perspective(1800px) rotateZ(0deg) rotateY(0deg)', offset: 1 },
       ],
       opts,
     )
     const show = stage.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: EASE_OUT, fill: 'both' })
     card.onfinish = () => done.current()
+    // Skipping: everything jumps to its end (which also finishes the card, and so calls onDone).
+    if (skipRef) skipRef.current = () => [turn, show, card].forEach((a) => a?.finish())
     return () => {
+      if (skipRef) skipRef.current = null
       ;[card, turn, show].forEach((a) => a?.cancel())
     }
     // Plays once, from where the page is when it opens.

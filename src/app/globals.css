@@ -164,17 +164,60 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(4) { animation-delay: 0.72s; }
 
 /* Menu items: tighten to -10% tracking on hover, press and the current page, around the
-   word's centre (the trailing tracking after the last letter is cancelled with a margin). */
-.nav-label {
+   word's centre (the trailing tracking after the last letter is cancelled with a margin).
+   The same kerning on anything else with a word to press (.kern): a button, a link, a model's
+   name (lit by its .group), the footer's lines. */
+.nav-label,
+.kern {
   letter-spacing: -0.02em;
   margin-right: 0.02em;
   transition: letter-spacing 0.35s var(--ease-out), margin-right 0.35s var(--ease-out);
 }
 .nav-item:hover .nav-label,
 .nav-item:active .nav-label,
-.nav-item[aria-current="page"] .nav-label {
+.nav-item[aria-current="page"] .nav-label,
+.kern:hover,
+.kern:active,
+.kern[aria-current="page"],
+.group:hover .kern {
   letter-spacing: -0.1em;
   margin-right: 0.1em;
+}
+/* A line drawing itself under the word, left to right, as it is hovered (and under the current page). */
+.ink-line {
+  position: relative;
+}
+.ink-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0.1em;
+  bottom: -0.14em;
+  height: 0.09em;
+  min-height: 1.5px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s var(--ease-out);
+}
+.ink-line:hover::after,
+.ink-line[aria-current="page"]::after,
+.nav-item:hover .ink-line::after,
+.nav-item[aria-current="page"] .ink-line::after,
+.group:hover .ink-line::after {
+  transform: scaleX(1);
+}
+/* Leaving: the line goes out to the right, so the next hover draws it afresh from the left. */
+.ink-line:not(:hover)::after {
+  transform-origin: right;
+}
+.nav-item:not(:hover) .ink-line::after,
+.group:not(:hover) .ink-line::after {
+  transform-origin: right;
+}
+.nav-item[aria-current="page"] .ink-line::after,
+.ink-line[aria-current="page"]::after {
+  transform-origin: left;
 }
 /* The other site's box (SiteSwitch): upright in the bottom-left corner, in the page's margin. It
    pops up (a small overshoot) when shown and drops away when not; the box grows slightly on hover and press. */
@@ -231,16 +274,25 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 [data-apply-phase="posting"] .apply-card { visibility: hidden; }
 /* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
    in place: the card turned into it.) */
-[data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 0.7s cubic-bezier(0.45, 0, 0.25, 1) both; }
+[data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 0.5s cubic-bezier(0.45, 0, 0.25, 1) both; }
 @keyframes ruler-slide { from { transform: translateX(100%); } to { transform: none; } }
-[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.3s steps(5) 0.5s both; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 0.55s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 0.6s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 0.65s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 0.7s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.75s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.8s; }
-[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.85s; }
+[data-apply-phase="writing"] .apply-form form > * { animation: menu-type 0.25s steps(5) 0.25s both; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(2) { animation-delay: 0.3s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(3) { animation-delay: 0.35s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(4) { animation-delay: 0.4s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(5) { animation-delay: 0.45s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(6) { animation-delay: 0.5s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(7) { animation-delay: 0.55s; }
+[data-apply-phase="writing"] .apply-form form > :nth-child(n + 8) { animation-delay: 0.6s; }
+/* A photo just added: it comes in a little large and lifted, then is pasted down onto its spot. */
+@keyframes photo-paste {
+  from { opacity: 0; transform: scale(1.16) rotate(-2.5deg) translateY(-6%); box-shadow: 0 24px 40px -14px rgb(0 0 0 / 0.45); }
+  25% { opacity: 1; }
+  to { opacity: 1; transform: none; box-shadow: 0 0 0 0 rgb(0 0 0 / 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .photo-paste { animation: photo-paste 0.55s cubic-bezier(0.3, 0.9, 0.3, 1) both; }
+}
 /* Phones: opening the card strip unfolds the card from under it. */
 .apply-strip[open] > :not(summary) { animation: strip-open 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes strip-open { from { clip-path: inset(0 0 100% 0); transform: scale(0.96); } to { clip-path: inset(0 0 0 0); transform: none; } }
