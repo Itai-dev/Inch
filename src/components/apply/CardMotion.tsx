@@ -13,7 +13,7 @@
  */
 import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { DivisionMark, LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
+import { DivisionMark, LEFT_PATH, QuoteMark, RIGHT_PATH } from '@/components/brand/Marks'
 import { bendLeaf, Leaf } from './Leaf'
 import { SITES, siteForDivision } from '@/lib/sites'
 import type { Division } from '@/sanity/lib/types'
@@ -70,9 +70,9 @@ function FoilSticker({ division, id }: { division: Division; id: string }) {
   const words = `${brand} Model Management · Model Application · `
   const mark =
     division === 'men' ? (
-      <rect x="41.5" y="41.5" width="17" height="17" />
+      <rect x="40.65" y="40.65" width="18.7" height="18.7" />
     ) : (
-      <g transform="translate(39.3 37.9) scale(0.335)">
+      <g transform="translate(38.2 36.73) scale(0.3685)">
         <path d={LEFT_PATH} />
         <path d={RIGHT_PATH} />
       </g>
@@ -119,6 +119,22 @@ const FOIL = {
   backgroundSize: '100% 100%, 220% 220%',
   backgroundPosition: '0 0, 20% 20%',
 } as const
+
+/**
+ * The mark pressed into the flap near its tip, the size of the sticker's mark and just where it
+ * lands (so the sticker covers it). In the flap's own units: the sticker is min(30% of the
+ * envelope's width, 42% of its height) across, centred 53% down it; the flap is 56% of its height.
+ */
+function FlapIndent({ division }: { division: Division }) {
+  return (
+    <span
+      className="absolute left-1/2 top-[94.6%] block -translate-x-1/2 -translate-y-1/2"
+      style={{ ...blind, height: 'min(8.75cqw, 21.9cqh)', aspectRatio: division === 'men' ? '1' : '64 / 72' }}
+    >
+      {division === 'men' ? <span className="block size-full scale-[0.705] bg-current" /> : <QuoteMark className="!h-full !w-full" />}
+    </span>
+  )
+}
 
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
@@ -199,9 +215,7 @@ function Envelope({
                 <div className="absolute inset-x-0 bottom-0 h-[45%]" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
               </div>
               <FlapPrint division={division} />
-              <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
-                <DivisionMark division={division} size={26} />
-              </span>
+              <FlapIndent division={division} />
             </div>
           }
           back={<div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_INSIDE, boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />}
@@ -230,9 +244,7 @@ function ClosedEnvelope({ division }: { division: Division }) {
           </div>
         </div>
         <FlapPrint division={division} />
-        <span className="absolute bottom-[14%] left-1/2 -translate-x-1/2" style={blind}>
-          <DivisionMark division={division} size={26} />
-        </span>
+        <FlapIndent division={division} />
       </div>
     </div>
   )
@@ -499,18 +511,18 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 4300
+    const T = 4500
     const SLOW = 1.3
     const CARD_END = 1500
     const FLAP = 1250
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [2600, 3000]
+    const OPEN: [number, number] = [2750, 3150]
     // Closed, it is taken up as if in a hand (TURN: lifted from, held, let go), the sticker put on
     // while it is held, and it goes down into the drawer.
-    const TURN: [number, number, number] = [2000, 2420, 2850]
+    const TURN: [number, number, number] = [2000, 2400, 3050]
     const DROP = TURN[2]
-    const LAND = 3550
+    const LAND = 3750
     // As it lands the drawer starts in, slowly at first (it never stops), and goes in.
     const SHUT: [number, number] = [LAND - 50, LAND + 650]
     const o = (ms: number) => ms / T
@@ -590,25 +602,13 @@ export function CardPost({
     )
     const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
     const FLAP_MS = 750
-    // As the flap lies down, the sticker goes on (turned each frame below), and the light runs
-    // across its foil as the envelope turns.
+    // As the flap lies down, the sticker goes on (turned each frame below); the light on its foil
+    // moves only as the envelope (and the sticker itself) turns.
     // Soon after the flap is down, as it is held up, the sticker goes on.
     const STICK: [number, number] = [FLAP + FLAP_MS + 250, FLAP + FLAP_MS + 730]
     const sticker = seal.current?.querySelector<HTMLElement>('[data-sticker]')
     const stickerLeaf = sticker?.querySelector<HTMLElement>('[data-leaf]')
     const foil = [...(sticker?.querySelectorAll<HTMLElement>('[data-foil]') ?? [])]
-    const shine = foil.map((f) =>
-      f.animate(
-        [
-          { backgroundPosition: '0 0, 20% 20%', offset: 0 },
-          { backgroundPosition: '0 0, 20% 20%', offset: o(TURN[0]), easing: EASE },
-          { backgroundPosition: '0 0, 85% 80%', offset: o(TURN[1]), easing: EASE },
-          { backgroundPosition: '0 0, 55% 50%', offset: o(TURN[2]) },
-          { backgroundPosition: '0 0, 55% 50%', offset: 1 },
-        ],
-        opts,
-      ),
-    )
     // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
     // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
     // it over (drawn the same), so it can go in with it.
@@ -626,6 +626,9 @@ export function CardPost({
         { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
         { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.4, 0, 0.3, 1)' },
         { transform: pose(-46, 11, -3, -1.8), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        // Held, it is never quite still: it breathes in the hand.
+        { transform: pose(-50, 9.2, -1.4, -1.2), visibility: 'visible', offset: o(TURN[1] + (TURN[2] - TURN[1]) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-47, 11.6, -3.6, -2), visibility: 'visible', offset: o(TURN[1] + ((TURN[2] - TURN[1]) * 2) / 3), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
         { transform: pose(-50, 10, -2, -1.5), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.5, 0.05, 0.3, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
@@ -680,7 +683,14 @@ export function CardPost({
         const sp = span(ms, ...STICK)
         sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
         const se = easeOut(sp)
-        bendLeaf(stickerLeaf, 70 * (1 - se), Math.sin(Math.PI * se) * 45)
+        const press = 70 * (1 - se)
+        bendLeaf(stickerLeaf, press, Math.sin(Math.PI * se) * 45)
+        // The light on the foil, from how the envelope (and the sticker on it) is turned right now.
+        const m = new DOMMatrix(getComputedStyle(g).transform)
+        const ry = (Math.asin(Math.max(-1, Math.min(1, m.m13))) * 180) / Math.PI
+        const rx = (Math.asin(Math.max(-1, Math.min(1, -m.m23))) * 180) / Math.PI
+        const pos = `0 0, ${(50 - ry * 7).toFixed(1)}% ${(50 + (rx + press * 0.3) * 4).toFixed(1)}%`
+        foil.forEach((f) => (f.style.backgroundPosition = pos))
       }
       const shift = DRAWER_UNITS * (1 - p)
       dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
@@ -726,7 +736,7 @@ export function CardPost({
       clearTimeout(cutAt)
       clearTimeout(shutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, post, ...parts, ...shine].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

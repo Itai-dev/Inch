@@ -853,7 +853,7 @@ function ReceivedCheck({ from }: { from: { x: number; y: number } | null }) {
   }, [from])
   return (
     <svg ref={ref} aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0 overflow-visible">
-      <polyline points="4,22 16,34 40,8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="butt" strokeLinejoin="miter" />
+      <polyline points="4,22 16,34 40,8" fill="none" stroke="currentColor" strokeWidth={4.5} strokeLinecap="butt" strokeLinejoin="miter" />
     </svg>
   )
 }
