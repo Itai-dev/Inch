@@ -97,7 +97,7 @@ function FoilSticker({ division, id }: { division: Division; id: string }) {
     </>
   )
   return (
-    <div data-foil className="absolute inset-0 overflow-hidden rounded-full" style={FOIL}>
+    <div data-foil className="absolute inset-[5%] overflow-hidden rounded-full" style={{ ...FOIL, boxShadow: '0 0.8px 0 #000, 0 1.4px 1.6px rgb(0 0 0 / 0.28)' }}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 size-full">
         <defs>
           <path id={`${id}-ring`} d="M50 50 m-37 0 a37 37 0 1 1 74 0 a37 37 0 1 1 -74 0" />
@@ -197,28 +197,26 @@ function BlindSeal({ division, id }: { division: Division; id: string }) {
   )
 }
 
-/** The card's back: the house's name printed in black, the seal pressed into it, and what it is. */
+/** The card's back: the house's name printed in black, what it is, and the seal pressed into a corner. */
 function Headline({ division }: { division: Division }) {
   const s = SITES[siteForDivision(division)]
   const id = `blind-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
-    <div className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden] [container-type:size]" style={{ transform: 'rotateY(180deg)' }}>
+    <div className="paper absolute inset-0 flex flex-col items-center p-[clamp(22px,2.6vw,40px)] text-center text-[#141414] [backface-visibility:hidden] [container-type:size]" style={{ transform: 'rotateY(180deg) translateZ(1px)' }}>
       {/* The plate's impression, a hairline inside the edge. */}
       <span aria-hidden className="pointer-events-none absolute inset-[10px] shadow-[inset_0_1px_1px_rgb(0_0_0/0.07),inset_0_-1px_0_rgb(255_255_255/0.6)]" />
-      {/* The name at the top, the seal in the middle, what it is under it, the house at the foot. */}
+      {/* The name at the top, what it is in the middle, the house at the foot; the seal pressed in at the top left. */}
+      <span className="absolute left-[6%] top-[7%] block aspect-square" style={{ width: 'min(24cqw, 30cqh)' }}>
+        <BlindSeal division={division} id={id} />
+      </span>
       <span className="mt-[3%] text-[#0a0a0a]" style={{ fontSize: 'min(9cqw, 8cqh)' }}>
         <Logo division={division} />
       </span>
-      <div className="my-auto flex flex-col items-center" style={{ gap: '3cqh' }}>
-        <span className="block aspect-square" style={{ width: 'min(56cqw, 48cqh)' }}>
-          <BlindSeal division={division} id={id} />
-        </span>
-        <p className="wordmark uppercase leading-[0.92]" style={{ ...press, fontSize: 'min(5.6cqw, 6.2cqh)' }}>
-          Official
-          <br />
-          Model Application
-        </p>
-      </div>
+      <p className="wordmark my-auto uppercase leading-[0.92]" style={{ ...press, fontSize: 'min(6.4cqw, 8cqh)' }}>
+        Official
+        <br />
+        Model Application
+      </p>
       <span className="mb-[3%] text-[9px] uppercase tracking-[0.42em] text-[#55534f]" style={press}>
         {s.brand} Model Management
       </span>
@@ -243,8 +241,9 @@ function Envelope({
   const sealId = `seal-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <>
-      {/* Inside, behind the card: the same stock, in shade. No shadow under it: nothing is behind it to fall on. */}
-      <div ref={back} style={OFF} className="envelope-paper absolute left-0 top-0 z-[1] origin-top-left shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09)]" />
+      {/* Inside, behind the card: the same stock, in shade. No shadow under it (nothing is behind it to
+          fall on), only its thickness: the edge of its paper along the foot. */}
+      <div ref={back} style={OFF} className="envelope-paper absolute left-0 top-0 z-[1] origin-top-left shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09),0_1.5px_0_#dcd9d2,0_2.5px_0_#cdcac2]" />
       {/* In front of the card: the back of the envelope, its two side flaps and, over them, the bottom
           flap folded up to a point under the top flap. The paper is thin: in the middle the card
           inside shows through a little. */}
@@ -283,8 +282,8 @@ function Envelope({
       {/* The seal: a sticker laid on where the flap's tip lies once it is closed. It goes on like
           paper: its top touches first and the rest is smoothed down after it (a bending leaf). */}
       <div ref={seal} style={OFF} className="pointer-events-none absolute left-0 top-0 z-[5] origin-top-left [container-type:size]">
-        <span data-sticker className="absolute left-1/2 top-[53%] block aspect-square" style={{ width: 'min(30cqw, 42cqh)', transform: 'translate(-50%, -50%)', perspective: '700px', visibility: 'hidden' }}>
-          <Leaf strips={10} shade={false} front={<FoilSticker division={division} id={sealId} />} back={<div className="absolute inset-0 rounded-full bg-[#1a1a1a]" />} />
+        <span data-sticker className="absolute left-1/2 top-[53%] block aspect-square" style={{ width: 'min(33.3cqw, 46.7cqh)', transform: 'translate(-50%, -50%)', perspective: '700px', visibility: 'hidden' }}>
+          <Leaf strips={10} shade={false} front={<FoilSticker division={division} id={sealId} />} back={<div className="absolute inset-[5%] rounded-full bg-[#1a1a1a]" />} />
         </span>
       </div>
     </>
@@ -478,10 +477,13 @@ export function CardOpening({
     <div ref={stage} aria-hidden className="pointer-events-none fixed inset-0 z-30" style={{ opacity: 0 }}>
       <div ref={box} className="absolute left-0 top-0 origin-top-left">
         <div ref={flip} className="relative [transform-style:preserve-3d]">
-          <div data-face className="relative [backface-visibility:hidden]">
+          {/* Card has a thickness: its faces a pixel either side of the middle, its edges between them. */}
+          <div data-face className="relative [backface-visibility:hidden]" style={{ transform: 'translateZ(1px)' }}>
             <div ref={desk}>{front}</div>
             <div ref={phone}>{compact}</div>
           </div>
+          <span aria-hidden className="absolute inset-y-0 left-0 w-[2px] origin-left bg-[#dedbd3]" style={{ transform: 'translateZ(1px) rotateY(90deg)' }} />
+          <span aria-hidden className="absolute inset-y-0 right-0 w-[2px] origin-right bg-[#d6d3cb]" style={{ transform: 'translateZ(1px) rotateY(-90deg)' }} />
           <Headline division={division} />
         </div>
       </div>

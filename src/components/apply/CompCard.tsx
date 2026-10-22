@@ -56,7 +56,7 @@ export function CompCard({
         el.style.transform = `perspective(1000px) rotateX(${(-y * 9).toFixed(2)}deg) rotateY(${(x * 11).toFixed(2)}deg) translateY(${over ? -14 : -6}px) scale(${over ? 1.03 : 1})`
         // The light slides across the paper as it turns.
         el.style.setProperty('--sheen', `${(50 + x * 38).toFixed(1)}%`)
-        el.style.boxShadow = `${(-14 - x * 26).toFixed(1)}px ${(44 - y * 18 + (over ? 12 : 0)).toFixed(1)}px ${over ? 40 : 28}px -26px rgb(0 0 0 / 0.42), 0 2px 8px rgb(0 0 0 / 0.07)`
+        el.style.boxShadow = `0 1px 0 #e2dfd8, 0 2px 0 #d6d3cb, ${(-14 - x * 26).toFixed(1)}px ${(44 - y * 18 + (over ? 12 : 0)).toFixed(1)}px ${over ? 40 : 28}px -26px rgb(0 0 0 / 0.42), 0 2px 8px rgb(0 0 0 / 0.07)`
       })
     }
     const rest = () => {
@@ -79,7 +79,7 @@ export function CompCard({
       ref={card}
       // White paper, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
       style={flat ? undefined : ({ '--bg': '#fdfdfc', '--fg': '#0a0a0a', '--muted': '#6b6965', '--line': '#e4e2dd' } as React.CSSProperties)}
-      className={`relative flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'paper border border-[#dcdad5] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]'} ${className}`}
+      className={`relative flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'paper border border-[#dcdad5] shadow-[0_1px_0_#e2dfd8,0_2px_0_#d6d3cb,-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]'} ${className}`}
     >
       <div className="label flex items-start justify-between text-[11px] text-muted">
         <span>{brand} — Application</span>
