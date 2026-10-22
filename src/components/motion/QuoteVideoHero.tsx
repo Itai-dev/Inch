@@ -15,6 +15,7 @@
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { preload } from 'react-dom'
 import { Logo } from '@/components/brand/Logo'
 import { LEFT_PATH, QuoteMark, QuoteStroke, RIGHT_PATH, STROKE_GAP_RATIO } from '@/components/brand/Marks'
 import { SKIP_HERO_LOADER } from '@/components/SiteSwitchLink'
@@ -31,7 +32,7 @@ const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
 const BLINK_MS = 900 // one blink, as the text cursor's: on half the time, off half, hard cuts; the open always starts at the top of one
 const MIN_BLINKS = 2 // even when the video is cached
-const MAX_WAIT_MS = 4000 // open anyway if the video is slow
+const MAX_WAIT_MS = BLINK_MS * 3 // open anyway after three blinks if the video is slow (its poster shows until it plays)
 const OPEN_MS = 2400
 const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the video fills the screen
 const GROW_FADE = [0.3, 0.7] // the video fades in inside the ” (share of GROW_MS)…
@@ -108,6 +109,10 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   const dot = division === 'men'
   const grow = openWith === 'grow' && !dot
   const N = videos.length
+  // The first picture is asked for straight away, ahead of everything else, so the reveal has it.
+  const first = videos[0]
+  const firstPic = first?.kind === 'image' ? first.src : first?.poster
+  if (firstPic) preload(firstPic, { as: 'image', fetchPriority: 'high' })
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
   // False on the server and while hydrating, then the session's truth (a re-render before paint, as `fast`).
@@ -155,8 +160,12 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         ],
         { duration: BLINK_MS, iterations: Infinity },
       ) ?? null
-    const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
-    const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
+    // Counted from when the page was asked for (the mark shows from the first paint), not from
+    // when the scripts woke up: two blinks at least, three at most, whatever the connection.
+    if (blinkAnim.current) blinkAnim.current.startTime = 0
+    const since = performance.now()
+    const a = setTimeout(() => setWaited(true), Math.max(0, BLINK_MS * MIN_BLINKS - since))
+    const b = setTimeout(() => setReady(true), Math.max(0, MAX_WAIT_MS - since))
     return () => {
       clearTimeout(a)
       clearTimeout(b)
@@ -243,7 +252,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     let done = false
     // Start at the top of a blink so the ” never jumps from half-faded.
     const t = blinkAnim.current?.currentTime
-    const wait = typeof t === 'number' ? (BLINK_MS - (t % BLINK_MS)) % BLINK_MS : 0
+    // (Just past the top, as when the wait runs out on the beat: start now rather than a whole blink later.)
+    const into = typeof t === 'number' ? t % BLINK_MS : 0
+    const wait = into < 150 ? 0 : BLINK_MS - into
     const timer = setTimeout(() => {
       blinkAnim.current?.cancel()
       const draw = dot ? layoutDot : grow ? layoutGrow : layout
@@ -507,8 +518,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
               muted
               loop
               playsInline
-              preload={i === 0 || i === mod(current + 1, N) ? 'auto' : 'metadata'}
-              onCanPlay={i === 0 ? () => setReady(true) : undefined}
+              // The first video has the connection to itself until it can show; then the next one loads.
+              preload={i === 0 ? 'auto' : !ready ? 'none' : i === mod(current + 1, N) ? 'auto' : 'metadata'}
+              onLoadedData={i === 0 ? () => setReady(true) : undefined}
               aria-hidden={i !== current}
               className={cls}
               style={style}

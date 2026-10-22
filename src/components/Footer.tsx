@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CREDIT, DEMO_CONTACT, HOURS, instagramHandle } from '@/lib/copy'
+import { DEMO_CONTACT, HOURS, instagramHandle } from '@/lib/copy'
 import { enquiryMailto } from '@/lib/enquiry'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -118,14 +118,6 @@ export async function Footer({ site }: { site: Site }) {
 
         <div className="label mt-[clamp(56px,7vw,120px)] flex flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
           <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
-          {/* The credit, quiet, between the copyright and back to top. */}
-          {CREDIT.url ? (
-            <a href={CREDIT.url} target="_blank" rel="noreferrer" className="hover:text-paper">
-              <TypeText text={CREDIT.text} at={colAt(4)} ms={10} />
-            </a>
-          ) : (
-            <span><TypeText text={CREDIT.text} at={colAt(4)} ms={10} /></span>
-          )}
           <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
         </div>
       </TypeOnView>

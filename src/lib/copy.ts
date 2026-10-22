@@ -28,5 +28,3 @@ export const DEFAULT_STORY = [
 // TODO: final DOT. line from INCH” — placeholder.
 export const DEFAULT_DOT_STATEMENT = 'The men’s board of INCH” — few faces, each one exact'
 
-/** The site's credit in the footer. TODO: Itai's portfolio link (shown as plain text until it's set). */
-export const CREDIT = { text: 'Built with love by Itai Agami', url: '' }
