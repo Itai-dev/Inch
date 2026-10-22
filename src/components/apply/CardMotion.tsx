@@ -479,18 +479,18 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       const flat = p < 0.002
       majors.forEach((ln) => {
         const u = Number(ln.dataset.major) * p
-        set(ln, { x1: mid - halfAt(u), x2: mid + halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat && u > 0 ? 'hidden' : 'visible' })
+        set(ln, { x1: mid - halfAt(u), x2: mid + halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat && u > 0 ? 'hidden' : 'inherit' })
       })
       rails.forEach((ln) => {
         const side = Number(ln.dataset.rail)
         const back = DRAWER_UNITS * p
-        set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: flat ? 'hidden' : 'visible' })
+        set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: flat ? 'hidden' : 'inherit' })
       })
       ticks.forEach((ln) => {
         const u = Number(ln.dataset.tick) * p
         const side = Number(ln.dataset.side)
         const edge = mid + side * halfAt(u)
-        set(ln, { x1: edge, x2: edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat ? 'hidden' : 'visible' })
+        set(ln, { x1: edge, x2: edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat ? 'hidden' : 'inherit' })
       })
       envs.forEach((en) => {
         const ours = en.dataset.env === 'ours'
