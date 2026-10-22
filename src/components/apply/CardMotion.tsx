@@ -60,65 +60,65 @@ function FlapPrint({ division }: { division: Division }) {
   )
 }
 
-/** A wobbly round, as poured wax sets (the same each time). */
-const WAX_EDGE = (() => {
-  const pts = Array.from({ length: 28 }, (_, i) => {
-    const a = (i / 28) * Math.PI * 2
-    const r = 46 + 1.6 * Math.sin(a * 3 + 0.7) + 1.1 * Math.sin(a * 7 + 2.1) + 0.6 * Math.sin(a * 11)
-    return [50 + r * Math.cos(a), 50 + r * Math.sin(a)]
-  })
-  return `M${pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join(' L')} Z`
-})()
-
 /**
- * The seal: gold wax poured where the flap's tip lies and pressed with the house's mark (INCH”'s
- * ”, DOT.'s ■). The stamp leaves a sunken round with a raised lip, the mark sunk into it, the
- * light catching the near edges.
+ * The seal: a round gold foil sticker, its brushed foil catching the light, the house's mark
+ * (INCH”'s ”, DOT.'s ■) raised in the middle and its name and the application's run round the
+ * edge, raised the same way (light on the upper edges, shade under).
  */
-function WaxSeal({ division, id }: { division: Division; id: string }) {
+function GoldSticker({ division, id }: { division: Division; id: string }) {
+  const brand = SITES[siteForDivision(division)].brand
+  const words = `${brand} Model Management · Model Application · `
   const mark =
     division === 'men' ? (
-      <rect x="40" y="40" width="20" height="20" />
+      <rect x="41.5" y="41.5" width="17" height="17" />
     ) : (
-      <g transform="translate(37.2 35.6) scale(0.4)">
+      <g transform="translate(39.3 37.9) scale(0.335)">
         <path d={LEFT_PATH} />
         <path d={RIGHT_PATH} />
       </g>
     )
-  return (
-    <svg viewBox="0 0 100 100" className="block size-full overflow-visible [filter:drop-shadow(0_1px_1.2px_rgb(70_45_10/0.35))_drop-shadow(0_3px_5px_rgb(70_45_10/0.18))]">
-      <defs>
-        <radialGradient id={`${id}-wax`} cx="38%" cy="32%" r="75%">
-          <stop offset="0" stopColor="#ead29a" />
-          <stop offset="0.35" stopColor="#caa762" />
-          <stop offset="0.75" stopColor="#a5823f" />
-          <stop offset="1" stopColor="#7a5c27" />
-        </radialGradient>
-        <radialGradient id={`${id}-well`} cx="60%" cy="65%" r="70%">
-          <stop offset="0" stopColor="#d3b06c" />
-          <stop offset="1" stopColor="#a17f3c" />
-        </radialGradient>
-        <radialGradient id={`${id}-shine`} cx="34%" cy="26%" r="40%">
-          <stop offset="0" stopColor="#fff6dc" stopOpacity="0.7" />
-          <stop offset="1" stopColor="#fff6dc" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* The poured wax. */}
-      <path d={WAX_EDGE} fill={`url(#${id}-wax)`} />
-      {/* The stamp's sunken round: dark where its upper wall faces away, light on its lower lip. */}
-      <circle cx="50" cy="50.8" r="31" fill="#f3dca0" opacity="0.75" />
-      <circle cx="50" cy="49.2" r="31" fill="#7d5a1c" opacity="0.6" />
-      <circle cx="50" cy="50" r="30.4" fill={`url(#${id}-well)`} />
-      {/* The mark sunk into it the same way. */}
-      <g fill="#f6e2a8" opacity="0.8" transform="translate(0 0.7)">
-        {mark}
+  const ring = (
+    <text fontSize="6.6" fontWeight="700" letterSpacing="0.9" style={{ textTransform: 'uppercase', fontStretch: '85%' }}>
+      <textPath href={`#${id}-ring`} textLength="232" lengthAdjust="spacing">
+        {words}
+      </textPath>
+    </text>
+  )
+  // Raised: shade under and to the right, light over and to the left, the foil's own colour on top.
+  const raised = (node: React.ReactNode) => (
+    <>
+      <g fill="rgb(120 88 24 / 0.5)" transform="translate(0.45 0.65)">
+        {node}
       </g>
-      <g fill="#866528">{mark}</g>
-      {/* The light on the wax. */}
-      <path d={WAX_EDGE} fill={`url(#${id}-shine)`} />
-    </svg>
+      <g fill="rgb(255 249 222 / 0.85)" transform="translate(-0.4 -0.5)">
+        {node}
+      </g>
+      <g fill="#d8ba6a">{node}</g>
+    </>
+  )
+  return (
+    <div data-foil className="absolute inset-0 overflow-hidden rounded-full" style={FOIL}>
+      <svg viewBox="0 0 100 100" className="absolute inset-0 size-full">
+        <defs>
+          <path id={`${id}-ring`} d="M50 50 m-37 0 a37 37 0 1 1 74 0 a37 37 0 1 1 -74 0" />
+        </defs>
+        {raised(ring)}
+        {raised(mark)}
+      </svg>
+      {/* Its edge: a fine bright rim. */}
+      <span className="absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 0 0.6px rgb(255 245 210 / 0.7), inset 0 -1px 1.5px rgb(110 80 20 / 0.25)' }} />
+    </div>
   )
 }
+/** Brushed gold foil: broad light across it, and the fine grain of the brushing. */
+const FOIL = {
+  backgroundImage: [
+    'repeating-linear-gradient(100deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 3px)',
+    'linear-gradient(125deg, #c8a24b 0%, #e9d08a 24%, #d5b05a 42%, #f3e3a6 56%, #cba54e 76%, #e4c97f 100%)',
+  ].join(','),
+  backgroundSize: '100% 100%, 220% 220%',
+  backgroundPosition: '0 0, 20% 20%',
+} as const
 
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
@@ -165,7 +165,7 @@ function Envelope({
   flap: React.Ref<HTMLDivElement>
   seal: React.Ref<HTMLDivElement>
 }) {
-  const sealId = `wax-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  const sealId = `seal-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <>
       {/* Inside, behind the card: the same stock, in shade. No shadow under it: nothing is behind it to fall on. */}
@@ -207,10 +207,11 @@ function Envelope({
           back={<div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_INSIDE, boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />}
         />
       </div>
-      {/* The seal, pressed on where the flap's tip lies once it is closed. */}
+      {/* The seal: a sticker laid on where the flap's tip lies once it is closed. It goes on like
+          paper: its top touches first and the rest is smoothed down after it (a bending leaf). */}
       <div ref={seal} style={OFF} className="pointer-events-none absolute left-0 top-0 z-[5] origin-top-left [container-type:size]">
-        <span data-wax className="absolute left-1/2 top-[56%] block aspect-square" style={{ width: 'min(15cqw, 21cqh)', transform: 'translate(-50%, -50%)', visibility: 'hidden' }}>
-          <WaxSeal division={division} id={sealId} />
+        <span data-sticker className="absolute left-1/2 top-[56%] block aspect-square" style={{ width: 'min(21cqw, 30cqh)', transform: 'translate(-50%, -50%)', perspective: '700px', visibility: 'hidden' }}>
+          <Leaf strips={10} shade={false} front={<GoldSticker division={division} id={sealId} />} back={<div className="absolute inset-0 rounded-full bg-[#f4f1ea]" />} />
         </span>
       </div>
     </>
@@ -488,17 +489,19 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 3550
+    const T = 4700
     const SLOW = 1.3
     const CARD_END = 1500
     const FLAP = 1250
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [1850, 2180]
-    // Sealed, it goes on down without stopping, only slower at first (a change of pace, not a pause).
-    const DROP = 1900
-    const LAND = 2750
-    const SHUT: [number, number] = [3150, 3480]
+    const OPEN: [number, number] = [2750, 3150]
+    // Sealed and stickered, it turns to you a moment (TURN: from, most turned, straight again as it
+    // goes down), then on down into the drawer without stopping.
+    const TURN: [number, number, number] = [2250, 2650, 3050]
+    const DROP = TURN[2]
+    const LAND = 3650
+    const SHUT: [number, number] = [4050, 4450]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     // The card's path: a curve from its place, up over the opening, ending straight down into it
@@ -576,21 +579,23 @@ export function CardPost({
     )
     const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
     const FLAP_MS = 750
-    // As the flap lies down, the seal is pressed on: it comes down onto the paper from a little
-    // above (larger), squashes a touch as it is pressed, and sets.
-    const SEAL = FLAP + FLAP_MS - 40
-    const wax = seal.current?.querySelector<HTMLElement>('[data-wax]')
-    const at50 = (k: number) => `translate(-50%, -50%) scale(${k})`
-    const stamp = wax?.animate(
-      [
-        { transform: at50(1.5), visibility: 'hidden', offset: 0 },
-        { transform: at50(1.5), visibility: 'hidden', offset: o(SEAL - 1) },
-        { transform: at50(1.5), visibility: 'visible', offset: o(SEAL), easing: 'cubic-bezier(0.5, 0, 0.8, 0.6)' },
-        { transform: at50(0.95), visibility: 'visible', offset: o(SEAL + 170), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
-        { transform: at50(1), visibility: 'visible', offset: o(SEAL + 280) },
-        { transform: at50(1), visibility: 'visible', offset: 1 },
-      ],
-      opts,
+    // As the flap lies down, the sticker goes on (turned each frame below), and the light runs
+    // across its foil as the envelope turns.
+    const STICK: [number, number] = [FLAP + FLAP_MS - 60, FLAP + FLAP_MS + 420]
+    const sticker = seal.current?.querySelector<HTMLElement>('[data-sticker]')
+    const stickerLeaf = sticker?.querySelector<HTMLElement>('[data-leaf]')
+    const foil = [...(sticker?.querySelectorAll<HTMLElement>('[data-foil]') ?? [])]
+    const shine = foil.map((f) =>
+      f.animate(
+        [
+          { backgroundPosition: '0 0, 20% 20%', offset: 0 },
+          { backgroundPosition: '0 0, 20% 20%', offset: o(TURN[0]), easing: EASE },
+          { backgroundPosition: '0 0, 85% 80%', offset: o(TURN[1]), easing: EASE },
+          { backgroundPosition: '0 0, 55% 50%', offset: o(TURN[2]) },
+          { backgroundPosition: '0 0, 55% 50%', offset: 1 },
+        ],
+        opts,
+      ),
     )
     // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
     // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
@@ -599,11 +604,16 @@ export function CardPost({
     const oy = ey + (eh * sc) / 2
     g.style.transformOrigin = `${ox}px ${oy}px`
     const dropY = baseY - tops - ey
-    const rest = `translateY(${dropY}px) rotate(${OURS_TILT}deg)`
+    // Sealed, it turns a little toward you (so the sticker catches the light), comes straight
+    // again as it starts down, and goes on into the drawer: one move, only its pace changing.
+    const pose = (y: number, rx: number, ry: number, rz = 0) => `translateY(${y}px) perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${rz}deg)`
+    const rest = pose(dropY, 0, 0, OURS_TILT)
     const post = g.animate(
       [
-        { transform: 'none', visibility: 'visible', offset: 0 },
-        { transform: 'none', visibility: 'visible', offset: o(DROP), easing: 'cubic-bezier(0.6, 0.04, 0.3, 1)' },
+        { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
+        { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-4, 9, -15, -1), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(dropY * 0.05, 0, 0, 0), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.5, 0.1, 0.3, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
         { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
@@ -651,7 +661,14 @@ export function CardPost({
       // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
       // k - shift deep (shown once it is past the slot line). Shut, it goes a touch past, so its last
       // line is gone too.
-      const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - 1.03 * easeInOut(span(ms, ...SHUT))
+      const p = ms < OPEN[1] ? easeInOut(span(ms, ...OPEN)) : 1 - 1.03 * easeInOut(span(ms, ...SHUT))
+      // The sticker: its top down first, the rest smoothed on after it.
+      if (sticker && stickerLeaf) {
+        const sp = span(ms, ...STICK)
+        sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
+        const se = easeOut(sp)
+        bendLeaf(stickerLeaf, 70 * (1 - se), Math.sin(Math.PI * se) * 45)
+      }
       const shift = DRAWER_UNITS * (1 - p)
       dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
       // The flap: open (stood up behind) until it closes; behind the card while more than upright.
@@ -693,7 +710,7 @@ export function CardPost({
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, stamp, post, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, post, ...parts, ...shine].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
