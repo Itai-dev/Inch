@@ -20,7 +20,7 @@ import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
-import { CardOpening, CardPost, type Place } from './CardMotion'
+import { CardOpening, CardPost, CHECK, CHECK_BOX, CHECK_STROKE, type Place } from './CardMotion'
 import { PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { CountrySelect } from './CountrySelect'
@@ -161,6 +161,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   // The page opens on the card turning over and moving aside (opening), then the ruler and the
   // form write in (writing); sending drops the card through a slot (posting) before the thanks.
   const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
+  // Where the slot's check stood when the card had gone through (the thanks' check comes on from there).
+  const [checkFrom, setCheckFrom] = useState<{ left: number; top: number } | null>(null)
   const asideRef = useRef<HTMLElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   /** Phones: the comp card unfolded under its strip. */
@@ -468,19 +470,22 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   /** What to know before starting, at the top of the first step. */
   const BEFORE = 'No experience needed: we look at every application ourselves. You’ll need four photos taken today; phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes. About 3 minutes.'
   // The thanks, in the middle of the screen once the card has gone through the slot.
+  // The words follow the check once it has come up from the slot.
+  const lag = checkFrom ? CHECK_FLY_MS : 0
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
-        <p className="label text-muted"><TypeText text="Application received" at={0} ms={12} /></p>
+        <ReceivedCheck from={checkFrom} />
+        <p className="label text-muted"><TypeText text="Application received" at={lag} ms={12} /></p>
         <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
-          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={220} ms={28} />
+          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={lag + 220} ms={28} />
         </h1>
         <p className="text-[17px] leading-snug">
-          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={620} ms={5} />
+          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={lag + 620} ms={5} />
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': '1350ms' } as React.CSSProperties}>Back to {brand}</button>
+        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': `${lag + 1350}ms` } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
@@ -505,7 +510,8 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
           front={card('', false, true)}
           division={division}
           from={cardPlace}
-          onDone={() => {
+          onDone={(check) => {
+            setCheckFrom(check)
             setPhase('ready')
             go('done')
           }}
@@ -761,5 +767,27 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       </div>
       {body}
     </div>
+  )
+}
+
+const CHECK_FLY_MS = 700
+
+/** The check the slot's line became: it comes up from where it was to its place over the thanks. */
+function ReceivedCheck({ from }: { from: { left: number; top: number } | null }) {
+  const ref = useRef<SVGSVGElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || !from) return
+    const r = el.getBoundingClientRect()
+    const a = el.animate([{ transform: `translate(${from.left - r.left}px, ${from.top - r.top}px)` }, { transform: 'none' }], {
+      duration: CHECK_FLY_MS,
+      easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+    })
+    return () => a.cancel()
+  }, [from])
+  return (
+    <svg ref={ref} aria-hidden width={CHECK_BOX} height={CHECK_BOX} viewBox={`0 0 ${CHECK_BOX} ${CHECK_BOX}`} className="shrink-0 overflow-visible">
+      <polyline points={CHECK.map((pt) => pt.join(',')).join(' ')} fill="none" stroke="currentColor" strokeWidth={CHECK_STROKE} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }

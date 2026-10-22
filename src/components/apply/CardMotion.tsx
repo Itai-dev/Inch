@@ -11,14 +11,13 @@
  *   above, among others' envelopes) that shuts on it.
  * Both draw copies over the page (fixed), so the page under them lays itself out undisturbed.
  */
-import { useEffect, useId, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { DivisionMark } from '@/components/brand/Marks'
 import { SITES, siteForDivision } from '@/lib/sites'
 import type { Division } from '@/sanity/lib/types'
 
 const EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
 const EASE_OUT = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
-const EASE_IN = 'cubic-bezier(0.55, 0, 0.9, 0.5)'
 /** Where the card goes or comes from: the card itself beside the form (`card`), or the strip it folds into on phones.
  * Beside the form the card is zoomed to fit the screen's height (`zoom`): the copies are drawn at its unzoomed width and scaled to match. */
 export type Place = { el: HTMLElement; card: boolean; zoom?: number } | null
@@ -149,14 +148,27 @@ const DRAWER_TICK = 0.14
 const OURS_U = 0.5
 const OURS_SHOW = 0.085
 const OURS_SHARE = 0.78
-/** Envelopes already in it (others have applied): [depth, share of the width, height against ours, sideways]. */
-const DRAWER_ENVELOPES: [number, number, number, number][] = [
-  [1.5, 0.76, 1, -0.02],
-  [2.5, 0.8, 1.15, 0.015],
-  [4.5, 0.74, 0.9, 0],
-  [6.5, 0.78, 1.1, -0.02],
-  [8.5, 0.76, 1, 0.02],
+/** Envelopes already in it (others have applied): [depth, share of the width, height against ours,
+ * sideways, lean back (depth), tilt (deg)]. Each leans back on the one behind it, its sides running
+ * toward the vanishing point, and stands a little askew. */
+const DRAWER_ENVELOPES: [number, number, number, number, number, number][] = [
+  [1.5, 0.76, 1, -0.02, 0.5, 1.8],
+  [2.5, 0.8, 1.15, 0.015, 0.6, -1.4],
+  [4.5, 0.74, 0.9, 0, 0.45, 2.4],
+  [6.5, 0.78, 1.1, -0.02, 0.6, -2],
+  [8.5, 0.76, 1, 0.02, 0.5, 1.2],
 ]
+/** Ours: how it lands (askew, deg), and how far it then leans back. */
+const OURS_TILT = -1.4
+const OURS_LEAN = 0.55
+/** The check the closed slot line turns into, in a 44px box (the thanks shows the same one). */
+export const CHECK_BOX = 44
+export const CHECK: [number, number][] = [
+  [4, 22],
+  [16, 34],
+  [40, 8],
+]
+export const CHECK_STROKE = 1.5
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2)
 const span = (ms: number, from: number, to: number) => Math.min(1, Math.max(0, (ms - from) / (to - from)))
@@ -292,7 +304,18 @@ export function CardOpening({
   )
 }
 
-export function CardPost({ front, division, from, onDone }: { front: React.ReactNode; division: Division; from: () => Place; onDone: () => void }) {
+export function CardPost({
+  front,
+  division,
+  from,
+  onDone,
+}: {
+  front: React.ReactNode
+  division: Division
+  from: () => Place
+  /** Called with where its check stands (the thanks' check comes on from there). */
+  onDone: (check: { left: number; top: number }) => void
+}) {
   const clip = useRef<HTMLDivElement>(null)
   const group = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -301,8 +324,6 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
   const flap = useRef<HTMLDivElement>(null)
   const tip = useRef<HTMLDivElement>(null)
   const drawer = useRef<SVGSVGElement>(null)
-  const shade = useRef<HTMLDivElement>(null)
-  const shadeId = `drawer-shade-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const done = useRef(onDone)
   useLayoutEffect(() => {
     done.current = onDone
@@ -354,13 +375,15 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     // The score (ms, played SLOW times longer): the card alone in the middle; then it settles, small,
     // where the envelope's opening will be (in front of everything); only then does the envelope
     // rise to meet it, and the card goes in. Sealed, it goes through the slot.
-    const T = 4100
+    const T = 4500
     const SLOW = 1.3
-    // The drawer: it opens as the flap comes down, ours lands in it at LAND, and it shuts after a beat.
-    const OPEN: [number, number] = [2150, 2450]
+    // The drawer: it opens as the flap comes down, ours lands in it at LAND, leans back, and it shuts
+    // after a beat; its line then turns into the check (MORPH), which the thanks takes from there.
+    const OPEN: [number, number] = [2150, 2480]
     const LAND = 3200
-    const SHUT: [number, number] = [3600, 3900]
-    const GONE = 4000
+    const LEAN: [number, number] = [3200, 3480]
+    const SHUT: [number, number] = [3600, 3930]
+    const MORPH: [number, number] = [4000, 4380]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     const card = el.animate(
@@ -380,16 +403,15 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const sheet = el.firstElementChild as HTMLElement | null
     const sway = sheet?.animate(
       [
+        // One soft lean as it is lifted, and back, each time it is moved (no swinging to and fro).
         { transform: 'rotate(0deg) skewX(0deg)', offset: 0, easing: EASE },
-        { transform: 'rotate(-2.4deg) skewX(1.2deg)', offset: o(320), easing: EASE },
-        { transform: 'rotate(0.9deg) skewX(-0.5deg)', offset: o(560), easing: EASE },
-        { transform: 'rotate(0deg) skewX(0deg)', offset: o(720) },
+        { transform: 'rotate(-1deg) skewX(0.4deg)', offset: o(300), easing: EASE },
+        { transform: 'rotate(0deg) skewX(0deg)', offset: o(700) },
         { transform: 'rotate(0deg) skewX(0deg)', offset: o(800), easing: EASE },
-        { transform: 'rotate(1.8deg) skewX(-1deg)', offset: o(980), easing: EASE },
-        { transform: 'rotate(-0.6deg) skewX(0.3deg)', offset: o(1120), easing: EASE },
+        { transform: 'rotate(0.7deg) skewX(-0.3deg)', offset: o(1000), easing: EASE },
         { transform: 'rotate(0deg) skewX(0deg)', offset: o(1250) },
         { transform: 'rotate(0deg) skewX(0deg)', offset: o(1600), easing: EASE },
-        { transform: 'rotate(-0.8deg) skewX(0.6deg)', offset: o(1780), easing: EASE },
+        { transform: 'rotate(-0.4deg) skewX(0.2deg)', offset: o(1780), easing: EASE },
         { transform: 'rotate(0deg) skewX(0deg)', offset: o(1950) },
         { transform: 'rotate(0deg) skewX(0deg)', offset: 1 },
       ],
@@ -412,6 +434,17 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       { transform: at(ex, ey, sc), offset: 1 },
     ]
     const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
+    // Once the drawer opens there is no wall behind it to throw a shadow on: the envelope's goes.
+    const inset = 'inset 0 0 0 999px rgb(0 0 0 / 0.09)'
+    const unshadow = back.current?.animate(
+      [
+        { boxShadow: `${inset}, 0 34px 44px -30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.08)`, offset: 0 },
+        { boxShadow: `${inset}, 0 34px 44px -30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.08)`, offset: o(OPEN[0]) },
+        { boxShadow: `${inset}, 0 34px 44px -30px rgb(0 0 0 / 0), 0 2px 6px rgb(0 0 0 / 0)`, offset: o(OPEN[1]) },
+        { boxShadow: `${inset}, 0 34px 44px -30px rgb(0 0 0 / 0), 0 2px 6px rgb(0 0 0 / 0)`, offset: 1 },
+      ],
+      opts,
+    )
     // Open while the card goes in; it closes over it.
     const flapClose = flap.current?.animate(
       [
@@ -440,23 +473,32 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       ],
       opts,
     )
-    // Sealed, it tips a little, then slides down into the drawer between its two nearest lines
-    // (everything below them is cut off) and stays there, its top showing. There the drawer takes
-    // it over (drawn the same), so it can shut with it.
-    g.style.transformOrigin = `${ex + (ew * sc) / 2}px ${ey + (eh * sc) / 2}px`
+    // Sealed, it is lifted a touch, then lowered in one smooth move into the drawer between its two
+    // nearest lines (everything below them is cut off), coming to rest a little askew, its top
+    // showing. There the drawer takes it over (drawn the same), so it can lean back and shut with it.
+    const ox = ex + (ew * sc) / 2
+    const oy = ey + (eh * sc) / 2
+    g.style.transformOrigin = `${ox}px ${oy}px`
     const dropY = baseY - tops - ey
+    const rest = `translateY(${dropY}px) rotate(${OURS_TILT}deg)`
     const post = g.animate(
       [
         { transform: 'none', visibility: 'visible', offset: 0 },
-        { transform: 'none', visibility: 'visible', offset: o(2350), easing: EASE_OUT },
-        { transform: 'translateY(-14px) rotate(-1.5deg)', visibility: 'visible', offset: o(2600), easing: EASE_IN },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'visible', offset: o(LAND) },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'visible', offset: o(LAND + 20) },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'hidden', offset: o(LAND + 21) },
-        { transform: `translateY(${dropY}px) rotate(0deg)`, visibility: 'hidden', offset: 1 },
+        { transform: 'none', visibility: 'visible', offset: o(2380), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: 'translateY(-6px) rotate(-0.5deg)', visibility: 'visible', offset: o(2650), easing: 'cubic-bezier(0.5, 0, 0.25, 1)' },
+        { transform: rest, visibility: 'visible', offset: o(LAND) },
+        { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
+        { transform: rest, visibility: 'hidden', offset: o(LAND + 21) },
+        { transform: rest, visibility: 'hidden', offset: 1 },
       ],
       opts,
     )
+    // Where ours lies once landed: the envelope turned about its middle, cut at the lines.
+    const turn = (OURS_TILT * Math.PI) / 180
+    const turned = ([x, y]: [number, number]): [number, number] => [ox + (x - ox) * Math.cos(turn) - (y - oy) * Math.sin(turn), oy + dropY + (x - ox) * Math.sin(turn) + (y - oy) * Math.cos(turn)]
+    const [tl, tr, br, bl] = ([[ex, ey], [ex + ew * sc, ey], [ex + ew * sc, ey + eh * sc], [ex, ey + eh * sc]] as [number, number][]).map(turned)
+    const cut = (a: [number, number], b: [number, number]): [number, number] => [a[0] + ((b[0] - a[0]) * (baseY - a[1])) / (b[1] - a[1]), baseY]
+    const oursAt: [number, number][] = [tl, tr, cut(tr, br), cut(tl, bl)]
     const cutAt = window.setTimeout(() => (c.style.height = `${baseY}px`), o(2600) * T * SLOW)
     // The drawer, drawn each frame from the score: opened `p` of the way, every line sits as deep
     // as it would p times over (so the rails stay straight and the vanishing point stays put).
@@ -469,17 +511,40 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     const set = (n: Element, a: Record<string, number | string>) => Object.entries(a).forEach(([k, v]) => n.setAttribute(k, typeof v === 'number' ? v.toFixed(2) : v))
     const yAt = (u: number) => slotY - vp * (1 - fz(u))
     const halfAt = (u: number) => (slotW / 2) * fz(u)
-    const sh = shade.current
-    const px = (n: number) => `${n}px`
+    // A point laid out in the open drawer, where the drawer opened p of the way draws it: as deep
+    // again times p (the same as its lines).
+    const opened = ([x, y]: [number, number], p: number): [number, number] => {
+      const d = (1 / Math.max(0.05, 1 - (slotY - y) / vp) - 1) / 0.22
+      return [mid + ((x - mid) * fz(d * p)) / fz(d), yAt(d * p)]
+    }
+    // Leaning back: its top drawn in toward the vanishing point, as if `lean` deeper.
+    const leanBack = (pt: [number, number], u: number, lean: number): [number, number] => [mid + ((pt[0] - mid) * fz(u + lean)) / fz(u), pt[1]]
+    const pastPose = (en: SVGGElement): [number, number][] => {
+      const [u, ws, hs, dx, lean, tilt] = ['u', 'ws', 'hs', 'dx', 'lean', 'tilt'].map((k) => Number(en.dataset[k]))
+      const cx = mid + dx * 2 * halfAt(u)
+      const by = yAt(u)
+      const half = ws * halfAt(u)
+      const h = (tops / fz(OURS_U)) * hs * fz(u)
+      const a = (tilt * Math.PI) / 180
+      const spin = ([x, y]: [number, number]): [number, number] => [cx + (x - cx) * Math.cos(a) - (y - by) * Math.sin(a), by + (x - cx) * Math.sin(a) + (y - by) * Math.cos(a)]
+      return ([leanBack([cx - half, by - h], u, lean), leanBack([cx + half, by - h], u, lean), [cx + half, by], [cx - half, by]] as [number, number][]).map(spin)
+    }
+    const oursPose = (k: number): [number, number][] => [leanBack(oursAt[0], OURS_U, OURS_LEAN * k), leanBack(oursAt[1], OURS_U, OURS_LEAN * k), oursAt[2], oursAt[3]]
+    // The check, where the line was; the thanks takes it from here.
+    const tick = dr.querySelector<SVGPolylineElement>('[data-check]')
+    const checkAt = { left: mid - CHECK_BOX / 2, top: slotY - CHECK_BOX / 2 }
+    const grey = [150, 147, 141]
+    const ink = (getComputedStyle(dr).color.match(/\d+/g) ?? ['10', '10', '10']).slice(0, 3).map(Number)
     let raf = 0
     const draw = () => {
       const ms = Number(post.currentTime ?? 0) / SLOW
       const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - easeInOut(span(ms, ...SHUT))
-      dr.style.visibility = ms >= OPEN[0] && ms < GONE ? 'visible' : 'hidden'
+      dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
       const flat = p < 0.002
       majors.forEach((ln) => {
-        const u = Number(ln.dataset.major) * p
-        set(ln, { x1: mid - halfAt(u), x2: mid + halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat && u > 0 ? 'hidden' : 'inherit' })
+        const k = Number(ln.dataset.major)
+        const u = k * p
+        set(ln, { x1: mid - halfAt(u), x2: mid + halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat && k > 0 ? 'hidden' : 'inherit' })
       })
       rails.forEach((ln) => {
         const side = Number(ln.dataset.rail)
@@ -494,29 +559,30 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
       })
       envs.forEach((en) => {
         const ours = en.dataset.env === 'ours'
-        const u = Number(en.dataset.u) * p
-        const w = Number(en.dataset.ws) * 2 * halfAt(u)
-        const h = (tops / fz(OURS_U)) * Number(en.dataset.hs) * fz(u) * p
-        const x = mid - w / 2 + Number(en.dataset.dx) * 2 * halfAt(u)
-        const shown = !flat && (!ours || ms >= LAND)
-        en.setAttribute('visibility', shown ? 'visible' : 'hidden')
-        ;[...en.children].forEach((r) => set(r, { x, y: yAt(u) - h, width: w, height: Math.max(0, h) }))
+        // Pressed flat as it shuts, an envelope is only its outline: it goes in with the lines.
+        en.setAttribute('visibility', p > 0.12 && (!ours || ms >= LAND) ? 'inherit' : 'hidden')
+        // Laid out as when open, then drawn where the drawer, opened p of the way, puts each point.
+        const pts = ours ? oursPose(easeInOut(span(ms, ...LEAN))) : pastPose(en)
+        en.firstElementChild?.setAttribute('points', pts.map((pt) => opened(pt, p).map((n) => n.toFixed(2)).join(',')).join(' '))
       })
-      // As it goes in, the drawer's shade falls on the part of it just above the lines.
-      const env = back.current?.getBoundingClientRect()
-      if (sh && env) {
-        const inSlot = ms < LAND + 20 && env.bottom > baseY && env.top < baseY
-        const top = Math.max(env.top, baseY - tops)
-        Object.assign(sh.style, { left: px(env.left), width: px(env.width), top: px(top), height: px(Math.max(0, baseY - top)), opacity: inSlot ? '1' : '0' })
+      // Shut, its line turns into the check.
+      const m = easeInOut(span(ms, ...MORPH))
+      majors[0]?.setAttribute('visibility', ms >= MORPH[0] ? 'hidden' : 'inherit')
+      if (tick) {
+        tick.setAttribute('visibility', ms >= MORPH[0] ? 'inherit' : 'hidden')
+        const line = CHECK.map(([x]) => [mid - slotW / 2 + (slotW * (x - CHECK[0][0])) / (CHECK[2][0] - CHECK[0][0]), slotY])
+        tick.setAttribute('points', CHECK.map(([x, y], i) => [line[i][0] + (checkAt.left + x - line[i][0]) * m, slotY + (checkAt.top + y - slotY) * m].map((n) => n.toFixed(2)).join(',')).join(' '))
+        tick.setAttribute('stroke-width', (0.9 + (CHECK_STROKE - 0.9) * m).toFixed(2))
+        tick.setAttribute('stroke', `rgb(${grey.map((g0, i) => Math.round(g0 + (ink[i] - g0) * m)).join(' ')})`)
       }
       raf = requestAnimationFrame(draw)
     }
     raf = requestAnimationFrame(draw)
-    post.onfinish = () => done.current()
+    post.onfinish = () => done.current(checkAt)
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, tipBend, post, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, tipBend, post, unshadow, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -525,13 +591,6 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
     <div aria-hidden className="pointer-events-none fixed inset-0 z-30">
       {/* The drawer, behind the envelope coming down into it (drawn each frame). */}
       <svg ref={drawer} className="absolute inset-0 size-full" style={{ visibility: 'hidden' }}>
-        <defs>
-          <linearGradient id={shadeId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#000" stopOpacity="0" />
-            <stop offset="0.5" stopColor="#000" stopOpacity="0.05" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.2" />
-          </linearGradient>
-        </defs>
         <g stroke="rgb(150 147 141)" strokeWidth={0.9} fill="none">
           {Array.from({ length: DRAWER_UNITS + 1 }, (_, u) => (
             <line key={u} data-major={u} strokeOpacity={(1 / (1 + u * 0.12)).toFixed(3)} />
@@ -546,12 +605,12 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
           )}
         </g>
         {/* The envelopes in it, the farthest first (ours, at the front, last). */}
-        {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1, 0]]).map(([u, ws, hs, dx], i, all) => (
-          <g key={u} data-env={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} data-dx={dx} visibility="hidden">
-            <rect fill="#fbfbf9" stroke="rgb(150 147 141 / 0.7)" strokeWidth={0.9} />
-            <rect fill={`url(#${shadeId})`} />
+        {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1, 0, OURS_LEAN, OURS_TILT]]).map(([u, ws, hs, dx, lean, tilt], i, all) => (
+          <g key={u} data-env={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} data-dx={dx} data-lean={lean} data-tilt={tilt} visibility="hidden">
+            <polygon fill="#fbfbf9" stroke="rgb(150 147 141 / 0.7)" strokeWidth={0.9} strokeLinejoin="round" />
           </g>
         ))}
+        <polyline data-check fill="none" strokeLinecap="round" strokeLinejoin="round" visibility="hidden" />
       </svg>
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
@@ -561,8 +620,6 @@ export function CardPost({ front, division, from, onDone }: { front: React.React
             {front}
           </div>
         </div>
-        {/* The drawer's shade on the envelope as it goes in (above the lines, cut with it there). */}
-        <div ref={shade} className="absolute" style={{ opacity: 0, backgroundImage: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05) 50%, rgb(0 0 0 / 0.2))' }} />
       </div>
     </div>
   )
