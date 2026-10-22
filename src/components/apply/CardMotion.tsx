@@ -11,9 +11,9 @@
  *   a drawer (seen from above, among others' envelopes) that slides shut on it.
  * Both draw copies over the page (fixed), so the page under them lays itself out undisturbed.
  */
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { Logo } from '@/components/brand/Logo'
-import { DivisionMark } from '@/components/brand/Marks'
+import { DivisionMark, LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { bendLeaf, Leaf } from './Leaf'
 import { SITES, siteForDivision } from '@/lib/sites'
 import type { Division } from '@/sanity/lib/types'
@@ -60,6 +60,66 @@ function FlapPrint({ division }: { division: Division }) {
   )
 }
 
+/** A wobbly round, as poured wax sets (the same each time). */
+const WAX_EDGE = (() => {
+  const pts = Array.from({ length: 28 }, (_, i) => {
+    const a = (i / 28) * Math.PI * 2
+    const r = 46 + 1.6 * Math.sin(a * 3 + 0.7) + 1.1 * Math.sin(a * 7 + 2.1) + 0.6 * Math.sin(a * 11)
+    return [50 + r * Math.cos(a), 50 + r * Math.sin(a)]
+  })
+  return `M${pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join(' L')} Z`
+})()
+
+/**
+ * The seal: gold wax poured where the flap's tip lies and pressed with the house's mark (INCH”'s
+ * ”, DOT.'s ■). The stamp leaves a sunken round with a raised lip, the mark sunk into it, the
+ * light catching the near edges.
+ */
+function WaxSeal({ division, id }: { division: Division; id: string }) {
+  const mark =
+    division === 'men' ? (
+      <rect x="40" y="40" width="20" height="20" />
+    ) : (
+      <g transform="translate(37.2 35.6) scale(0.4)">
+        <path d={LEFT_PATH} />
+        <path d={RIGHT_PATH} />
+      </g>
+    )
+  return (
+    <svg viewBox="0 0 100 100" className="block size-full overflow-visible [filter:drop-shadow(0_1px_1.2px_rgb(70_45_10/0.35))_drop-shadow(0_3px_5px_rgb(70_45_10/0.18))]">
+      <defs>
+        <radialGradient id={`${id}-wax`} cx="38%" cy="32%" r="75%">
+          <stop offset="0" stopColor="#ead29a" />
+          <stop offset="0.35" stopColor="#caa762" />
+          <stop offset="0.75" stopColor="#a5823f" />
+          <stop offset="1" stopColor="#7a5c27" />
+        </radialGradient>
+        <radialGradient id={`${id}-well`} cx="60%" cy="65%" r="70%">
+          <stop offset="0" stopColor="#d3b06c" />
+          <stop offset="1" stopColor="#a17f3c" />
+        </radialGradient>
+        <radialGradient id={`${id}-shine`} cx="34%" cy="26%" r="40%">
+          <stop offset="0" stopColor="#fff6dc" stopOpacity="0.7" />
+          <stop offset="1" stopColor="#fff6dc" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      {/* The poured wax. */}
+      <path d={WAX_EDGE} fill={`url(#${id}-wax)`} />
+      {/* The stamp's sunken round: dark where its upper wall faces away, light on its lower lip. */}
+      <circle cx="50" cy="50.8" r="31" fill="#f3dca0" opacity="0.75" />
+      <circle cx="50" cy="49.2" r="31" fill="#7d5a1c" opacity="0.6" />
+      <circle cx="50" cy="50" r="30.4" fill={`url(#${id}-well)`} />
+      {/* The mark sunk into it the same way. */}
+      <g fill="#f6e2a8" opacity="0.8" transform="translate(0 0.7)">
+        {mark}
+      </g>
+      <g fill="#866528">{mark}</g>
+      {/* The light on the wax. */}
+      <path d={WAX_EDGE} fill={`url(#${id}-shine)`} />
+    </svg>
+  )
+}
+
 /** Off screen until the animation places it. */
 const OFF = { transform: 'translateY(300vh)' } as const
 
@@ -92,7 +152,20 @@ function Headline({ division }: { division: Division }) {
 }
 
 /** A classic envelope's three layers, placed by the caller: its inside, the pocket in front of the card, and the flap. */
-function Envelope({ division, back, pocket, flap }: { division: Division; back: React.Ref<HTMLDivElement>; pocket: React.Ref<HTMLDivElement>; flap: React.Ref<HTMLDivElement> }) {
+function Envelope({
+  division,
+  back,
+  pocket,
+  flap,
+  seal,
+}: {
+  division: Division
+  back: React.Ref<HTMLDivElement>
+  pocket: React.Ref<HTMLDivElement>
+  flap: React.Ref<HTMLDivElement>
+  seal: React.Ref<HTMLDivElement>
+}) {
+  const sealId = `wax-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   return (
     <>
       {/* Inside, behind the card: the same stock, in shade. No shadow under it: nothing is behind it to fall on. */}
@@ -133,6 +206,12 @@ function Envelope({ division, back, pocket, flap }: { division: Division; back: 
           }
           back={<div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_INSIDE, boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />}
         />
+      </div>
+      {/* The seal, pressed on where the flap's tip lies once it is closed. */}
+      <div ref={seal} style={OFF} className="pointer-events-none absolute left-0 top-0 z-[5] origin-top-left [container-type:size]">
+        <span data-wax className="absolute left-1/2 top-[56%] block aspect-square" style={{ width: 'min(15cqw, 21cqh)', transform: 'translate(-50%, -50%)', visibility: 'hidden' }}>
+          <WaxSeal division={division} id={sealId} />
+        </span>
       </div>
     </>
   )
@@ -351,6 +430,7 @@ export function CardPost({
   const back = useRef<HTMLDivElement>(null)
   const pocket = useRef<HTMLDivElement>(null)
   const flap = useRef<HTMLDivElement>(null)
+  const seal = useRef<HTMLDivElement>(null)
   const drawer = useRef<SVGSVGElement>(null)
   const standing = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
@@ -376,6 +456,7 @@ export function CardPost({
     const h = el.offsetHeight
     const { pad, ew, eh, fh } = envSize(w, h)
     fit([back.current, pocket.current, flap.current], ew, eh, fh)
+    if (seal.current) Object.assign(seal.current.style, { width: `${ew}px`, height: `${eh}px` })
 
     const vh = window.visualViewport?.height ?? innerHeight
     // The envelope, small, low in the middle; the card goes up over it and down into it; the drawer under it.
@@ -481,7 +562,7 @@ export function CardPost({
       { transform: at(ex, ey, sc), offset: o(UP[1]) },
       { transform: at(ex, ey, sc), offset: 1 },
     ]
-    const parts = [back.current, pocket.current].map((p) => p?.animate(env, opts))
+    const parts = [back.current, pocket.current, seal.current].map((p) => p?.animate(env, opts))
     // Open while the card goes in; it closes over it as it lands, bending as it comes (its tip lags
     // and catches up, as a page does), turned each frame below.
     const flapClose = flap.current?.animate(
@@ -495,6 +576,22 @@ export function CardPost({
     )
     const flapLeaf = flap.current?.querySelector<HTMLElement>('[data-leaf]')
     const FLAP_MS = 750
+    // As the flap lies down, the seal is pressed on: it comes down onto the paper from a little
+    // above (larger), squashes a touch as it is pressed, and sets.
+    const SEAL = FLAP + FLAP_MS - 40
+    const wax = seal.current?.querySelector<HTMLElement>('[data-wax]')
+    const at50 = (k: number) => `translate(-50%, -50%) scale(${k})`
+    const stamp = wax?.animate(
+      [
+        { transform: at50(1.5), visibility: 'hidden', offset: 0 },
+        { transform: at50(1.5), visibility: 'hidden', offset: o(SEAL - 1) },
+        { transform: at50(1.5), visibility: 'visible', offset: o(SEAL), easing: 'cubic-bezier(0.5, 0, 0.8, 0.6)' },
+        { transform: at50(0.95), visibility: 'visible', offset: o(SEAL + 170), easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)' },
+        { transform: at50(1), visibility: 'visible', offset: o(SEAL + 280) },
+        { transform: at50(1), visibility: 'visible', offset: 1 },
+      ],
+      opts,
+    )
     // Sealed, it goes straight on down into the drawer between its two nearest lines (everything
     // below them is cut off), coming to rest a little askew, its top showing. There the drawer takes
     // it over (drawn the same), so it can go in with it.
@@ -596,7 +693,7 @@ export function CardPost({
     return () => {
       clearTimeout(cutAt)
       cancelAnimationFrame(raf)
-      ;[card, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
+      ;[card, sway, light, flapClose, stamp, post, ...parts].forEach((a) => a?.cancel())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -630,7 +727,7 @@ export function CardPost({
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
         <div ref={group} className="absolute inset-0">
-          <Envelope division={division} back={back} pocket={pocket} flap={flap} />
+          <Envelope division={division} back={back} pocket={pocket} flap={flap} seal={seal} />
           <div ref={box} className="absolute left-0 top-0 z-[2] origin-top-left" style={{ transform: 'translateY(200vh)' }}>
             {front}
           </div>
