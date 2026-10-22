@@ -116,6 +116,28 @@ function Envelope({ division, back, pocket, flap, tip }: { division: Division; b
   )
 }
 
+/** A sealed envelope as ours is once its flap is down (the same layers and paper), standing in the drawer. */
+function ClosedEnvelope({ division }: { division: Division }) {
+  return (
+    <div data-closed className="absolute left-0 top-0 origin-top-left">
+      <div className="envelope-paper absolute inset-0 shadow-[inset_0_0_0_999px_rgb(0_0_0/0.09)]" />
+      <div data-closed-flap className="absolute inset-x-0 top-0">
+        <div className="absolute inset-x-0 top-0 h-[55%] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.14))]">
+          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_BASE }} />
+        </div>
+        <div className="absolute inset-x-0 top-[55%] h-[45%] [filter:drop-shadow(0_2px_2px_rgb(0_0_0/0.16))]">
+          <div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_TIP }}>
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.05))' }} />
+          </div>
+          <span className="absolute bottom-[31%] left-1/2 -translate-x-1/2" style={blind}>
+            <DivisionMark division={division} size={26} />
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Sizes and places the envelope's layers; returns their animations' targets. */
 function fit(els: (HTMLElement | null)[], ew: number, eh: number, fh: number) {
   const [back, pocket, flap] = els
@@ -315,6 +337,7 @@ export function CardPost({
   const flap = useRef<HTMLDivElement>(null)
   const tip = useRef<HTMLDivElement>(null)
   const drawer = useRef<SVGSVGElement>(null)
+  const standing = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
   useLayoutEffect(() => {
     done.current = onDone
@@ -324,8 +347,9 @@ export function CardPost({
     const el = box.current
     const c = clip.current
     const dr = drawer.current
+    const st = standing.current
     const g = group.current
-    if (!el || !c || !dr || !g) return
+    if (!el || !c || !dr || !st || !g) return
     const f = from()
     const r = f?.el.getBoundingClientRect() ?? null
     const desk = !!f?.card
@@ -366,12 +390,14 @@ export function CardPost({
     // The score (ms, played SLOW times longer): the card alone in the middle; then it settles, small,
     // where the envelope's opening will be (in front of everything); only then does the envelope
     // rise to meet it, and the card goes in. Sealed, it goes through the slot.
-    const T = 4100
+    const T = 4080
     const SLOW = 1.3
-    // The drawer: it opens as the flap comes down, ours lands in it at LAND, and it shuts after a beat.
+    // The drawer: it opens as the flap comes down, ours lands in it at LAND, and it shuts after a beat;
+    // as its lines come together its last one draws in to nothing (GO).
     const OPEN: [number, number] = [2150, 2480]
     const LAND = 3200
     const SHUT: [number, number] = [3600, 3930]
+    const GO: [number, number] = [3640, 3990]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     const card = el.animate(
@@ -481,12 +507,6 @@ export function CardPost({
       ],
       opts,
     )
-    // Where ours lies once landed: the envelope turned about its middle, cut at the lines.
-    const turn = (OURS_TILT * Math.PI) / 180
-    const turned = ([x, y]: [number, number]): [number, number] => [ox + (x - ox) * Math.cos(turn) - (y - oy) * Math.sin(turn), oy + dropY + (x - ox) * Math.sin(turn) + (y - oy) * Math.cos(turn)]
-    const [tl, tr, br, bl] = ([[ex, ey], [ex + ew * sc, ey], [ex + ew * sc, ey + eh * sc], [ex, ey + eh * sc]] as [number, number][]).map(turned)
-    const cut = (a: [number, number], b: [number, number]): [number, number] => [a[0] + ((b[0] - a[0]) * (baseY - a[1])) / (b[1] - a[1]), baseY]
-    const oursAt: [number, number][] = [tl, tr, cut(tr, br), cut(tl, bl)]
     const cutAt = window.setTimeout(() => (c.style.height = `${baseY}px`), o(2600) * T * SLOW)
     // The drawer, drawn each frame from the score: opened `p` of the way, every line sits as deep
     // as it would p times over (so the rails stay straight and the vanishing point stays put).
@@ -495,34 +515,39 @@ export function CardPost({
     const majors = q<SVGLineElement>('[data-major]')
     const rails = q<SVGLineElement>('[data-rail]')
     const ticks = q<SVGLineElement>('[data-tick]')
-    const envs = q<SVGGElement>('[data-env]')
     const set = (n: Element, a: Record<string, number | string>) => Object.entries(a).forEach(([k, v]) => n.setAttribute(k, typeof v === 'number' ? v.toFixed(2) : v))
     const yAt = (u: number) => slotY - vp * (1 - fz(u))
     const halfAt = (u: number) => (slotW / 2) * fz(u)
-    // A point laid out in the open drawer, where the drawer opened p of the way draws it: as deep
-    // again times p (the same as its lines).
-    const opened = ([x, y]: [number, number], p: number): [number, number] => {
-      const d = (1 / Math.max(0.05, 1 - (slotY - y) / vp) - 1) / 0.22
-      return [mid + ((x - mid) * fz(d * p)) / fz(d), yAt(d * p)]
-    }
-    // Each of the others a little out of line, differently each time.
-    const jitter = new Map(envs.map((en) => [en, [(Math.random() * 2 - 1) * JITTER_SHIFT, (Math.random() * 2 - 1) * JITTER_TURN]]))
-    const pastPose = (en: SVGGElement): [number, number][] => {
-      const [u, ws, hs] = ['u', 'ws', 'hs'].map((k) => Number(en.dataset[k]))
-      const [dx, tilt] = jitter.get(en) ?? [0, 0]
-      const cx = mid + dx * 2 * halfAt(u)
-      const by = yAt(u)
-      const half = ws * halfAt(u)
-      const h = (tops / fz(OURS_U)) * hs * fz(u)
-      const a = (tilt * Math.PI) / 180
-      const spin = ([x, y]: [number, number]): [number, number] => [cx + (x - cx) * Math.cos(a) - (y - by) * Math.sin(a), by + (x - cx) * Math.sin(a) + (y - by) * Math.cos(a)]
-      return ([[cx - half, by - h], [cx + half, by - h], [cx + half, by], [cx - half, by]] as [number, number][]).map(spin)
-    }
+    // The envelopes standing in it: each drawn as ours is (the same layers, at its scale), cut at its
+    // line. Laid out as when open; while the drawer is part open, each is drawn in toward the middle
+    // and pressed down to its line (as deep again times p, as the lines are).
+    const stands = [...st.querySelectorAll<HTMLElement>('[data-stand]')].map((wrap) => {
+      const env = wrap.firstElementChild as HTMLElement
+      Object.assign(env.style, { width: `${ew}px`, height: `${eh}px` })
+      ;(env.querySelector('[data-closed-flap]') as HTMLElement).style.height = `${fh}px`
+      const ours = wrap.dataset.stand === 'ours'
+      const [u, ws, hs] = ['u', 'ws', 'hs'].map((k) => Number(wrap.dataset[k]))
+      let pose: string
+      if (ours) {
+        // Exactly where the real one came to rest (turned about its middle), so taking over shows nothing.
+        pose = `translate(${ox}px, ${oy + dropY}px) rotate(${OURS_TILT}deg) translate(${-ox}px, ${-oy}px) translate(${ex}px, ${ey}px) scale(${sc})`
+      } else {
+        // A little out of line, differently each time.
+        const dx = (Math.random() * 2 - 1) * JITTER_SHIFT
+        const tilt = (Math.random() * 2 - 1) * JITTER_TURN
+        const w = ws * 2 * halfAt(u)
+        const h = (tops / fz(OURS_U)) * hs * fz(u)
+        pose = `translate(${mid + dx * 2 * halfAt(u)}px, ${yAt(u)}px) rotate(${tilt}deg) translate(${-w / 2}px, ${-h}px) scale(${w / ew})`
+      }
+      return { wrap, env, ours, u, pose }
+    })
     let raf = 0
     const draw = () => {
       const ms = Number(post.currentTime ?? 0) / SLOW
       const p = ms < OPEN[1] ? easeOut(span(ms, ...OPEN)) : 1 - easeInOut(span(ms, ...SHUT))
       dr.style.visibility = ms >= OPEN[0] ? 'visible' : 'hidden'
+      // Shutting, it draws in to its middle as it goes, so the last line is gone with it.
+      dr.style.transform = st.style.transform = `scaleX(${(1 - easeInOut(span(ms, ...GO))).toFixed(4)})`
       const flat = p < 0.002
       majors.forEach((ln) => {
         const k = Number(ln.dataset.major)
@@ -540,13 +565,12 @@ export function CardPost({
         const edge = mid + side * halfAt(u)
         set(ln, { x1: edge, x2: edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(u), y1: yAt(u), y2: yAt(u), visibility: flat ? 'hidden' : 'inherit' })
       })
-      envs.forEach((en) => {
-        const ours = en.dataset.env === 'ours'
-        // Pressed flat as it shuts, an envelope is only its outline: it goes in with the lines.
-        en.setAttribute('visibility', p > 0.12 && (!ours || ms >= LAND) ? 'inherit' : 'hidden')
-        // Laid out as when open, then drawn where the drawer, opened p of the way, puts each point.
-        const pts = ours ? oursAt : pastPose(en)
-        en.firstElementChild?.setAttribute('points', pts.map((pt) => opened(pt, p).map((n) => n.toFixed(2)).join(',')).join(' '))
+      stands.forEach(({ wrap, env, ours, u, pose }) => {
+        const by = yAt(u * p)
+        const kx = fz(u * p) / fz(u)
+        wrap.style.visibility = p > 0.01 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
+        wrap.style.clipPath = `inset(0 0 calc(100% - ${by.toFixed(2)}px) 0)`
+        env.style.transform = `translate(${mid}px, ${by}px) scale(${kx}, ${kx * p}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
       })
       raf = requestAnimationFrame(draw)
     }
@@ -563,7 +587,7 @@ export function CardPost({
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-30">
       {/* The drawer, behind the envelope coming down into it (drawn each frame). */}
-      <svg ref={drawer} className="absolute inset-0 size-full" style={{ visibility: 'hidden' }}>
+      <svg ref={drawer} className="absolute inset-0 size-full origin-center" style={{ visibility: 'hidden' }}>
         <g stroke="rgb(150 147 141)" strokeWidth={0.9} fill="none">
           {Array.from({ length: DRAWER_UNITS + 1 }, (_, u) => (
             <line key={u} data-major={u} strokeOpacity={(1 / (1 + u * 0.12)).toFixed(3)} />
@@ -577,13 +601,15 @@ export function CardPost({
             ),
           )}
         </g>
-        {/* The envelopes in it, the farthest first (ours, at the front, last). */}
-        {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1]]).map(([u, ws, hs], i, all) => (
-          <g key={u} data-env={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} visibility="hidden">
-            <polygon fill="#fbfbf9" stroke="rgb(150 147 141 / 0.7)" strokeWidth={0.9} strokeLinejoin="round" />
-          </g>
-        ))}
       </svg>
+      {/* The envelopes in it, the farthest first (ours, at the front, last), each cut at its line. */}
+      <div ref={standing} className="absolute inset-0 origin-center">
+        {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1]]).map(([u, ws, hs], i, all) => (
+          <div key={u} data-stand={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} className="absolute inset-0" style={{ visibility: 'hidden' }}>
+            <ClosedEnvelope division={division} />
+          </div>
+        ))}
+      </div>
       <div ref={clip} className="absolute inset-x-0 top-0 h-full overflow-hidden">
         {/* The envelope and the card in it move as one once it is sealed. */}
         <div ref={group} className="absolute inset-0">

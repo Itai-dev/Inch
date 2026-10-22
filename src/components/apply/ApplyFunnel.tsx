@@ -767,13 +767,35 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   )
 }
 
-const CHECK_MS = 520
+/** The check: written large in the middle of the screen, a beat, then it goes small to its place over the words. */
+const CHECK_WRITE_MS = 520
+const CHECK_HOLD_MS = 160
+const CHECK_MOVE_MS = 650
+const CHECK_MS = CHECK_WRITE_MS + CHECK_HOLD_MS + CHECK_MOVE_MS
+const CHECK_BIG = 2.6
 
-/** A check, written in one stroke (the short side, then the long one) over the thanks. */
 function ReceivedCheck() {
+  const ref = useRef<SVGSVGElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const r = el.getBoundingClientRect()
+    const vh = window.visualViewport?.height ?? innerHeight
+    const big = `translate(${innerWidth / 2 - (r.left + r.width / 2)}px, ${vh / 2 - (r.top + r.height / 2)}px) scale(${CHECK_BIG})`
+    const hold = (CHECK_WRITE_MS + CHECK_HOLD_MS) / CHECK_MS
+    const a = el.animate(
+      [
+        { transform: big, offset: 0 },
+        { transform: big, offset: hold, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' },
+        { transform: 'none', offset: 1 },
+      ],
+      { duration: CHECK_MS },
+    )
+    return () => a.cancel()
+  }, [])
   return (
-    <svg aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0">
-      <polyline points="4,22 16,34 40,8" pathLength={1} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="check-write" style={{ animationDuration: `${CHECK_MS}ms` }} />
+    <svg ref={ref} aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0 overflow-visible">
+      <polyline points="4,22 16,34 40,8" pathLength={1} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="check-write" style={{ animationDuration: `${CHECK_WRITE_MS}ms` }} />
     </svg>
   )
 }
