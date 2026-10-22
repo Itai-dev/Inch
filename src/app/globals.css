@@ -333,6 +333,12 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 @media (prefers-reduced-motion: no-preference) {
   .photo-paste { animation: photo-paste 0.85s cubic-bezier(0.3, 0.8, 0.3, 1) both; }
 }
+/* In the form, a photo just added slides into its spot, cut to its frame (only on the card's
+   paper does a photo come from outside its frame). */
+@keyframes photo-slide { from { transform: translateX(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .photo-slide { animation: photo-slide 0.8s cubic-bezier(0.45, 0, 0.25, 1) both; }
+}
 [data-apply-phase="posting"] .apply-in { visibility: hidden; }
 /* Phones and tablets: Continue (and Back) stay in view at the foot of the screen while a step is filled in. */
 @media (max-width: 1023px) {
@@ -449,6 +455,20 @@ main:has([data-magazine]) + footer { margin-top: 0; }
 }
 /* Marked text, focus rings and taps in the page's ink, never the system blue. */
 ::selection { background: var(--fg); color: var(--bg); }
+/* The date field's parts (day, month, year) as they are typed into, and checkboxes: in ink too. */
+input::-webkit-datetime-edit-day-field:focus,
+input::-webkit-datetime-edit-month-field:focus,
+input::-webkit-datetime-edit-year-field:focus { background-color: var(--fg); color: var(--bg); }
+:root { accent-color: var(--fg); }
+/* Filled in by the browser: no tinted box behind the text. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--fg);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--fg);
+  transition: background-color 9999s;
+}
 :focus-visible { outline-color: var(--fg); }
 html { -webkit-tap-highlight-color: transparent; }
 

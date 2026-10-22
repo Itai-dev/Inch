@@ -48,7 +48,7 @@ const narrow = { fontStretch: '80%' } as const
 export function CountrySelect({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void; inputClassName?: string }) {
   const id = useId()
   return (
-    <div className="relative flex min-w-0 flex-col gap-2">
+    <div data-q className="relative flex min-w-0 flex-col gap-2">
       <label htmlFor={`${id}-select`} className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>
         {label}
       </label>

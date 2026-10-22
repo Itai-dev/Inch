@@ -334,7 +334,7 @@ const flapAt = (x: number, y: number, deg: number, ew: number, sc: number) =>
  * to a vanishing point above. Depth `u` runs 0 (the slot line, at the front) to DRAWER_UNITS (the
  * back); a line `u` deep sits vp * (1 - fz(u)) px above the slot and fz(u) of its width.
  */
-const DRAWER_UNITS = 8
+const DRAWER_UNITS = 16
 /** How far up the vanishing point is, against the drawer's width at the front (and at most against the screen's height). */
 const DRAWER_RISE = 0.7
 const DRAWER_RISE_MAX = 0.28
@@ -356,6 +356,12 @@ const DRAWER_ENVELOPES: [number, number, number][] = [
   [4.5, 0.74, 0.9],
   [5.5, 0.78, 1.1],
   [7.5, 0.76, 1],
+  [8.5, 0.8, 0.95],
+  [10.5, 0.75, 1.1],
+  [11.5, 0.79, 1],
+  [12.5, 0.77, 0.9],
+  [14.5, 0.8, 1.05],
+  [15.5, 0.75, 1],
 ]
 const JITTER_SHIFT = 0.025
 const JITTER_TURN = 1.2

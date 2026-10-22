@@ -72,7 +72,7 @@ export function ColorSelect({
   const chosen = other ? OTHER : value
   const swatch = options.find((o) => o.name === chosen)
   return (
-    <div className="relative flex min-w-0 flex-col gap-1.5">
+    <div data-q className="relative flex min-w-0 flex-col gap-1.5">
       <label htmlFor={`${id}-select`} className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
         {label}
       </label>

@@ -79,7 +79,7 @@ const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,
 
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
-    <label className={`flex min-w-0 flex-col gap-2 ${className}`}>
+    <label data-q className={`flex min-w-0 flex-col gap-2 ${className}`}>
       <span className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
@@ -311,6 +311,52 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     ro.observe(body)
     return () => ro.disconnect()
   }, [step])
+  // Guided through the form: as a question is answered (or gone into), the next one is brought into
+  // view if it isn't already (under the top bar and the ruler, above the buttons at the foot on
+  // phones and above the keyboard), never so far that the one just answered leaves the screen.
+  useEffect(() => {
+    const sheet = sheetRef.current
+    if (!sheet) return
+    let timer = 0
+    const sticky = (el: Element | null | undefined) => !!el && getComputedStyle(el).position === 'sticky'
+    const reveal = (from: EventTarget | null) => {
+      const el = from instanceof Element ? from : null
+      const form = el?.closest('form')
+      const q = el?.closest<HTMLElement>('[data-q]')
+      if (!form || !q || !sheet.contains(form)) return
+      const all = [...form.querySelectorAll<HTMLElement>('[data-q]')]
+      const foot = form.querySelector<HTMLElement>('.apply-nav')
+      const ahead = all[all.indexOf(q) + 1] ?? foot
+      if (!ahead) return
+      const top = Math.max(barRef.current?.getBoundingClientRect().bottom ?? 0, sticky(rulerRef.current) ? rulerRef.current!.getBoundingClientRect().bottom : 0)
+      const view = window.visualViewport
+      let bottom = view ? view.offsetTop + view.height : innerHeight
+      const footBox = sticky(foot) ? foot : sticky(foot?.parentElement) ? foot!.parentElement : null
+      if (footBox && ahead !== foot) bottom = Math.min(bottom, footBox.getBoundingClientRect().top)
+      const by = Math.min(ahead.getBoundingClientRect().bottom + 16 - bottom, q.getBoundingClientRect().top - 12 - top)
+      if (by > 4) sheet.scrollBy({ top: by, behavior: reduced ? 'auto' : 'smooth' })
+    }
+    const later = (e: Event, ms: number) => {
+      clearTimeout(timer)
+      const target = e.target
+      timer = window.setTimeout(() => reveal(target), ms)
+    }
+    // Answered: a choice made, a date set, a photo added, a field left (its next one is then entered).
+    const onChange = (e: Event) => later(e, 80)
+    // Gone into: after the phone's keyboard has come up.
+    const onFocus = (e: Event) => later(e, 380)
+    // The height tape let go.
+    const onUp = (e: Event) => (e.target as Element | null)?.closest?.('[role=slider]') && later(e, 120)
+    sheet.addEventListener('change', onChange, true)
+    sheet.addEventListener('focusin', onFocus)
+    sheet.addEventListener('pointerup', onUp)
+    return () => {
+      clearTimeout(timer)
+      sheet.removeEventListener('change', onChange, true)
+      sheet.removeEventListener('focusin', onFocus)
+      sheet.removeEventListener('pointerup', onUp)
+    }
+  }, [reduced])
   const router = useRouter()
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
@@ -629,7 +675,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               <p className="sm:col-span-2 text-[16px] leading-snug">You’re {GUARDIAN_AGE} or younger, so a parent or guardian needs to agree to your application. We’ll speak to them first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
-              <label className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
+              <label data-q className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
                 <input required type="checkbox" checked={d.guardianConsent} onChange={(e) => set('guardianConsent', e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-current" />
                 <span>I’m {d.firstName ? `${d.firstName}’s` : 'their'} parent or guardian, and I consent to this application to {brand}.</span>
               </label>
@@ -646,7 +692,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                 else next()
               }}
             >
-              <div className="flex flex-col gap-2">
+              <div data-q className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
                   {/* Centimetres or feet and inches. */}
@@ -667,7 +713,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                 {SIZE_KEYS.map((k) => {
                   const value = d[k]
                   return (
-                    <label key={k} className="flex min-w-0 flex-col gap-1.5">
+                    <label key={k} data-q className="flex min-w-0 flex-col gap-1.5">
                       <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                         {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
@@ -711,6 +757,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                   return (
                     <label
                       key={s.pose}
+                      data-q
                       className="group flex cursor-pointer flex-col gap-2"
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
@@ -718,14 +765,14 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                         addPhoto(s.pose, e.dataTransfer.files[0])
                       }}
                     >
-                      {/* The empty spot stays as it is under a photo: the photo is laid onto it, as a print onto a form. */}
-                      <span className="relative block aspect-[3/4] border-2 border-dashed border-fg/70 group-hover:border-fg">
+                      {/* The empty spot stays as it is under a photo: the photo slides in over it, cut to its frame. */}
+                      <span className="relative block aspect-[3/4] border-2 border-dashed border-fg/70 [clip-path:inset(0)] group-hover:border-fg">
                         <Silhouette pose={s.pose} className="absolute inset-[12%] text-muted/60" />
                         {!p && <span className="absolute bottom-2 left-2 text-[12px] font-bold uppercase" style={narrow}>+ Add</span>}
                         {p && (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img key={p.url} src={p.url} alt={s.label} className="photo-paste absolute -inset-[2px] size-[calc(100%+4px)] max-w-none object-cover" />
+                            <img key={p.url} src={p.url} alt={s.label} className="photo-slide absolute -inset-[2px] size-[calc(100%+4px)] max-w-none object-cover" />
                             <span className="absolute bottom-2 right-2 bg-bg px-1.5 py-0.5 text-[11px] font-bold uppercase" style={narrow}>Replace</span>
                           </>
                         )}
@@ -766,7 +813,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">
                 <textarea rows={3} className={`${mid} resize-none`} placeholder="Experience, other agencies, when you’re free…" value={d.experience} onChange={(e) => set('experience', e.target.value)} />
               </Field>
-              <label className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
+              <label data-q className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
                 <input required type="checkbox" checked={d.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-current" />
                 <span>
                   I agree that {brand} may keep my details and photos to review my application and contact me, as described in the{' '}
