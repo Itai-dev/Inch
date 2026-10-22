@@ -92,11 +92,25 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
 
 // Giant logo: big at the top of the page, shrinking into the header logo as you scroll.
+// Phones: as wide as the screen between the margins, just under the header's row (clear of MENU).
+const isPhone = () => window.innerWidth < 768
+const logoTop = () => (isPhone() ? headerTop() + headerLogo() * 0.9 + 12 : window.innerHeight * 0.02)
 const logoTransform = (big: number, e: number) =>
-  `translateY(${lerp(window.innerHeight * 0.02, headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
+  `translateY(${lerp(logoTop(), headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
+/** The logo's width for each px of its font size (measured once per logo). */
+const logoAspect = new WeakMap<HTMLElement, number>()
 function placeLogo(el: HTMLElement | null) {
   if (!el) return 0
-  const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
+  let big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
+  if (isPhone()) {
+    let k = logoAspect.get(el)
+    if (!k) {
+      el.style.fontSize = '100px'
+      k = el.offsetWidth / 100
+      if (k > 0) logoAspect.set(el, k)
+    }
+    if (k) big = Math.min((window.innerWidth - 2 * headerSide()) / k, window.innerHeight * 0.3)
+  }
   const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
   el.style.fontSize = `${big}px`
   el.style.left = `${headerSide()}px`
