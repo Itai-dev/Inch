@@ -47,7 +47,7 @@ const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
 const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.4s (globals.css)
 const RULER_IN_MS = 1000 // ruler blinks in at +1s…
-const NUDGE_AFTER_MS = 5000 // the scroll hint, after the video has opened
+const NUDGE_AFTER_MS = 9000 // the scroll hint, after the video has opened
 const RULER_STEP_MS = 1400 // …and moves on one item as it arrives, to show what it does
 const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
@@ -113,10 +113,11 @@ const logoTransform = (big: number, e: number, el?: HTMLElement | null) =>
 /** The header's menu (phones: MENU, and DOT.'s INCH” box). */
 const headerNav = () => document.querySelector<HTMLElement>('[data-site-header] nav')
 /**
- * Phones: the menu waits under the giant logo while the logo still reaches across it, and rises
- * to its place beside the small logo as the logo narrows (from full width until it is MENU_EASE_PX clear of it).
+ * Phones: the menu waits under the giant logo, following it up as it shrinks, and takes its place
+ * beside the small logo only as the logo arrives there.
  */
-const MENU_EASE_PX = 40
+/** The share of the logo's shrink after which the menu rises into place. */
+const MENU_RISE_FROM = 0.8
 function placeMenu(el: HTMLElement | null, big: number, e: number) {
   const nav = headerNav()
   if (!nav) return
@@ -127,18 +128,15 @@ function placeMenu(el: HTMLElement | null, big: number, e: number) {
   const s = lerp(1, headerLogo() / big, e)
   const header = nav.parentElement as HTMLElement
   const navTop = header.getBoundingClientRect().top + nav.offsetTop
-  const navLeft = header.getBoundingClientRect().left + nav.offsetLeft
   const gap = 6
   const m = logoMeasure.get(el)
   // The letters' bottom and right edge as the logo is now.
   const top = lerp(logoTop(el, big), headerTop(), e)
   const lettersBottom = top + ((m?.air ?? 0) * big + (m ? m.h * big : el.offsetHeight)) * s
-  const logoRight = headerSide() + el.offsetWidth * s
-  // Under the logo while it is at full width; rising as it narrows, until it is MENU_EASE_PX clear of the menu.
-  const fullRight = window.innerWidth - headerSide()
-  const clearX = navLeft - gap - MENU_EASE_PX
-  const over = Math.min(1, Math.max(0, (logoRight - clearX) / Math.max(1, fullRight - clearX)))
-  const drop = Math.max(0, lettersBottom + gap - navTop) * smooth(over)
+  // It rides just under the logo's letters as the logo shrinks, and only in the last stretch, as the
+  // logo arrives at its smallest, rises into its own place beside it.
+  const rise = smooth(Math.min(1, Math.max(0, (e - MENU_RISE_FROM) / (1 - MENU_RISE_FROM))))
+  const drop = Math.max(0, lettersBottom + gap - navTop) * (1 - rise)
   nav.style.transform = drop > 0.5 ? `translateY(${drop.toFixed(1)}px)` : ''
 }
 function placeLogo(el: HTMLElement | null) {
@@ -399,14 +397,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   }, [stage, N, skip])
 
   const nudged = useRef(false)
-  // A hint that the page goes on (once): five seconds after the video has opened, if nobody has scrolled
+  // A hint that the page goes on (once): nine seconds after the video has opened, if nobody has scrolled
   // yet, the hero lifts a little and settles back, twice.
   useEffect(() => {
     if (stage !== 'over' || reduced || nudged.current) return
     const id = setTimeout(() => {
       const root = rootRef.current
       if (!root || window.scrollY > 4) return
-      const lift = Math.round(Math.min(48, window.innerHeight * 0.05))
+      const lift = Math.round(Math.min(22, window.innerHeight * 0.025))
       nudged.current = true
       const ease = 'cubic-bezier(0.45, 0, 0.55, 1)'
       root.animate(
@@ -418,7 +416,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
           { transform: 'none', offset: 0.9 },
           { transform: 'none', offset: 1 },
         ],
-        { duration: 1900 },
+        { duration: 1100 },
       )
     }, NUDGE_AFTER_MS)
     return () => clearTimeout(id)
