@@ -165,6 +165,10 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const [cardMoving, setCardMoving] = useState(true)
   /** Sending: the form has cleared, leaving the card. */
   const [clearing, setClearing] = useState(false)
+  /** Where the drawer's slot was: the thanks' check comes up out of it. */
+  const [checkFrom, setCheckFrom] = useState<{ x: number; y: number } | null>(null)
+  /** The card going into the envelope and the drawer (it outlasts the posting phase a little, finishing over the thanks). */
+  const [postAlive, setPostAlive] = useState(false)
   const asideRef = useRef<HTMLElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   /** Phones: the comp card unfolded under its strip. */
@@ -404,14 +408,17 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       await new Promise((r) => setTimeout(r, FOLD_OPEN_MS))
     }
     setPhase('posting')
+    setPostAlive(true)
   }
 
   /** The card is in the drawer: the thanks once the application has gone; if it didn't, back to the form, saying why. */
-  async function posted() {
+  async function posted(slot: { x: number; y: number }) {
+    setCheckFrom(slot)
     const err = await outcome.current
     setSending(false)
     setPhase('ready')
     if (err) {
+      setPostAlive(false)
       setClearing(false)
       setError(err)
       return
@@ -513,7 +520,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
-        <ReceivedCheck />
+        <ReceivedCheck from={checkFrom} />
         <p className="label text-muted"><TypeText text="Application received" at={lag} ms={12} /></p>
         <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
           <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={lag + 220} ms={28} />
@@ -554,14 +561,6 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
             setCardMoving(false)
             setPhase((ph) => (ph === 'opening' ? 'ready' : ph))
           }}
-        />
-      )}
-      {phase === 'posting' && (
-        <CardPost
-          front={card('', false, true)}
-          division={division}
-          from={cardPlace}
-          onDone={posted}
         />
       )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
@@ -814,39 +813,47 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
         </button>
       </div>
       {body}
+      {/* The card into the envelope and the drawer: over the page, and still finishing as the thanks comes. */}
+      {postAlive && <CardPost front={card('', false, true)} division={division} from={cardPlace} onShut={posted} onDone={() => setPostAlive(false)} />}
     </div>
   )
 }
 
-/** The check: written large in the middle of the screen, a beat, then it goes small to its place over the words. */
-const CHECK_WRITE_MS = 520
-const CHECK_HOLD_MS = 160
+/**
+ * The check: it comes up out of the slot the drawer went into, as if the ruler had drawn it back
+ * out of the depth, lying flat at first and standing up as it comes, and stops large in the middle
+ * of the screen; a beat, then it goes small to its place over the words.
+ */
+const CHECK_RISE_MS = 750
+const CHECK_HOLD_MS = 180
 const CHECK_MOVE_MS = 650
-const CHECK_MS = CHECK_WRITE_MS + CHECK_HOLD_MS + CHECK_MOVE_MS
+const CHECK_MS = CHECK_RISE_MS + CHECK_HOLD_MS + CHECK_MOVE_MS
 const CHECK_BIG = 2.6
 
-function ReceivedCheck() {
+function ReceivedCheck({ from }: { from: { x: number; y: number } | null }) {
   const ref = useRef<SVGSVGElement>(null)
   useLayoutEffect(() => {
     const el = ref.current
-    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!el || !from || matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const r = el.getBoundingClientRect()
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
     const vh = window.visualViewport?.height ?? innerHeight
-    const big = `translate(${innerWidth / 2 - (r.left + r.width / 2)}px, ${vh / 2 - (r.top + r.height / 2)}px) scale(${CHECK_BIG})`
-    const hold = (CHECK_WRITE_MS + CHECK_HOLD_MS) / CHECK_MS
+    const pose = (x: number, y: number, tilt: number, k: number) => `translate(${x - cx}px, ${y - cy}px) perspective(500px) rotateX(${tilt}deg) scale(${k})`
     const a = el.animate(
       [
-        { transform: big, offset: 0 },
-        { transform: big, offset: hold, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' },
-        { transform: 'none', offset: 1 },
+        { transform: pose(from.x, from.y, 78, 0.25), offset: 0, easing: 'cubic-bezier(0.2, 0.7, 0.25, 1)' },
+        { transform: pose(innerWidth / 2, vh / 2, 0, CHECK_BIG), offset: CHECK_RISE_MS / CHECK_MS },
+        { transform: pose(innerWidth / 2, vh / 2, 0, CHECK_BIG), offset: (CHECK_RISE_MS + CHECK_HOLD_MS) / CHECK_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' },
+        { transform: pose(cx, cy, 0, 1), offset: 1 },
       ],
       { duration: CHECK_MS },
     )
     return () => a.cancel()
-  }, [])
+  }, [from])
   return (
     <svg ref={ref} aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0 overflow-visible">
-      <polyline points="4,22 16,34 40,8" pathLength={1} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="butt" strokeLinejoin="miter" className="check-write" style={{ animationDuration: `${CHECK_WRITE_MS}ms` }} />
+      <polyline points="4,22 16,34 40,8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="butt" strokeLinejoin="miter" />
     </svg>
   )
 }

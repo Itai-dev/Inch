@@ -418,11 +418,15 @@ export function CardPost({
   front,
   division,
   from,
+  onShut,
   onDone,
 }: {
   front: React.ReactNode
   division: Division
   from: () => Place
+  /** As the drawer goes in: where its slot is (the thanks' check comes up out of it). */
+  onShut: (slot: { x: number; y: number }) => void
+  /** All gone. */
   onDone: () => void
 }) {
   const clip = useRef<HTMLDivElement>(null)
@@ -435,8 +439,10 @@ export function CardPost({
   const drawer = useRef<SVGSVGElement>(null)
   const standing = useRef<HTMLDivElement>(null)
   const done = useRef(onDone)
+  const shut = useRef(onShut)
   useLayoutEffect(() => {
     done.current = onDone
+    shut.current = onShut
   })
 
   // Before the first paint, so the card never shows anywhere but where it is.
@@ -489,19 +495,20 @@ export function CardPost({
     // One continuous score (ms, played SLOW times longer), nothing waits for anything: the card
     // lifts from its place and arcs up over the envelope rising under it, comes straight down into
     // it, the flap closes over it as it lands, and the sealed envelope goes on down into the drawer.
-    const T = 4700
+    const T = 5050
     const SLOW = 1.3
     const CARD_END = 1500
     const FLAP = 1250
     // The drawer: it slides out as the flap comes down, ours lands in it at LAND, and after a beat it
     // slides back in, all of it (its last line too).
-    const OPEN: [number, number] = [2750, 3150]
+    const OPEN: [number, number] = [3000, 3400]
     // Sealed and stickered, it turns to you a moment (TURN: from, most turned, straight again as it
     // goes down), then on down into the drawer without stopping.
-    const TURN: [number, number, number] = [2250, 2650, 3050]
+    const TURN: [number, number, number] = [2450, 2800, 3250]
     const DROP = TURN[2]
-    const LAND = 3650
-    const SHUT: [number, number] = [4050, 4450]
+    const LAND = 3900
+    // A beat with it lying in the drawer, then the drawer goes in.
+    const SHUT: [number, number] = [4550, 4950]
     const o = (ms: number) => ms / T
     const opts = { duration: T * SLOW, fill: 'forwards' as const }
     // The card's path: a curve from its place, up over the opening, ending straight down into it
@@ -581,7 +588,8 @@ export function CardPost({
     const FLAP_MS = 750
     // As the flap lies down, the sticker goes on (turned each frame below), and the light runs
     // across its foil as the envelope turns.
-    const STICK: [number, number] = [FLAP + FLAP_MS - 60, FLAP + FLAP_MS + 420]
+    // A moment after the flap is down (the envelope closed), the sticker goes on.
+    const STICK: [number, number] = [FLAP + FLAP_MS + 500, FLAP + FLAP_MS + 980]
     const sticker = seal.current?.querySelector<HTMLElement>('[data-sticker]')
     const stickerLeaf = sticker?.querySelector<HTMLElement>('[data-leaf]')
     const foil = [...(sticker?.querySelectorAll<HTMLElement>('[data-foil]') ?? [])]
@@ -604,15 +612,15 @@ export function CardPost({
     const oy = ey + (eh * sc) / 2
     g.style.transformOrigin = `${ox}px ${oy}px`
     const dropY = baseY - tops - ey
-    // Sealed, it turns a little toward you (so the sticker catches the light), comes straight
-    // again as it starts down, and goes on into the drawer: one move, only its pace changing.
+    // As the sticker goes on, the envelope turns a touch with the hand putting it on (the foil
+    // catching the light), comes straight again as it starts down, and goes on into the drawer.
     const pose = (y: number, rx: number, ry: number, rz = 0) => `translateY(${y}px) perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${rz}deg)`
     const rest = pose(dropY, 0, 0, OURS_TILT)
     const post = g.animate(
       [
         { transform: pose(0, 0, 0), visibility: 'visible', offset: 0 },
         { transform: pose(0, 0, 0), visibility: 'visible', offset: o(TURN[0]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-        { transform: pose(-4, 9, -15, -1), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: pose(-2, 3, -5, -0.4), visibility: 'visible', offset: o(TURN[1]), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
         { transform: pose(dropY * 0.05, 0, 0, 0), visibility: 'visible', offset: o(TURN[2]), easing: 'cubic-bezier(0.5, 0.1, 0.3, 1)' },
         { transform: rest, visibility: 'visible', offset: o(LAND) },
         { transform: rest, visibility: 'visible', offset: o(LAND + 20) },
@@ -706,9 +714,12 @@ export function CardPost({
       raf = requestAnimationFrame(draw)
     }
     raf = requestAnimationFrame(draw)
+    // As the drawer goes in, the thanks' check comes up out of it (drawn back out of the depth).
+    const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), (o(SHUT[0] + 220) * T * SLOW))
     post.onfinish = () => done.current()
     return () => {
       clearTimeout(cutAt)
+      clearTimeout(shutAt)
       cancelAnimationFrame(raf)
       ;[card, sway, light, flapClose, post, ...parts, ...shine].forEach((a) => a?.cancel())
     }
