@@ -1,11 +1,10 @@
 'use client'
 
 /**
- * Hair and eye colour as a dropdown: each name with its colour beside it (the words
- * agencies use on comp cards, so scouts can filter by them). "Other" opens a text field.
- * A listbox underneath: arrow keys, Enter and Esc work as in a native select.
+ * Hair and eye colour as the device's own picker (the words agencies use on comp cards, so
+ * scouts can filter by them), the chosen colour shown beside it. "Other" opens a text field.
  */
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 
 type Swatch = { name: string; color: string }
 
@@ -64,124 +63,55 @@ export function ColorSelect({
   options: Swatch[]
   value: string
   onChange: (v: string) => void
-  /** Draw each colour as an iris (eye colour) rather than a flat dot. */
+  /** Draw the chosen colour as an iris (eye colour) rather than a flat dot. */
   iris?: boolean
   inputClassName: string
 }) {
   const id = useId()
-  const [open, setOpen] = useState(false)
   const [other, setOther] = useState(!!value && !options.some((o) => o.name === value))
-  const all = [...options.map((o) => o.name), OTHER]
   const chosen = other ? OTHER : value
-  const [active, setActive] = useState(0)
-  const root = useRef<HTMLDivElement>(null)
-  const button = useRef<HTMLButtonElement>(null)
-  const list = useRef<HTMLUListElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
-    document.addEventListener('pointerdown', away)
-    list.current?.focus()
-    return () => document.removeEventListener('pointerdown', away)
-  }, [open])
-
-  useEffect(() => {
-    if (open) list.current?.children[active]?.scrollIntoView({ block: 'nearest' })
-  }, [open, active])
-
-  const show = () => {
-    setActive(Math.max(0, all.indexOf(chosen)))
-    setOpen(true)
-  }
-  const pick = (name: string) => {
-    setOpen(false)
-    button.current?.focus()
-    if (name === OTHER) {
-      setOther(true)
-      if (!other) onChange('')
-    } else {
-      setOther(false)
-      onChange(name)
-    }
-  }
-
-  const onListKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActive((a) => (a + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length)
-    } else if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      pick(all[active])
-    } else if (e.key === 'Escape') {
-      // Close the list, not the whole application.
-      e.stopPropagation()
-      setOpen(false)
-      button.current?.focus()
-    } else if (e.key === 'Tab') setOpen(false)
-  }
-
   const swatch = options.find((o) => o.name === chosen)
   return (
-    <div ref={root} className="relative flex min-w-0 flex-col gap-1.5">
-      <span id={`${id}-label`} className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
+    <div data-q className="relative flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={`${id}-select`} className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
         {label}
-      </span>
-      <button
-        ref={button}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-labelledby={`${id}-label ${id}-value`}
-        onClick={() => (open ? setOpen(false) : show())}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault()
-            show()
-          }
-        }}
-        className={`flex w-full items-center gap-3 border-b-2 pb-1.5 text-left text-[clamp(18px,1.5vw,22px)] font-semibold outline-none ${chosen ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
-      >
+      </label>
+      {/* The device's own picker (a wheel on a phone, as the sizes), the chosen colour beside it. */}
+      <span className={`flex w-full items-center gap-3 border-b-2 pb-1.5 ${chosen ? 'border-fg' : 'border-line focus-within:border-fg'}`}>
         {chosen ? <Dot color={swatch?.color} iris={iris} size={20} /> : null}
-        <span id={`${id}-value`} className={`min-w-0 flex-1 truncate ${chosen ? '' : 'text-muted/40'}`}>
-          {chosen || 'Choose'}
+        <span className="relative min-w-0 flex-1">
+          <select
+            id={`${id}-select`}
+            value={chosen}
+            onChange={(e) => {
+              const name = e.target.value
+              if (name === OTHER) {
+                setOther(true)
+                if (!other) onChange('')
+              } else {
+                setOther(false)
+                onChange(name)
+              }
+            }}
+            className={`w-full cursor-pointer appearance-none truncate rounded-none bg-transparent pr-5 text-[clamp(18px,1.5vw,22px)] font-semibold outline-none ${chosen ? '' : 'text-muted/40'}`}
+          >
+            <option value="" disabled>
+              Choose
+            </option>
+            {options.map((o) => (
+              <option key={o.name} value={o.name} className="text-fg">
+                {o.name}
+              </option>
+            ))}
+            <option value={OTHER} className="text-fg">
+              Other…
+            </option>
+          </select>
+          <svg viewBox="0 0 12 8" aria-hidden className="pointer-events-none absolute right-0 top-1/2 w-3 -translate-y-1/2">
+            <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
+          </svg>
         </span>
-        <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
-          <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
-        </svg>
-      </button>
-
-      {open && (
-        <ul
-          ref={list}
-          role="listbox"
-          tabIndex={-1}
-          aria-labelledby={`${id}-label`}
-          aria-activedescendant={`${id}-${active}`}
-          onKeyDown={onListKey}
-          className="absolute inset-x-0 top-full z-20 mt-1 max-h-[316px] overflow-y-auto border-2 border-fg bg-bg py-1 outline-none"
-        >
-          {all.map((name, i) => {
-            const o = options.find((x) => x.name === name)
-            return (
-              <li
-                key={name}
-                id={`${id}-${i}`}
-                role="option"
-                aria-selected={name === chosen}
-                onPointerEnter={() => setActive(i)}
-                onClick={() => pick(name)}
-                className={`flex cursor-pointer items-center gap-3 px-3 py-2 text-[14px] font-bold uppercase ${i === active ? 'bg-surface' : ''}`}
-                style={narrow}
-              >
-                <Dot color={o?.color} iris={iris} size={20} />
-                <span className="flex-1">{name === OTHER ? 'Other…' : name}</span>
-                {name === chosen && <span aria-hidden>✓</span>}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      </span>
 
       {other && (
         <input

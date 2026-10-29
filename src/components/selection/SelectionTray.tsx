@@ -3,11 +3,12 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { isPlaceholder } from '@/lib/placeholders'
+import { enquiryMailto } from '@/lib/enquiry'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
-export function SelectionTray({ site }: { site: Site }) {
+export function SelectionTray({ site, email }: { site: Site; email: string }) {
   const { items, remove, clear, open, setOpen } = useSelection()
   // The selection as comp cards: one PDF, a page a model, each linking to her page on the site.
   const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}`
@@ -16,6 +17,8 @@ export function SelectionTray({ site }: { site: Site }) {
   const [state, setState] = useState<'idle' | 'making' | 'link' | 'copied' | 'error'>('idle')
   // The link to the PDF itself, for when the device can't share the file.
   const pdfLink = typeof location === 'undefined' ? compCards : location.origin + compCards
+  // The shortlist, straight to the agency as a booking enquiry (the comp cards linked in it).
+  const request = enquiryMailto(email, { brand: SITES[site].brand, models: items.map((t) => t.name), link: real ? `Comp cards: ${pdfLink}` : undefined })
 
   /**
    * Shares the comp cards: the PDF itself through the device's share sheet where it can take a
@@ -49,7 +52,7 @@ export function SelectionTray({ site }: { site: Site }) {
       onClick={() => setOpen(false)}
     >
       <aside
-        className={`relative flex h-full w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`relative flex h-dvh w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={(e) => e.stopPropagation()}
         aria-label="Selection"
       >
@@ -63,7 +66,7 @@ export function SelectionTray({ site }: { site: Site }) {
         </div>
 
         {items.length === 0 ? (
-          <p className="text-muted">Add talents with the + button to build a selection.</p>
+          <p className="text-muted">Add models with the + button to build your shortlist, then send it to us as one request, or share it as comp cards.</p>
         ) : (
           // The first model large, the pictures getting smaller as more are added.
           <ul className={`grid gap-3 ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length <= 6 ? 'grid-cols-3' : 'grid-cols-4'}`}>
@@ -84,12 +87,22 @@ export function SelectionTray({ site }: { site: Site }) {
         )}
 
         {items.length > 0 && (
-          <div className="mt-auto flex flex-col gap-3 border-t border-line pt-6">
+          // Pinned to the foot of the panel, every action in view however many models are above it.
+          <div className="sticky bottom-0 -mx-6 -mb-6 mt-auto flex flex-col gap-2.5 border-t border-line bg-bg px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
+            <a href={request} className="flex h-12 items-center justify-center bg-fg text-[14px] font-bold uppercase text-bg hover:opacity-85" style={{ fontStretch: '80%' }}>
+              {items.length > 1 ? `Request these ${items.length} models →` : 'Request this model →'}
+            </a>
             {real > 0 ? (
               <>
-                <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center text-[14px] font-bold uppercase tracking-[0.04em] bg-fg text-bg hover:opacity-85 disabled:opacity-50" style={{ fontStretch: '80%' }}>
-                  {state === 'making' ? 'Making the PDF…' : real > 1 ? `Share comp cards (${real})` : 'Share comp card'}
-                </button>
+                {/* Share and download side by side. */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg disabled:opacity-50" style={{ fontStretch: '80%' }}>
+                    {state === 'making' ? 'Making…' : real > 1 ? `Share cards (${real})` : 'Share card'}
+                  </button>
+                  <a href={compCards} download className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
+                    Download PDF
+                  </a>
+                </div>
                 {(state === 'link' || state === 'copied') && (
                   <div className="grid grid-cols-3 gap-2 text-[13px] font-bold uppercase tracking-[0.04em]" style={{ fontStretch: '80%' }}>
                     <button onClick={() => navigator.clipboard.writeText(pdfLink).then(() => setState('copied'))} className="h-11 border border-fg uppercase hover:bg-fg hover:text-bg">
@@ -100,14 +113,11 @@ export function SelectionTray({ site }: { site: Site }) {
                   </div>
                 )}
                 {state === 'error' && <p className="text-sm text-red-600">Couldn’t make the PDF. Try again.</p>}
-                <a href={compCards} download className="flex h-12 items-center justify-center text-[14px] font-bold uppercase tracking-[0.04em] border border-fg hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
-                  Download PDF
-                </a>
               </>
             ) : (
               <p className="text-sm text-muted">Comp cards are made for models in the Studio; placeholders don’t have one.</p>
             )}
-            <button onClick={clear} className="text-sm text-muted underline">Clear selection</button>
+            <button onClick={clear} className="ink-line self-center text-sm text-muted">Clear selection</button>
           </div>
         )}
       </aside>

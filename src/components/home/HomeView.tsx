@@ -1,9 +1,8 @@
-import { IntroSection } from '@/components/IntroSection'
 import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
 import { DotStatement } from '@/components/motion/DotStatement'
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { ApplyCallout, NameMarquee, SelectedWork, StoryMagazine, storyMagazineVh, StorySection, type Chapter } from './HomeSections'
+import { StoryMagazine, type Chapter } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
@@ -25,12 +24,10 @@ type Home = {
 } | null
 
 /**
- * The home page for a site. `hero` picks how INCH”'s ” opens into the video: it splits
- * (the live home) or it grows with the video inside it (/logotest, for trying it out).
- * `magazine` picks how the magazine meets the statement: it slides in as the statement leaves
- * (the live home), or it lands on it and they scroll away together ('together').
+ * The home page for a site. `hero` picks how INCH”'s ” opens into the video: it grows with the
+ * video inside it (the live home, first tried on /logotest) or it splits (the earlier opening).
  */
-export async function HomeView({ site, hero = 'split', magazine = 'after' }: { site: Site; hero?: 'split' | 'grow'; magazine?: 'after' | 'together' }) {
+export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'split' | 'grow' }) {
   const { division } = SITES[site]
   const [home, talents] = await Promise.all([
     sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', site) }, null, ['homePage']),
@@ -41,17 +38,26 @@ export async function HomeView({ site, hero = 'split', magazine = 'after' }: { s
   const isDot = site === 'dot'
 
   const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
-  const videos = (home?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
-    m?._type === 'heroImage'
-      ? m.asset ? [{ kind: 'image', src: urlFor(m).width(2400).url() }] : []
-      : m?.src ? [{ kind: 'video', src: m.src, poster: posterUrl(m.poster) }] : [],
-  )
-  if (!videos.length && home?.heroVideo) videos.push({ kind: 'video', src: home.heroVideo, poster: posterUrl(home.heroPoster) })
+  const heroMedia = (h: Home) => {
+    const list = (h?.heroVideos ?? []).flatMap<HeroMedia>((m) =>
+      m?._type === 'heroImage'
+        ? m.asset ? [{ kind: 'image', src: urlFor(m).width(2400).url() }] : []
+        : m?.src ? [{ kind: 'video', src: m.src, poster: posterUrl(m.poster) }] : [],
+    )
+    if (!list.length && h?.heroVideo) list.push({ kind: 'video', src: h.heroVideo, poster: posterUrl(h.heroPoster) })
+    return list
+  }
+  let videos = heroMedia(home)
+  // DOT. without videos of its own yet: INCH”'s, until DOT.'s Home page has some.
+  // TODO: DOT.'s own hero videos in the Studio (DOT. › Home page › Hero videos & images).
+  if (isDot && !videos.length) videos = heroMedia(await sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', 'inch') }, null, ['homePage']))
 
   if (isDot) {
     const slides = talentSlides(featured.length ? featured : talents.slice(0, 12))
     return (
       <>
+        {/* As on INCH”: the full-screen video carousel, its own videos (DOT.'s Home page in the Studio). */}
+        <QuoteVideoHero videos={videos} division="men" />
         <DotStatement text={home?.statement || DEFAULT_DOT_STATEMENT} />
         {slides.length > 0 && <DotIndexCarousel slides={slides} height="90dvh" />}
         <Story site={site} home={home} talents={withPlaceholders(talents, division)} />
@@ -59,29 +65,21 @@ export async function HomeView({ site, hero = 'split', magazine = 'after' }: { s
     )
   }
 
-  // INCH”: ” opens to full-screen video → statement on scroll → the magazine slides in over it → the story and the board (Story).
-  const story = withPlaceholders(models, division)
-  // 'together': the statement stays pinned under the magazine until both leave.
-  const hold = magazine === 'together' ? Math.max(0, storyMagazineVh({ site, chapters: home?.story, talents: story }) - 100) : 0
+  // INCH”: ” opens to full-screen video → statement on scroll → the magazine.
   return (
     <>
       <QuoteVideoHero videos={videos} opening={hero} />
-      <TextOpen text={home?.statement || DEFAULT_STATEMENT} holdVh={hold} />
-      <Story site={site} home={home} talents={story} overlap={magazine} />
+      <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
+      <Story site={site} home={home} talents={withPlaceholders(models, division)} />
     </>
   )
 }
 
-/** Below the opening, on both sites: the magazine (over the statement's end, with `overlap`), the rest of the story, the paragraph and images from the Studio, the board's names, selected work, and Apply. */
-function Story({ site, home, talents, overlap = false }: { site: Site; home: Home; talents: TalentCard[]; overlap?: false | 'after' | 'together' }) {
+/** Below the opening, on both sites: the magazine. */
+function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
   return (
     <>
-      <StoryMagazine site={site} chapters={home?.story} talents={talents} overlap={overlap} />
-      <StorySection site={site} chapters={home?.story} talents={talents} />
-      <IntroSection text={home?.intro} images={home?.introImages} />
-      <NameMarquee site={site} talents={talents} />
-      <SelectedWork talents={talents} />
-      <ApplyCallout site={site} />
+      <StoryMagazine site={site} chapters={home?.story} talents={talents} />
     </>
   )
 }

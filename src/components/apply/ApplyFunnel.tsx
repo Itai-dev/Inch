@@ -1,42 +1,45 @@
 'use client'
 
 /**
- * Become a model: an opening screen, then four steps — 01 You (and a guardian for
- * under-18s), 02 Measurements, 03 Digitals, 04 Send — with a comp card that fills in as
+ * Become a model: an opening screen, then four steps — 01 You (and a parent or guardian's
+ * consent under 18; under 14 can't apply), 02 Measurements, 03 Digitals, 04 Send — with a comp card that fills in as
  * the form does, and the INCH” ruler as the progress bar. Photos are shrunk in the
  * browser before upload so a whole application fits in one request.
  */
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { NameOpen } from '@/components/motion/NameOpen'
-import { TypeText, typeEnd } from '@/components/motion/TypeText'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Logo } from '@/components/brand/Logo'
+import { TypeText } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
+import { ADULT_AGE, ageFrom, MIN_APPLY_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
-import { cmToFeet, cmToInches } from '@/lib/units'
+import { cmToFeet } from '@/lib/units'
 import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
+import { CardOpening, CardPost, type Place } from './CardMotion'
+import { FOLD_OPEN_MS, PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
-import { HeightTape, Tape, type TapeScale } from './Tape'
+import { CountrySelect } from './CountrySelect'
+import { HeightTape } from './Tape'
 import { Silhouette, type Pose } from './Silhouette'
 
 type Data = {
   firstName: string
   lastName: string
   birthdate: string
-  city: string
+  country: string
   email: string
   phone: string
   guardianName: string
   guardianPhone: string
+  guardianConsent: boolean
   height: number | null
-  bust: string
-  waist: string
-  hips: string
+  tshirt: string
+  pants: string
   shoes: string
   hair: string
   eyes: string
@@ -50,15 +53,15 @@ type Step = 'intro' | 'you' | 'guardian' | 'measure' | 'digitals' | 'send' | 'do
 type Photo = { blob: Blob; url: string }
 
 const initial: Data = {
-  firstName: '', lastName: '', birthdate: '', city: '', email: '', phone: '', guardianName: '', guardianPhone: '',
-  height: null, bust: '', waist: '', hips: '', shoes: '', hair: '', eyes: '', instagram: '', tiktok: '', experience: '', consent: false,
+  firstName: '', lastName: '', birthdate: '', country: '', email: '', phone: '', guardianName: '', guardianPhone: '', guardianConsent: false,
+  height: null, tshirt: '', pants: '', shoes: '', hair: '', eyes: '', instagram: '', tiktok: '', experience: '', consent: false,
 }
 
-const SLOTS: { pose: Pose; label: string; hint: string; optional?: boolean }[] = [
-  { pose: 'close-up', label: 'Close-up', hint: 'Face, straight on' },
+const SLOTS: { pose: Pose; label: string; hint: string }[] = [
+  { pose: 'portrait', label: 'Portrait', hint: 'Face, straight on' },
+  { pose: 'medium', label: 'Medium', hint: 'Waist up' },
+  { pose: 'full-body', label: 'Full body', hint: 'Head to toe' },
   { pose: 'profile', label: 'Profile', hint: 'Turn to the side' },
-  { pose: 'full-length', label: 'Full length', hint: 'Head to toe' },
-  { pose: 'style', label: 'Your style', hint: 'An outfit you love', optional: true },
 ]
 
 /** Step numbers on the ruler (the guardian step belongs to 01). */
@@ -69,11 +72,14 @@ const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A pa
 const narrow = { fontStretch: '80%' } as const
 const big =
   'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
+/** A handle field: the @ set in front, the underline under both (dark once filled or focused). */
+const handleRow =
+  'flex items-baseline border-b-2 border-line pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold focus-within:border-fg has-[input:not(:placeholder-shown)]:border-fg'
 const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.7vw,25px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 
 function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
-    <label className={`flex min-w-0 flex-col gap-2 ${className}`}>
+    <label data-q className={`flex min-w-0 flex-col gap-2 ${className}`}>
       <span className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
@@ -83,49 +89,284 @@ function Field({ label, hint, className = '', children }: { label: string; hint?
 
 type Unit = 'in' | 'cm'
 
-/** The sizes on tapes, in cm and in inches (half-inch ticks), with where each tape rests before it's touched (cm). */
-const CM = (min: number, max: number): TapeScale => ({ min, max, px: 12.8, snap: 1, every: 10 })
-const IN = (min: number, max: number): TapeScale => ({ min, max, px: 25.6, snap: 0.5, every: 2 })
-const SIZES = {
-  bust: { cm: CM(60, 140), in: IN(24, 55), start: { women: 84, men: 96 } },
-  waist: { cm: CM(45, 120), in: IN(18, 47), start: { women: 62, men: 78 } },
-  hips: { cm: CM(60, 140), in: IN(24, 55), start: { women: 90, men: 94 } },
-} as const
-const SIZE_KEYS: Size[] = ['bust', 'waist', 'hips', 'shoes']
-const SHOES: TapeScale = { min: 34, max: 48, px: 32, snap: 0.5, every: 1 }
-type Size = keyof typeof SIZES | 'shoes'
+/** The page's padding under the form and the card (pb-12), kept clear when the card is fitted to the screen. */
+const BODY_PB = 48
+/** The form keeps at least this much width beside the card. */
+const FORM_MIN_W = 480
+/** At least this much air above and below the form and the card. */
+const MIN_AIR = 24
+/** The comp card's own width beside the form (scaled down from this when the screen is short or narrow). */
+const CARD_W = 820
+/** The first step's fields, by name, to bring the first one missing into view. */
+const YOU_FIELDS: Record<string, string> = {
+  'First name': 'input[autocomplete=given-name]',
+  'Last name': 'input[autocomplete=family-name]',
+  'Date of birth': 'input[type=date]',
+  Country: 'select[data-country]',
+  Email: 'input[type=email]',
+  Phone: 'input[type=tel]',
+}
+/** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
+const PHOTOS_BUDGET = 3.6 * 1024 * 1024
 
-// Sizes are kept in cm; inches are shown to the nearest half, written 32½.
-const toShown = (cm: string | number, unit: Unit) => (unit === 'cm' ? String(cm) : String(Math.round((Number(cm) / 2.54) * 2) / 2))
-const fromShown = (v: string, unit: Unit) => (unit === 'cm' ? v : String(Math.round(Number(v) * 2.54)))
+/** Sizes: T-shirt as letters; pants and shoes in EU sizes on tapes, each resting on a typical size before it's touched. */
+const TSHIRT = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL']
+/** Each size's choices, as the pickers list them (pants and shoes in EU sizes). */
+const range = (from: number, to: number, step: number) => Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => String(from + i * step))
+const SIZE_OPTIONS: Record<'tshirt' | 'pants' | 'shoes', string[]> = { tshirt: TSHIRT, pants: range(30, 60, 2), shoes: range(34, 48, 0.5) }
+const SIZE_KEYS: Size[] = ['tshirt', 'pants', 'shoes']
+type Size = 'tshirt' | 'pants' | 'shoes'
+const START = { tshirt: { women: 'S', men: 'M' }, pants: { women: 36, men: 48 }, shoes: { women: 39, men: 43 } }
+const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
+
+/** A small (i) that opens a note under it; a tap anywhere else closes it. */
+function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false)
+    document.addEventListener('pointerdown', away)
+    return () => document.removeEventListener('pointerdown', away)
+  }, [open])
+  return (
+    <span ref={root} className="relative block">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex size-[18px] items-center justify-center rounded-full border text-[11px] font-bold italic leading-none transition-colors ${open ? 'border-fg bg-fg text-bg' : 'border-muted text-muted hover:border-fg hover:text-fg'}`}
+        style={{ fontFamily: 'Georgia, serif' }}
+      >
+        i
+      </button>
+      {open && (
+        <span role="note" className="absolute right-0 top-full mt-2 block w-[min(300px,calc(100vw-48px))] border border-line bg-bg p-4 text-[14px] leading-snug text-muted shadow-[0_14px_34px_-14px_rgb(0_0_0/0.3)]">
+          {children}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** A handle without its @ (or the profile link round it). */
+const handleOf = (v: string) => v.trim().replace(/^https?:\/\/(www\.)?(instagram\.com|tiktok\.com)\/@?/i, '').replace(/^@+/, '').replace(/[/?#].*$/, '')
 const half = (v: string | number) => String(v).replace('.5', '½')
 
-export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
-  const { brand, division, label } = SITES[site]
+export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
+  const { brand, division } = SITES[site]
   const reduced = useReducedMotion()
-  const [step, setStep] = useState<Step>('intro')
+  const [step, setStep] = useState<Step>('you')
+  // The page opens on the card turning over and moving aside (opening), then the ruler and the
+  // form write in (writing); sending drops the card through a slot (posting) before the thanks.
+  const [phase, setPhase] = useState<'opening' | 'writing' | 'ready' | 'posting'>('opening')
+  /** The opening card still on its way to its place (the page writes in under it before it lands). */
+  const [cardMoving, setCardMoving] = useState(true)
+  /** Sending: the form has cleared, leaving the card. */
+  const [clearing, setClearing] = useState(false)
+  /** Where the drawer's slot was: the thanks' check comes up out of it. */
+  const [checkFrom, setCheckFrom] = useState<{ x: number; y: number } | null>(null)
+  /** The card going into the envelope and the drawer (it outlasts the posting phase a little, finishing over the thanks). */
+  const [postAlive, setPostAlive] = useState(false)
+  const asideRef = useRef<HTMLElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  /** Phones: the comp card unfolded under its strip. */
+  const [stripOpen, setStripOpen] = useState(false)
+  /** The card beside the form when it shows (desktop), else the strip it folds into. */
+  const cardPlace = (): Place => {
+    // The card itself, inside the aside's room for its tilt (scaled with its box to fit the screen).
+    const a = asideRef.current?.querySelector<HTMLElement>('[data-card]')
+    if (a && a.offsetParent) return { el: a, card: true, zoom: cardScale.current }
+    // Phones, the card unfolded under its strip: from the card itself.
+    const open = stripRef.current?.querySelector<HTMLElement>('[data-strip-card]')
+    if (open) return { el: open, card: true, zoom: 1 }
+    return stripRef.current ? { el: stripRef.current, card: false } : null
+  }
+  // Beside the form, the card is its own layer, fixed on the screen: whatever the form does (a
+  // size's tape opening, a step growing or scrolling) the card stays exactly where it is. Its
+  // column in the grid only keeps the room. It is scaled down (never up) so that it is always
+  // whole on the screen, under the top bar and the ruler, however short or narrow the window; and
+  // the form and the card are centred together in the room under the ruler (measured as each step
+  // opens, so nothing moves while it is filled in).
+  const rulerRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const layerRef = useRef<HTMLDivElement>(null)
+  const scaleBoxRef = useRef<HTMLDivElement>(null)
+  const cardScale = useRef(1)
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current
+    const aside = asideRef.current
+    const grid = gridRef.current
+    const ruler = rulerRef.current
+    const layer = layerRef.current
+    const box = scaleBoxRef.current
+    const inner = box?.firstElementChild as HTMLElement | null | undefined
+    const form = grid?.firstElementChild as HTMLElement | null | undefined
+    if (!sheet || !aside || !grid || !ruler || !layer || !box || !inner || !form) return
+    // The step's form as it opens (before any of its menus do).
+    const formH = form.offsetHeight
+    const fit = () => {
+      if (!aside.offsetParent) {
+        grid.style.paddingTop = ''
+        return
+      }
+      const h = inner.offsetHeight // the card at its own width (transforms don't count)
+      const gs = getComputedStyle(grid)
+      const ls = getComputedStyle(layer)
+      const padX = parseFloat(ls.paddingLeft) + parseFloat(ls.paddingRight)
+      const padTop = parseFloat(ls.paddingTop)
+      const padY = padTop + parseFloat(ls.paddingBottom)
+      // The room under the ruler, on the screen with the page at the top.
+      const top = ruler.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top + sheet.scrollTop
+      const room = sheet.clientHeight - top - BODY_PB
+      // Also narrow enough to leave the form its width beside it.
+      const width = grid.clientWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight) - FORM_MIN_W - parseFloat(gs.columnGap) - padX
+      const s = Math.max(0.4, Math.min(1, (room - 2 * MIN_AIR - padY) / h, width / CARD_W))
+      cardScale.current = s
+      inner.style.transform = s < 1 ? `scale(${s})` : ''
+      const w = Math.round(CARD_W * s)
+      const cardH = Math.round(h * s)
+      box.style.width = `${w}px`
+      box.style.height = `${cardH}px`
+      // The form and the card together, centred in that room (the taller of them sets it).
+      const air = Math.max(MIN_AIR, (room - Math.max(cardH, formH)) / 2)
+      grid.style.paddingTop = `${Math.round(air)}px`
+      // The column keeps the card's room; the card itself is laid over it, fixed, level with the form.
+      aside.style.width = `${w + padX}px`
+      layer.style.top = `${Math.round(top + air - padTop)}px`
+      layer.style.left = `${Math.round(aside.getBoundingClientRect().left)}px`
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(sheet)
+    ro.observe(inner)
+    return () => ro.disconnect()
+  }, [step])
+  useEffect(() => {
+    startedAt.current = Date.now()
+  }, [])
+  /** With reduced motion, no card moments: the page is simply there. */
+  const shownPhase = reduced && phase !== 'posting' ? 'ready' : phase
+  useEffect(() => {
+    if (phase !== 'writing') return
+    const id = setTimeout(() => setPhase('ready'), 900)
+    return () => clearTimeout(id)
+  }, [phase])
+  // No patience: a tap or a key anywhere while the card is opening or the form is writing in
+  // shows everything at once (the card jumps to its place, the ruler and the fields are simply there).
+  const skipCard = useRef<(() => void) | null>(null)
+  const skipped = useRef(false)
+  useEffect(() => {
+    if (phase !== 'opening' && phase !== 'writing') return
+    const hurry = () => {
+      skipped.current = true
+      skipCard.current?.()
+      setPhase('ready')
+    }
+    window.addEventListener('pointerdown', hurry, { passive: true })
+    window.addEventListener('keydown', hurry)
+    return () => {
+      window.removeEventListener('pointerdown', hurry)
+      window.removeEventListener('keydown', hurry)
+    }
+  }, [phase])
   const [furthest, setFurthest] = useState(0)
   const [d, setD] = useState<Data>(initial)
   const [photos, setPhotos] = useState<Partial<Record<Pose, Photo>>>({})
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [unit, setUnit] = useState<Unit>('in')
-  const [openSize, setOpenSize] = useState<Size | null>(null)
-  const tapeRef = useRef<HTMLDivElement>(null)
-  // The open tape takes the keyboard, so the arrow keys move it straight away.
-  useEffect(() => {
-    if (openSize) (tapeRef.current?.querySelector('[role=slider]') as HTMLElement | null)?.focus({ preventScroll: true })
-  }, [openSize])
+  /** Sent through, but nothing delivers applications yet (email not set up). */
+  const [unsent, setUnsent] = useState(false)
+  const [unit, setUnit] = useState<Unit>('cm')
   /** Continue was pressed with something still unset: say what. */
   const [tried, setTried] = useState(false)
   const startedAt = useRef(0)
   const sheetRef = useRef<HTMLDivElement>(null)
+  // The top bar's height, so the step ruler can stick right under it (phones).
+  const barRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const bar = barRef.current
+    const sheet = sheetRef.current
+    if (!bar || !sheet) return
+    const ro = new ResizeObserver(() => sheet.style.setProperty('--bar', `${bar.offsetHeight}px`))
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
+  // The page doesn't scroll when everything is in view (it only does when a step is taller than the screen).
+  useEffect(() => {
+    const sheet = sheetRef.current
+    const body = sheet?.lastElementChild as HTMLElement | null | undefined
+    if (!sheet || !body) return
+    const lock = () => {
+      sheet.style.setProperty('overflow-y', 'hidden')
+      const fits = sheet.scrollHeight <= sheet.clientHeight + 1
+      if (!fits) sheet.style.removeProperty('overflow-y')
+      else sheet.scrollTo({ top: 0 })
+    }
+    lock()
+    const ro = new ResizeObserver(lock)
+    ro.observe(sheet)
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [step])
+  // Guided through the form: as a question is answered (or gone into), the next one is brought into
+  // view if it isn't already (under the top bar and the ruler, above the buttons at the foot on
+  // phones and above the keyboard), never so far that the one just answered leaves the screen.
+  useEffect(() => {
+    const sheet = sheetRef.current
+    if (!sheet) return
+    let timer = 0
+    const sticky = (el: Element | null | undefined) => !!el && getComputedStyle(el).position === 'sticky'
+    const reveal = (from: EventTarget | null) => {
+      const el = from instanceof Element ? from : null
+      const form = el?.closest('form')
+      const q = el?.closest<HTMLElement>('[data-q]')
+      if (!form || !q || !sheet.contains(form)) return
+      const all = [...form.querySelectorAll<HTMLElement>('[data-q]')]
+      const foot = form.querySelector<HTMLElement>('.apply-nav')
+      const ahead = all[all.indexOf(q) + 1] ?? foot
+      if (!ahead) return
+      const top = Math.max(barRef.current?.getBoundingClientRect().bottom ?? 0, sticky(rulerRef.current) ? rulerRef.current!.getBoundingClientRect().bottom : 0)
+      const view = window.visualViewport
+      let bottom = view ? view.offsetTop + view.height : innerHeight
+      const footBox = sticky(foot) ? foot : sticky(foot?.parentElement) ? foot!.parentElement : null
+      if (footBox && ahead !== foot) bottom = Math.min(bottom, footBox.getBoundingClientRect().top)
+      const by = Math.min(ahead.getBoundingClientRect().bottom + 16 - bottom, q.getBoundingClientRect().top - 12 - top)
+      if (by > 4) sheet.scrollBy({ top: by, behavior: reduced ? 'auto' : 'smooth' })
+    }
+    const later = (e: Event, ms: number) => {
+      clearTimeout(timer)
+      const target = e.target
+      timer = window.setTimeout(() => reveal(target), ms)
+    }
+    // Answered: a choice made, a date set, a photo added, a field left (its next one is then entered).
+    const onChange = (e: Event) => later(e, 80)
+    // Gone into: after the phone's keyboard has come up.
+    const onFocus = (e: Event) => later(e, 380)
+    // The height tape let go.
+    const onUp = (e: Event) => (e.target as Element | null)?.closest?.('[role=slider]') && later(e, 120)
+    sheet.addEventListener('change', onChange, true)
+    sheet.addEventListener('focusin', onFocus)
+    sheet.addEventListener('pointerup', onUp)
+    return () => {
+      clearTimeout(timer)
+      sheet.removeEventListener('change', onChange, true)
+      sheet.removeEventListener('focusin', onFocus)
+      sheet.removeEventListener('pointerup', onUp)
+    }
+  }, [reduced])
   const router = useRouter()
   const set = <K extends keyof Data>(k: K, v: Data[K]) => setD((p) => ({ ...p, [k]: v }))
 
   const age = d.birthdate ? ageFrom(d.birthdate) : NaN
-  const isMinor = age >= 0 && age < GUARDIAN_AGE
+  // A date that makes no sense (a year typed short, say): the form says so before it is sent.
+  const badDate = !!d.birthdate && !(age >= 0 && age <= 80)
+  // Under MIN_APPLY_AGE (14) we can't take the application at all.
+  const underage = !!d.birthdate && !badDate && age < MIN_APPLY_AGE
+  // A parent or guardian consents for applicants under ADULT_AGE (18).
+  const isMinor = age >= 0 && age < ADULT_AGE
   const flow: Step[] = useMemo(() => ['you', ...(isMinor ? (['guardian'] as Step[]) : []), 'measure', 'digitals', 'send'], [isMinor])
   const index = flow.indexOf(step)
   const number = NUMBER[step] ?? 0
@@ -134,10 +375,13 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     setTried(false)
     setStep(s)
     setFurthest((f) => Math.max(f, NUMBER[s] ?? 0))
-    sheetRef.current?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
   }
+  // Each step opens at the top of the page (straight there, before it is drawn).
+  useLayoutEffect(() => {
+    sheetRef.current?.scrollTo({ top: 0 })
+  }, [step])
   const next = () => go(flow[index + 1])
-  const started = step !== 'intro' && step !== 'done'
+  const started = step !== 'done' && (Object.values(d).some(Boolean) || Object.keys(photos).length > 0)
   const close = useCallback(() => {
     if (started && !window.confirm('Leave your application? What you’ve filled in will be lost.')) return
     if (hasSitePageBehind()) router.back()
@@ -148,7 +392,7 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
-  const back = () => go(index > 0 ? flow[index - 1] : 'intro')
+  const back = () => (index > 0 ? go(flow[index - 1]) : close())
 
   async function addPhoto(pose: Pose, file?: File) {
     if (!file) return
@@ -164,59 +408,115 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     }
   }
 
-  async function submit() {
-    setSending(true)
-    setError(null)
+  /** Sends the application; says what went wrong, if anything. */
+  async function send(): Promise<string | null> {
     const fd = new FormData(document.getElementById('apply-trap') as HTMLFormElement)
     Object.entries(d).forEach(([k, v]) => fd.append(k, v === null ? '' : String(v)))
     fd.append('division', division)
     fd.append('startedAt', String(startedAt.current))
-    SLOTS.forEach((s) => {
-      const p = photos[s.pose]
-      if (p) fd.append('digitals', p.blob, `${s.pose}.jpg`)
-    })
+    // The photos, shrunk again if together they would still be too much for one request.
+    let blobs = SLOTS.map((s) => photos[s.pose]?.blob).filter((b): b is Blob => !!b)
+    for (const pass of [{ maxSide: 1400, quality: 0.75 }, { maxSide: 1200, quality: 0.68 }]) {
+      if (blobs.reduce((n, b) => n + b.size, 0) <= PHOTOS_BUDGET) break
+      blobs = await Promise.all(blobs.map((b) => shrinkPhoto(b, pass).catch(() => b)))
+    }
+    SLOTS.forEach((s, i) => photos[s.pose] && fd.append('digitals', blobs[i], `${s.pose}.jpg`))
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
-    setSending(false)
-    if (res?.ok) go('done')
-    else setError(`Something went wrong. Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`)
+    if (!res?.ok) {
+      // Say what the site answered, so a failure can be followed up (the API's own reason, or the status).
+      const why = res ? ((await res.json().catch(() => null))?.error ?? `error ${res.status}`) : 'no connection'
+      return `Something went wrong (${why}). Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`
+    }
+    setUnsent(!!(await res.json().catch(() => ({})))?.unsent)
+    return null
+  }
+  /** The application on its way while the card goes into the envelope. */
+  const outcome = useRef<Promise<string | null>>(Promise.resolve(null))
+
+  async function submit() {
+    setSending(true)
+    setError(null)
+    if (reduced) {
+      const err = await send()
+      setSending(false)
+      if (err) return setError(err)
+      setPhase('ready')
+      go('done')
+      return
+    }
+    // One movement from the tap: the form clears, leaving the card (on phones it unfolds from its
+    // strip and, as it settles, goes on up), and the card goes into the envelope and the drawer
+    // while the application is sent.
+    setClearing(true)
+    outcome.current = send()
+    const phone = !asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent
+    if (phone && !stripOpen) {
+      setStripOpen(true)
+      // As it lies open, it goes on up.
+      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS))
+    }
+    // The card's copy takes over as soon as it is ready (its photos decoded): then the posting phase.
+    setPostAlive(true)
   }
 
-  // Sizes in the unit shown (shoes are always EU); kept in cm.
-  const sizeName = (k: Size) => (k === 'bust' ? (division === 'men' ? 'Chest' : 'Bust') : k === 'waist' ? 'Waist' : k === 'hips' ? 'Hips' : 'Shoes')
-  const sizeShown = (k: Size) =>
-    k === 'shoes'
-      ? { value: d.shoes ? Number(d.shoes) : null, start: division === 'men' ? 43 : 39 }
-      : { value: d[k] ? Number(toShown(d[k], unit)) : null, start: Number(toShown(SIZES[k].start[division], unit)) }
-  const setSize = (k: Size, x: number) => set(k, k === 'shoes' ? String(x) : fromShown(String(x), unit))
+  /** The card is in the drawer: the thanks once the application has gone; if it didn't, back to the form, saying why. */
+  async function posted(slot: { x: number; y: number }) {
+    setCheckFrom(slot)
+    const err = await outcome.current
+    setSending(false)
+    setPhase('ready')
+    if (err) {
+      setPostAlive(false)
+      setClearing(false)
+      setError(err)
+      return
+    }
+    go('done')
+  }
+
+  // What the first step still needs (in the form's order).
+  const youGaps = (
+    [
+      ['First name', !d.firstName.trim()],
+      ['Last name', !d.lastName.trim()],
+      ['Date of birth', !d.birthdate || badDate || underage],
+      ['Country', !d.country],
+      ['Email', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())],
+      ['Phone', d.phone.replace(/\D/g, '').length < 6],
+    ] as const
+  ).filter(([, bad]) => bad).map(([k]) => k)
+  const youNote = [
+    youGaps.filter((k) => k !== 'Date of birth' || !d.birthdate).length && `Still to fill in: ${youGaps.filter((k) => !(k === 'Date of birth' && d.birthdate)).map((k) => (k)).join(', ')}.`,
+    badDate && 'Check the date of birth (a four-digit year).',
+  ].filter(Boolean).join(' ')
 
   // What the measurements step still needs.
   const gaps = (
-    [['Height', d.height], [division === 'men' ? 'Chest' : 'Bust', d.bust], ['Waist', d.waist], ['Hips', d.hips], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
+    [['Height', d.height], ['T-shirt', d.tshirt], ['Pants', d.pants], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
   ).filter(([, v]) => !v).map(([k]) => k)
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
-  const inUnit = (cm: string) => (cm && unit === 'in' ? cmToInches(Number(cm)) : cm)
   const stats: CardStat[] = [
     ['Age', Number.isFinite(age) && age > 0 ? age : undefined],
-    ['City', d.city],
+    ['Country', d.country],
     ['Height', d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : undefined],
-    [division === 'men' ? 'Chest' : 'Bust', inUnit(d.bust)],
-    ['Waist', inUnit(d.waist)],
-    ['Hips', inUnit(d.hips)],
-    ['Shoes', d.shoes],
+    ['T-shirt', d.tshirt],
+    ['Pants', d.pants && `${d.pants} EU`],
+    ['Shoes', d.shoes && `${half(d.shoes)} EU`],
     ['Hair', d.hair],
     ['Eyes', d.eyes],
   ]
-  const card = (className = '', flat = false) => (
+  const card = (className = '', flat = false, still = false) => (
     <CompCard
       flat={flat}
+      still={still}
       brand={brand}
       division={division}
       name={fullName}
       stats={stats}
-      photos={SLOTS.slice(0, 3).map((s) => ({ label: s.label, url: photos[s.pose]?.url }))}
-      contact={[d.email || 'Email —', d.instagram ? `@${d.instagram.replace('@', '')}` : 'Instagram —']}
+      photos={SLOTS.map((s) => ({ label: s.label, url: photos[s.pose]?.url }))}
+      contact={[d.email || 'Email —', d.instagram ? `@${d.instagram}` : 'Instagram —']}
       className={className}
     />
   )
@@ -231,85 +531,90 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
     </form>
   )
 
-  let body: React.ReactNode = null
-  // The opening screen: a picture filling the left half (as on a sign-in page), and the words
-  // written in one after another: the title, each line, then the button.
-  const INTRO = [
-    'No experience needed. We look at every application ourselves.',
-    'You’ll need three photos taken today: phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes.',
-  ]
-  // The lines type in quickly (6ms a letter) once the title is written; the button grows in, then its note types.
-  const INTRO_MS = 6
-  const introAt = [650, typeEnd(INTRO[0], 650, INTRO_MS) + 100]
-  const startAt = typeEnd(INTRO[1], introAt[1], INTRO_MS) + 120
-  const NOTE = 'Takes about 3 minutes'
-  if (step === 'intro')
-    body = (
-      <div className={`grid ${image ? 'md:fixed md:inset-0 md:grid-cols-2' : 'md:min-h-[calc(100dvh-84px)]'}`}>
-        {image && (
-          <div className="relative h-[46dvh] overflow-hidden bg-line md:h-full">
+  /** The folded strip's row (phones): the four photos small, the name, a line of details. */
+  const stripRow = (
+    <>
+      <span className="flex shrink-0 gap-0.5">
+        {SLOTS.map((s) => (
+          <span key={s.pose} className="relative block h-[29px] w-[22px] overflow-hidden border border-dashed border-muted/40">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image} alt="" className="absolute inset-0 size-full object-cover object-[50%_15%]" />
-          </div>
-        )}
-        <div className="flex flex-col justify-center gap-7 px-gutter py-10 md:px-[clamp(40px,6vw,120px)] md:py-24">
-          <NameOpen name="Get scouted" division={division} className="wordmark text-[clamp(56px,7vw,112px)] uppercase" />
-          <div className="flex max-w-[520px] flex-col gap-3 text-[17px] leading-snug">
-            <p><TypeText text={INTRO[0]} at={introAt[0]} ms={INTRO_MS} /></p>
-            <p className="text-muted"><TypeText text={INTRO[1]} at={introAt[1]} ms={INTRO_MS} /></p>
-          </div>
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => {
-                startedAt.current = Date.now()
-                go('you')
-              }}
-              className="scale-in h-14 origin-left bg-fg px-8 text-[15px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85"
-              style={{ ...narrow, '--at': `${startAt}ms` } as React.CSSProperties}
-            >
-              Start →
-            </button>
-            <span className="text-[13px] text-muted">
-              <TypeText text={NOTE} at={startAt + 260} ms={18} />
-            </span>
-          </div>
-        </div>
-      </div>
-    )
+            {photos[s.pose] && <img src={photos[s.pose]!.url} alt="" className="absolute inset-0 size-full object-cover" />}
+          </span>
+        ))}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
+        <span className="truncate text-[11px] uppercase text-muted">
+          {[Number.isFinite(age) && age > 0 ? age : null, d.country, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
+        </span>
+      </span>
+      <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
+    </>
+  )
+  /** The strip as the opening card turns into it (phones). */
+  const compact = (
+    <div className="paper border border-[#dcdad5] text-[#0a0a0a]">
+      <div className="flex items-center gap-3 px-3.5 py-3">{stripRow}</div>
+      <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
+    </div>
+  )
 
+  let body: React.ReactNode = null
+  /** What to know before starting, at the top of the first step. */
+  const BEFORE = 'No experience needed: we look at every application ourselves. You’ll need four photos taken today; phone photos by a friend are perfect. Daylight, no make-up, hair back, fitted clothes. About 3 minutes.'
+  // The thanks, in the middle of the screen once the card has gone through the slot.
+  // The words follow the check, once it is written.
+  const lag = CHECK_MS
   if (step === 'done')
     body = (
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-gutter py-8 md:min-h-[calc(100dvh-84px)] md:content-center md:gap-[clamp(48px,6vw,120px)] md:py-12 md:grid-cols-[minmax(0,560px)_minmax(0,480px)] md:items-center md:justify-center">
-        <div className="flex flex-col gap-6">
-          <p className="label text-muted">Application sent</p>
-          <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase">Thank you{d.firstName ? `, ${d.firstName}` : ''}.</h1>
-          <p className="text-[17px] leading-snug">Our scouts look at every application. If there’s a fit, we’ll contact you by email or phone.</p>
-          {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-          <button type="button" onClick={close} className="self-start text-[14px] font-bold uppercase underline" style={narrow}>Back to {brand}</button>
-        </div>
-        {card()}
+      <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
+        <ReceivedCheck from={checkFrom} />
+        <p className="label text-muted"><TypeText text="Application received" at={lag} ms={12} /></p>
+        <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
+          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={lag + 220} ms={28} />
+        </h1>
+        <p className="text-[17px] leading-snug">
+          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={lag + 620} ms={5} />
+        </p>
+        {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
+        {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
+        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': `${lag + 1350}ms` } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
-  const nav = (submitLabel = 'Continue →', disabled = false, note?: string) => (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
-      <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
+  const nav = (submitLabel = 'Continue →', disabled = false, note?: string, alert = false) => (
+    <div className="apply-nav flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
+      <button type="submit" disabled={disabled} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-40" style={narrow}>
         {submitLabel}
       </button>
       <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
         Back
       </button>
-      {note && <span className="text-[13px] text-muted">{note}</span>}
+      {note && (alert ? <span role="alert" className="text-[13px] font-bold">{note}</span> : <span className="text-[13px] text-muted">{note}</span>)}
     </div>
   )
 
   if (!body) body = (
-    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-80px)] md:pt-6">
+    <div data-apply-phase={shownPhase} data-card-moving={cardMoving && !reduced ? '' : undefined} data-clearing={clearing ? '' : undefined} className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-gutter pb-12 pt-4 md:min-h-[calc(100dvh-var(--bar,80px))] md:pt-6">
       {trap}
+      {cardMoving && !reduced && (
+        <CardOpening
+          front={card('', false, true)}
+          compact={compact}
+          division={division}
+          target={cardPlace}
+          skipRef={skipCard}
+          onWrite={() => setPhase(skipped.current ? 'ready' : 'writing')}
+          onDone={() => {
+            setCardMoving(false)
+            setPhase((ph) => (ph === 'opening' ? 'ready' : ph))
+          }}
+        />
+      )}
       {/* Progress on top, over the form and the card; the step names are the only titles. */}
       {/* A small ruler: the form and the card are the page. */}
-      <div className="mx-auto w-full max-w-[620px]">
+      {/* Phones and tablets: it stays in view under the top bar while the form scrolls, not cut off by it. */}
+      <div ref={rulerRef} className="apply-ruler apply-in mx-auto w-full max-w-[720px] shrink-0 overflow-hidden pb-1 max-lg:sticky max-lg:top-[var(--bar,72px)] max-lg:z-[9] max-lg:-mt-2 max-lg:bg-bg max-lg:pb-3 max-lg:pt-2">
         <StepRuler
           steps={STEP_NAMES}
           current={number - 1}
@@ -319,51 +624,69 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
       </div>
       <h1 className="sr-only">{TITLE[step]}</h1>
 
-      {/* Phones: the comp card folds into a strip above the form. */}
-      <details className="border border-line bg-surface md:hidden">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-3.5 py-3">
-          <span className="flex shrink-0 gap-0.5">
-            {SLOTS.slice(0, 3).map((s) => (
-              <span key={s.pose} className="relative block h-[29px] w-[22px] overflow-hidden border border-dashed border-muted/40">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {photos[s.pose] && <img src={photos[s.pose]!.url} alt="" className="absolute inset-0 size-full object-cover" />}
-              </span>
-            ))}
-          </span>
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
-            <span className="truncate text-[11px] uppercase text-muted">
-              {[Number.isFinite(age) && age > 0 ? age : null, d.city, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
-            </span>
-          </span>
-          <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
-        </summary>
-        <div className="px-3.5 pb-3.5">{card('p-0! bg-transparent! border-0!', true)}</div>
-      </details>
+      {/* Phones and tablets: the comp card folds into a strip above the form. */}
+      <div ref={stripRef} className="apply-in apply-strip paper shrink-0 border border-[#dcdad5] text-[#0a0a0a] lg:hidden">
+        <button type="button" aria-expanded={stripOpen} onClick={() => setStripOpen((o) => !o)} className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left">
+          {stripRow}
+        </button>
+        {/* The card folds out from under the strip like paper, and back. */}
+        <PaperFold open={stripOpen}>
+          {/* The same card that then goes into the envelope (laid flat in the strip's paper), so it goes from here without a jump. */}
+          <div data-strip-card>{card('border-0! shadow-none!', false, true)}</div>
+        </PaperFold>
+      </div>
 
-      {/* The form and the card, centred in the space under the ruler. */}
-      <div className="grid gap-12 md:flex-1 md:grid-cols-[minmax(0,680px)_minmax(0,480px)] md:content-center md:items-start md:justify-center md:gap-x-[clamp(72px,9vw,160px)] md:py-10">
-        <div className="flex flex-col gap-12">
+      {/* The form and the card, centred in the space under the ruler: the card the larger of the two,
+          at its own width (zoomed down to fit the screen's height, see above). */}
+      <div ref={gridRef} className="grid gap-12 lg:flex-1 lg:grid-cols-[minmax(0,480px)_auto] lg:content-start lg:items-start lg:justify-center lg:gap-x-[clamp(40px,5vw,96px)] lg:pb-6">
+        <div className="apply-form apply-in flex flex-col gap-12">
           {step === 'you' && (
-            <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
+            <form
+              className="relative grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                // Checked here rather than by the browser, so what's missing is said plainly under the
+                // button, and the first of it is brought into view (not hidden under the ruler on phones).
+                if (!youGaps.length) return next()
+                setTried(true)
+                const first = e.currentTarget.querySelector<HTMLInputElement>(YOU_FIELDS[youGaps[0]])
+                first?.focus({ preventScroll: true })
+                first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+              }}
+              noValidate
+            >
+              {/* What you'll need: a small (i), opened when wanted, so the form can be filled straight away. */}
+              <span className="absolute right-0 top-0 z-10">
+                <InfoTip label="What you’ll need">{BEFORE}</InfoTip>
+              </span>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-              <Field label="Date of birth" hint={Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
-                <input required type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
+              <Field label="Date of birth" hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
+                <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              <Field label="City"><input required autoComplete="address-level2" className={big} value={d.city} onChange={(e) => set('city', e.target.value)} /></Field>
+              <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} />
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-              <p className="sm:col-span-2 text-[13px] text-muted">Under {GUARDIAN_AGE}? We’ll ask for a parent or guardian next.</p>
-              <div className="sm:col-span-2">{nav('Continue →', false, 'Takes about 3 minutes')}</div>
+              {underage ? (
+                <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug">
+                  Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
+                </p>
+              ) : (
+                <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
+              )}
+              <div className="sm:col-span-2">{underage ? nav('Continue →', true) : tried && youGaps.length ? nav('Continue →', false, youNote, true) : nav('Continue →', false, 'Takes about 3 minutes')}</div>
             </form>
           )}
 
           {step === 'guardian' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
-              <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {GUARDIAN_AGE}, so we’ll speak to a parent or guardian first.</p>
+              <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {ADULT_AGE}, so a parent or guardian needs to agree to your application. We’ll speak to them first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
+              <label data-q className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
+                <input required type="checkbox" checked={d.guardianConsent} onChange={(e) => set('guardianConsent', e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-current" />
+                <span>I’m {d.firstName ? `${d.firstName}’s` : 'their'} parent or guardian, and I consent to this application to {brand}.</span>
+              </label>
               <div className="sm:col-span-2">{nav()}</div>
             </form>
           )}
@@ -377,10 +700,10 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 else next()
               }}
             >
-              <div className="flex flex-col gap-2">
+              <div data-q className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
-                  {/* Inches or centimetres, for every size on this step. */}
+                  {/* Centimetres or feet and inches. */}
                   <UnitToggle unit={unit} onChange={setUnit} className="text-[15px]" />
                 </div>
                 <div className="flex items-baseline gap-2.5">
@@ -393,77 +716,56 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                 <HeightTape value={d.height} unit={unit} onChange={(cm) => set('height', cm)} />
                 <span className="text-[12px] text-muted">{d.height ? 'Drag the tape, or use the arrow keys.' : 'Drag the tape to your height.'}</span>
               </div>
-              {/* Each size is a closed field; tap one and its tape opens below, full width. */}
-              <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-x-10 gap-y-10 sm:grid-cols-4">
-                  {SIZE_KEYS.map((k) => {
-                    const shown = sizeShown(k)
-                    const open = openSize === k
-                    return (
-                      <div key={k} className="flex min-w-0 flex-col gap-1.5">
-                        <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
-                          {sizeName(k)} <span className="text-muted">{k === 'shoes' ? 'EU' : unit}</span>
-                        </span>
-                        <button
-                          type="button"
-                          aria-expanded={open}
-                          aria-label={`${sizeName(k)}, ${shown.value ? half(shown.value) : 'not set'}`}
-                          onClick={() => {
-                            if (open) return setOpenSize(null)
-                            if (!shown.value) setSize(k, shown.start)
-                            setOpenSize(k)
-                          }}
-                          className={`flex w-full items-center gap-2 border-b-2 pb-1.5 text-left text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${shown.value ? 'border-fg' : 'border-line focus-visible:border-fg'}`}
-                        >
-                          <span className={`min-w-0 flex-1 truncate ${shown.value ? '' : 'text-muted/40'}`}>{half(shown.value ?? shown.start)}</span>
-                          <svg viewBox="0 0 12 8" aria-hidden className={`w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
-                            <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
-                          </svg>
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-                {openSize && (
-                  <div ref={tapeRef} className="flex flex-col gap-1">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
-                        {sizeName(openSize)} <span className="text-muted">{openSize === 'shoes' ? 'EU' : unit}</span>
+              {/* The sizes: pickers (the phone's own wheel, a list on a computer); only the height is a tape. */}
+              <div className="grid grid-cols-3 gap-x-6 gap-y-10 sm:gap-x-10">
+                {SIZE_KEYS.map((k) => {
+                  const value = d[k]
+                  return (
+                    <label key={k} data-q className="flex min-w-0 flex-col gap-1.5">
+                      <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
+                        {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
-                      <button type="button" onClick={() => setOpenSize(null)} className="text-[12px] font-bold uppercase underline" style={narrow}>
-                        Done
-                      </button>
-                    </div>
-                    <Tape
-                      key={`${openSize}-${unit}`}
-                      label={sizeName(openSize)}
-                      value={sizeShown(openSize).value}
-                      start={sizeShown(openSize).start}
-                      scale={openSize === 'shoes' ? SHOES : SIZES[openSize][unit]}
-                      onChange={(x) => setSize(openSize, x)}
-                      valueText={(x) => `${half(x)} ${openSize === 'shoes' ? 'EU' : unit}`}
-                      onDone={() => setOpenSize(null)}
-                    />
-                  </div>
-                )}
+                      <span className="relative block">
+                        <select
+                          value={value}
+                          onChange={(e) => set(k, e.target.value)}
+                          className={`w-full cursor-pointer appearance-none rounded-none border-b-2 bg-transparent pb-1.5 pr-5 text-[clamp(20px,1.7vw,25px)] font-semibold tabular-nums outline-none ${value ? 'border-fg' : 'border-line text-muted/40 focus-visible:border-fg'}`}
+                        >
+                          <option value="" disabled>
+                            {half(START[k][division])}
+                          </option>
+                          {SIZE_OPTIONS[k].map((x) => (
+                            <option key={x} value={x} className="text-fg">
+                              {half(x)}
+                            </option>
+                          ))}
+                        </select>
+                        <svg viewBox="0 0 12 8" aria-hidden className="pointer-events-none absolute right-0 top-1/2 w-3 -translate-y-[60%]">
+                          <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
               <div className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2">
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {nav('Continue →', false, tried && gaps.length ? `Still to set: ${gaps.join(', ')}` : 'Tap a size to open its tape.')}
+              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, 'Pick each size.')}
             </form>
           )}
 
           {step === 'digitals' && (
             <form className="flex flex-col gap-9" onSubmit={(e) => { e.preventDefault(); next() }}>
-              <p className="max-w-[520px] text-[16px] leading-snug">Three photos taken today. Daylight, no make-up, hair back, fitted clothes, plain wall. Phone photos are perfect.</p>
+              <p className="max-w-[520px] text-[16px] leading-snug">Four photos taken today. Daylight, no make-up, hair back, fitted clothes, plain wall. Phone photos are perfect.</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {SLOTS.map((s) => {
                   const p = photos[s.pose]
                   return (
                     <label
                       key={s.pose}
+                      data-q
                       className="group flex cursor-pointer flex-col gap-2"
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
@@ -471,22 +773,20 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
                         addPhoto(s.pose, e.dataTransfer.files[0])
                       }}
                     >
-                      <span className={`relative block aspect-[3/4] overflow-hidden ${p ? 'bg-line' : 'border-2 border-dashed border-fg/70 group-hover:border-fg'}`}>
-                        {p ? (
+                      {/* The empty spot stays as it is under a photo: the photo is pressed onto it, cut to its frame. */}
+                      <span className="relative block aspect-[3/4] border-2 border-dashed border-fg/70 [clip-path:inset(0)] group-hover:border-fg">
+                        <Silhouette pose={s.pose} className="absolute inset-[12%] text-muted/60" />
+                        {!p && <span className="absolute bottom-2 left-2 bg-bg px-1.5 py-0.5 text-[12px] font-bold uppercase" style={narrow}>+ Add</span>}
+                        {p && (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p.url} alt={s.label} className="absolute inset-0 size-full object-cover" />
+                            <img key={p.url} src={p.url} alt={s.label} className="photo-press absolute -inset-[2px] size-[calc(100%+4px)] max-w-none object-cover" />
                             <span className="absolute bottom-2 right-2 bg-bg px-1.5 py-0.5 text-[11px] font-bold uppercase" style={narrow}>Replace</span>
-                          </>
-                        ) : (
-                          <>
-                            <Silhouette pose={s.pose} className="absolute inset-[12%] text-muted/60" />
-                            <span className="absolute bottom-2 left-2 text-[12px] font-bold uppercase" style={narrow}>+ Add</span>
                           </>
                         )}
                       </span>
                       <span className="flex flex-col">
-                        <span className="text-[12px] font-bold uppercase" style={narrow}>{s.label}{s.optional ? ' (optional)' : ''}</span>
+                        <span className="text-[12px] font-bold uppercase" style={narrow}>{s.label}</span>
                         <span className="text-[12px] text-muted">{s.hint}</span>
                       </span>
                       <input type="file" accept="image/*" className="sr-only" onChange={(e) => addPhoto(s.pose, e.target.files?.[0])} />
@@ -497,20 +797,31 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
               {photoError && <p className="text-[14px] text-red-600">{photoError}</p>}
               {nav(
                 'Continue →',
-                SLOTS.some((s) => !s.optional && !photos[s.pose]),
-                `${SLOTS.filter((s) => !s.optional && photos[s.pose]).length} of 3 added`,
+                SLOTS.some((s) => !photos[s.pose]),
+                `${SLOTS.filter((s) => photos[s.pose]).length} of ${SLOTS.length} added`,
               )}
             </form>
           )}
 
           {step === 'send' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); submit() }}>
-              <Field label="Instagram"><input className={big} placeholder="@handle" value={d.instagram} onChange={(e) => set('instagram', e.target.value)} /></Field>
-              <Field label="TikTok"><input className={big} placeholder="@handle" value={d.tiktok} onChange={(e) => set('tiktok', e.target.value)} /></Field>
+              {/* The @ is always there; only the handle is typed (a pasted @ or profile link is trimmed). */}
+              <Field label="Instagram">
+                <span className={handleRow}>
+                  <span aria-hidden className="pr-0.5">@</span>
+                  <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-muted/40" placeholder="handle" autoCapitalize="none" autoCorrect="off" value={d.instagram} onChange={(e) => set('instagram', handleOf(e.target.value))} />
+                </span>
+              </Field>
+              <Field label="TikTok">
+                <span className={handleRow}>
+                  <span aria-hidden className="pr-0.5">@</span>
+                  <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-muted/40" placeholder="handle" autoCapitalize="none" autoCorrect="off" value={d.tiktok} onChange={(e) => set('tiktok', handleOf(e.target.value))} />
+                </span>
+              </Field>
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">
                 <textarea rows={3} className={`${mid} resize-none`} placeholder="Experience, other agencies, when you’re free…" value={d.experience} onChange={(e) => set('experience', e.target.value)} />
               </Field>
-              <label className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
+              <label data-q className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">
                 <input required type="checkbox" checked={d.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-current" />
                 <span>
                   I agree that {brand} may keep my details and photos to review my application and contact me, as described in the{' '}
@@ -524,17 +835,32 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
           )}
         </div>
 
-        <aside aria-label="Your comp card" className="hidden self-start md:block">{card()}</aside>
+        {/* The card's column: it only keeps the room. The card is its own layer over it, fixed on the
+            screen (see above), with room round it for its tilt and shadow, so neither is cut off. */}
+        <aside ref={asideRef} aria-label="Your comp card" className="apply-card hidden self-start lg:block">
+          <div ref={layerRef} className="fixed z-[5] p-7">
+            <div ref={scaleBoxRef} style={{ width: CARD_W }}>
+              <div data-card className="origin-top-left" style={{ width: CARD_W }}>{card('', false, cardMoving)}</div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   )
 
   return (
-    <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-bg text-fg">
-      {/* Top bar, as on the model page: what this is, and close. */}
-      {/* Over the opening picture the bar is see-through and its label white. */}
-      <div className={`sticky top-0 z-10 flex shrink-0 items-center justify-between px-gutter pb-3 pt-[clamp(16px,2vw,28px)] ${step === 'intro' && image ? 'md:bg-transparent' : ''} bg-bg`}>
-        <p className={`label ${step === 'intro' && image ? 'text-muted md:text-white' : 'text-muted'}`}>Become a model · {brand} {label}</p>
+    <div ref={sheetRef} data-sheet role="dialog" aria-modal="true" aria-label="Become a model" className="fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-none bg-bg text-fg">
+      {/* Top bar, as on the model page: the logo (home, asking first if the form was started), and close. */}
+      <div ref={barRef} className="sticky top-0 z-10 flex shrink-0 items-center justify-between bg-bg px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
+        <Link
+          href={sitePath(site)}
+          aria-label={`${brand} home`}
+          onClick={(e) => {
+            if (started && !window.confirm('Leave your application? What you’ve filled in will be lost.')) e.preventDefault()
+          }}
+        >
+          <Logo division={division} className="text-[48px] md:text-[70px]" />
+        </Link>
         <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
             <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
@@ -542,6 +868,47 @@ export function ApplyFunnel({ site, image, scoutingEmail }: { site: Site; image?
         </button>
       </div>
       {body}
+      {/* The card into the envelope and the drawer: over the page, and still finishing as the thanks comes. */}
+      {postAlive && <CardPost front={card('', false, true)} division={division} from={cardPlace} onStart={() => setPhase('posting')} onShut={posted} onDone={() => setPostAlive(false)} />}
     </div>
+  )
+}
+
+/**
+ * The check: it comes up out of the slot the drawer went into, as if the ruler had drawn it back
+ * out of the depth, lying flat at first and standing up as it comes, and stops large in the middle
+ * of the screen; a beat, then it goes small to its place over the words.
+ */
+const CHECK_RISE_MS = 750
+const CHECK_HOLD_MS = 180
+const CHECK_MOVE_MS = 650
+const CHECK_MS = CHECK_RISE_MS + CHECK_HOLD_MS + CHECK_MOVE_MS
+const CHECK_BIG = 2.6
+
+function ReceivedCheck({ from }: { from: { x: number; y: number } | null }) {
+  const ref = useRef<SVGSVGElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || !from || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const r = el.getBoundingClientRect()
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
+    const vh = window.visualViewport?.height ?? innerHeight
+    const pose = (x: number, y: number, tilt: number, k: number) => `translate(${x - cx}px, ${y - cy}px) perspective(500px) rotateX(${tilt}deg) scale(${k})`
+    const a = el.animate(
+      [
+        { transform: pose(from.x, from.y, 78, 0.25), offset: 0, easing: 'cubic-bezier(0.2, 0.7, 0.25, 1)' },
+        { transform: pose(innerWidth / 2, vh / 2, 0, CHECK_BIG), offset: CHECK_RISE_MS / CHECK_MS },
+        { transform: pose(innerWidth / 2, vh / 2, 0, CHECK_BIG), offset: (CHECK_RISE_MS + CHECK_HOLD_MS) / CHECK_MS, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' },
+        { transform: pose(cx, cy, 0, 1), offset: 1 },
+      ],
+      { duration: CHECK_MS },
+    )
+    return () => a.cancel()
+  }, [from])
+  return (
+    <svg ref={ref} aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0 overflow-visible">
+      <polyline points="4,22 16,34 40,8" fill="none" stroke="currentColor" strokeWidth={4.5} strokeLinecap="butt" strokeLinejoin="miter" />
+    </svg>
   )
 }

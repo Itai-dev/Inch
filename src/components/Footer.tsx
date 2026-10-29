@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { DEMO_CONTACT, HOURS, instagramHandle } from '@/lib/copy'
+import { enquiryMailto } from '@/lib/enquiry'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { CATEGORIES_BY_DIVISION_QUERY, SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
@@ -39,7 +40,7 @@ export async function Footer({ site }: { site: Site }) {
       items: [
         { text: `${s.brand} ${s.label}`, href: sitePath(site) },
         { text: `${SITES[other].brand} ${SITES[other].label}`, href: sitePath(other) },
-        { text: 'Become a model', href: sitePath(site, '/apply') },
+        { text: 'Apply', href: sitePath(site, '/apply') },
         { text: 'Contact', href: sitePath(site, '/contact') },
       ],
     },
@@ -58,32 +59,44 @@ export async function Footer({ site }: { site: Site }) {
   ]
   // When each piece starts typing (ms after the footer comes into view).
   const emailAt = 160
+  const enquiry = enquiryMailto(email, { brand: s.brand })
+  const BRIEF = 'Send us the brief: dates, location and usage. We come back with a shortlist from the board.'
+  const ctaAt = typeEnd(BRIEF, typeEnd(email, emailAt, 24), 10) + 100
   const colAt = (c: number) => 300 + c * 160
   const cut = (at: number) => ({ '--at': `${at}ms` }) as React.CSSProperties
 
+  // Phones: the footer is a whole screen, the details at the top and the wordmark at the foot.
   return (
-    <footer className="mt-24 overflow-hidden border-t border-white/15 bg-ink pt-[clamp(64px,8vw,140px)] text-paper [--fg:var(--paper)]">
+    <footer className="relative mt-24 flex min-h-[100svh] flex-col overflow-hidden bg-ink pt-12 text-paper md:pt-[clamp(64px,8vw,140px)] [--fg:var(--paper)] md:block md:min-h-0">
       <TypeOnView className="px-gutter">
-        <div className="grid gap-y-14 md:grid-cols-12 md:gap-x-6">
+        <div className="grid gap-y-10 md:grid-cols-12 md:gap-x-6 md:gap-y-14">
           <div className="flex flex-col gap-4 md:col-span-5">
-            <p className="label text-[#8a8a8a]"><TypeText text="Bookings & new faces" /></p>
-            <a href={`mailto:${email}`} className="wordmark w-fit text-[clamp(30px,3.6vw,64px)] leading-none hover:opacity-60">
+            <p className="label text-[#8a8a8a]"><TypeText text="Bookings" /></p>
+            <a href={enquiry} className="ink-line wordmark w-fit text-[clamp(30px,9vw,44px)] leading-none md:text-[clamp(30px,3.6vw,64px)]">
               <TypeText text={email} at={emailAt} ms={24} />
             </a>
-            <Link href={sitePath(site, '/apply')} className="type-char mt-4 flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase tracking-[0.04em] text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(typeEnd(email, emailAt, 24) + 100) }}>
-              Get scouted →
-            </Link>
+            <p className="max-w-[440px] text-[15px] leading-snug text-[#8a8a8a]">
+              <TypeText text={BRIEF} at={typeEnd(email, emailAt, 24)} ms={10} />
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a href={enquiry} className="type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
+                Book talent →
+              </a>
+              <Link href={sitePath(site, '/apply')} className="type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt + 120) }}>
+                Become a model →
+              </Link>
+            </div>
           </div>
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4 md:col-span-7">
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 md:col-span-7 md:gap-y-10">
             {columns.map((c, ci) => (
               <div key={c.title} className="flex flex-col gap-3">
                 <p className="label text-[#8a8a8a]"><TypeText text={c.title} at={colAt(ci)} /></p>
-                <ul className="flex flex-col gap-2 text-[16px] leading-snug md:text-[18px]">
+                <ul className="flex flex-col gap-3 text-[17px] leading-snug md:gap-2 md:text-[18px]">
                   {c.items.map((it, i) => {
                     const at = colAt(ci) + 140 + i * 90
                     if (it === 'sel')
                       return (
-                        <li key="sel" className="type-char [&>button]:text-left [&>button]:normal-case hover:[&>button]:underline" style={cut(at)}>
+                        <li key="sel" className="type-char [&>button]:text-left [&>button]:normal-case" style={cut(at)}>
                           <SelectionCount />
                         </li>
                       )
@@ -91,9 +104,9 @@ export async function Footer({ site }: { site: Site }) {
                     return (
                       <li key={i} className={it.pre ? 'whitespace-pre-line' : undefined}>
                         {!it.href ? t : it.external ? (
-                          <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="underline-offset-4 hover:underline">{t}</a>
+                          <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="ink-line inline-block">{t}</a>
                         ) : (
-                          <Link href={it.href} className="underline-offset-4 hover:underline">{t}</Link>
+                          <Link href={it.href} className="ink-line inline-block">{t}</Link>
                         )}
                       </li>
                     )
@@ -104,14 +117,14 @@ export async function Footer({ site }: { site: Site }) {
           </nav>
         </div>
 
-        <div className="label mt-[clamp(56px,7vw,120px)] flex flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
+        <div className="label mt-10 flex md:mt-[clamp(56px,7vw,120px)] flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
           <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
-          <a href="#" className="hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
+          <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
         </div>
       </TypeOnView>
 
       {/* The wordmark, the whole width, growing in from the left; the page ends halfway down it. */}
-      <div className="mt-6 px-gutter">
+      <div className="mt-auto px-gutter pt-6 md:mt-6 md:pt-0">
         <FooterMark ratio={s.division === 'men' ? 52 / 24 : 849 / 310}>
           <Logo division={s.division} as="div" className="w-full" />
         </FooterMark>
