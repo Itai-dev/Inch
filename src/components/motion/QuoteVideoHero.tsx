@@ -10,7 +10,7 @@
  *    the hero items (click a number / arrow keys). Every 6 s
  *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
- * `opening="grow"` (on /logotest) replaces step 2: the ” grows in one movement, ever faster,
+ * `opening="grow"` (the live home) replaces step 2: the ” grows in one movement, ever faster,
  * the video fading in inside it, into its left stroke until the video fills the screen.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
@@ -670,7 +670,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
         <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-blink 0.4s steps(1, end) ${RULER_IN_MS}ms both` }}>
-          <div ref={rulerRef} className="relative">
+          <div ref={rulerRef} data-hero-ruler className="relative">
             {/* Sound on / off, over the ruler's right end. */}
             {videos.some((v) => v.kind === 'video') && (
               <button

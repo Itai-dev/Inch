@@ -24,10 +24,10 @@ type Home = {
 } | null
 
 /**
- * The home page for a site. `hero` picks how INCH”'s ” opens into the video: it splits
- * (the live home) or it grows with the video inside it (/logotest, for trying it out).
+ * The home page for a site. `hero` picks how INCH”'s ” opens into the video: it grows with the
+ * video inside it (the live home, first tried on /logotest) or it splits (the earlier opening).
  */
-export async function HomeView({ site, hero = 'split' }: { site: Site; hero?: 'split' | 'grow' }) {
+export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'split' | 'grow' }) {
   const { division } = SITES[site]
   const [home, talents] = await Promise.all([
     sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', site) }, null, ['homePage']),

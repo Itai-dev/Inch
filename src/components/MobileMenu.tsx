@@ -125,11 +125,11 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
 
             {/* The other site, and how to reach the agency. */}
             <div className="flex shrink-0 flex-col gap-6 px-gutter pb-[max(28px,env(safe-area-inset-bottom))]" style={type(links.length + 1)}>
-              {/* INCH”: DOT.'s box, "For men:" above it as wide as the box. DOT.: INCH”'s box, larger, on its own. */}
+              {/* INCH”: DOT.'s box, "Men division" above it as wide as the box. DOT.: INCH”'s box, larger, on its own. */}
               {other === 'dot' ? (
                 <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="flex flex-col items-start gap-2 self-start text-[30px]">
                   <span ref={forLabel} className="whitespace-nowrap font-bold uppercase leading-none" style={narrow}>
-                    For men:
+                    Men division
                   </span>
                   <span ref={forBox} className="block">
                     <DotBox />

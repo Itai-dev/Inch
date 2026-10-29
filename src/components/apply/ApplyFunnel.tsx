@@ -2,7 +2,7 @@
 
 /**
  * Become a model: an opening screen, then four steps — 01 You (and a parent or guardian's
- * consent at 16 and under), 02 Measurements, 03 Digitals, 04 Send — with a comp card that fills in as
+ * consent under 18; under 14 can't apply), 02 Measurements, 03 Digitals, 04 Send — with a comp card that fills in as
  * the form does, and the INCH” ruler as the progress bar. Photos are shrunk in the
  * browser before upload so a whole application fits in one request.
  */
@@ -12,7 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Logo } from '@/components/brand/Logo'
 import { TypeText } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { ageFrom, GUARDIAN_AGE } from '@/lib/apply-criteria'
+import { ADULT_AGE, ageFrom, MIN_APPLY_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet } from '@/lib/units'
@@ -362,9 +362,11 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
 
   const age = d.birthdate ? ageFrom(d.birthdate) : NaN
   // A date that makes no sense (a year typed short, say): the form says so before it is sent.
-  const badDate = !!d.birthdate && !(age >= 10 && age <= 80)
-  // A parent or guardian consents for applicants up to GUARDIAN_AGE (16).
-  const isMinor = age >= 0 && age <= GUARDIAN_AGE
+  const badDate = !!d.birthdate && !(age >= 0 && age <= 80)
+  // Under MIN_APPLY_AGE (14) we can't take the application at all.
+  const underage = !!d.birthdate && !badDate && age < MIN_APPLY_AGE
+  // A parent or guardian consents for applicants under ADULT_AGE (18).
+  const isMinor = age >= 0 && age < ADULT_AGE
   const flow: Step[] = useMemo(() => ['you', ...(isMinor ? (['guardian'] as Step[]) : []), 'measure', 'digitals', 'send'], [isMinor])
   const index = flow.indexOf(step)
   const number = NUMBER[step] ?? 0
@@ -477,7 +479,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     [
       ['First name', !d.firstName.trim()],
       ['Last name', !d.lastName.trim()],
-      ['Date of birth', !d.birthdate || badDate],
+      ['Date of birth', !d.birthdate || badDate || underage],
       ['Country', !d.country],
       ['Email', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())],
       ['Phone', d.phone.replace(/\D/g, '').length < 6],
@@ -665,14 +667,20 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} />
               <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-              <p className="sm:col-span-2 text-[13px] text-muted">{GUARDIAN_AGE} or younger? We’ll ask for a parent or guardian’s consent next.</p>
-              <div className="sm:col-span-2">{tried && youGaps.length ? nav('Continue →', false, youNote, true) : nav('Continue →', false, 'Takes about 3 minutes')}</div>
+              {underage ? (
+                <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug">
+                  Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
+                </p>
+              ) : (
+                <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
+              )}
+              <div className="sm:col-span-2">{underage ? nav('Continue →', true) : tried && youGaps.length ? nav('Continue →', false, youNote, true) : nav('Continue →', false, 'Takes about 3 minutes')}</div>
             </form>
           )}
 
           {step === 'guardian' && (
             <form className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); next() }}>
-              <p className="sm:col-span-2 text-[16px] leading-snug">You’re {GUARDIAN_AGE} or younger, so a parent or guardian needs to agree to your application. We’ll speak to them first.</p>
+              <p className="sm:col-span-2 text-[16px] leading-snug">You’re under {ADULT_AGE}, so a parent or guardian needs to agree to your application. We’ll speak to them first.</p>
               <Field label="Their name"><input required className={big} value={d.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
               <Field label="Their phone"><input required type="tel" className={big} value={d.guardianPhone} onChange={(e) => set('guardianPhone', e.target.value)} /></Field>
               <label data-q className="flex sm:col-span-2 items-start gap-3 text-[14px] leading-snug">

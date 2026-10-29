@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { ageFrom, GUARDIAN_AGE, meetsCriteria } from '@/lib/apply-criteria'
+import { ADULT_AGE, ageFrom, MIN_APPLY_AGE, meetsCriteria } from '@/lib/apply-criteria'
 import { applicationEmail } from '@/lib/application-email'
 import { getWriteClient } from '@/sanity/lib/client'
 
@@ -66,9 +66,10 @@ export async function POST(req: Request) {
   if (d.website || !d.startedAt || Date.now() - d.startedAt < MIN_FILL_MS) return NextResponse.json({ ok: true })
 
   const age = ageFrom(d.birthdate)
-  if (!(age >= 10 && age <= 80)) return NextResponse.json({ error: Number.isFinite(age) ? `date of birth: that would make you ${age}` : 'date of birth' }, { status: 400 })
-  // At GUARDIAN_AGE or younger, a parent or guardian consents.
-  const minor = age <= GUARDIAN_AGE
+  if (!(age >= 0 && age <= 80)) return NextResponse.json({ error: Number.isFinite(age) ? `date of birth: that would make you ${age}` : 'date of birth' }, { status: 400 })
+  if (age < MIN_APPLY_AGE) return NextResponse.json({ error: `applicants must be at least ${MIN_APPLY_AGE}` }, { status: 400 })
+  // Under ADULT_AGE, a parent or guardian consents.
+  const minor = age < ADULT_AGE
   if (minor && (!d.guardianName || !d.guardianPhone || d.guardianConsent !== 'true')) {
     return NextResponse.json({ error: 'Parent or guardian consent needed' }, { status: 400 })
   }

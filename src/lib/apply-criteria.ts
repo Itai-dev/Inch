@@ -9,8 +9,11 @@ export const APPLY_CRITERIA: Record<Division, { minAge: number; maxAge: number; 
   men: { minAge: 15, maxAge: 40, minHeight: 180, maxHeight: 198 },
 }
 
-/** Applicants this age or younger need a parent or guardian's consent. */
-export const GUARDIAN_AGE = 16
+/** Applicants younger than this need a parent or guardian's consent. */
+export const ADULT_AGE = 18
+
+/** Applicants younger than this can't apply at all. */
+export const MIN_APPLY_AGE = 14
 
 export function meetsCriteria(division: Division, age: number, height: number) {
   const c = APPLY_CRITERIA[division]

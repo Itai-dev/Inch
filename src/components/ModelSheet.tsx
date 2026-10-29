@@ -19,7 +19,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { siteForDivision, sitePath } from '@/lib/sites'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
-import { Logo } from './brand/Logo'
+import { QuoteMark } from './brand/Marks'
 import { Ruler } from './motion/Ruler'
 import { TypeText } from './motion/TypeText'
 import type { Slide } from './motion/types'
@@ -72,7 +72,6 @@ export function ModelSheet({
   initial,
   base,
   compCard,
-  enquiry,
   closeHref,
 }: {
   /** For the selection; null for placeholder models. */
@@ -88,8 +87,6 @@ export function ModelSheet({
   /** Public path of the model page; books live at `${base}/${segment}`. */
   base: string
   compCard: string | null
-  /** A booking enquiry for this model, as an email. */
-  enquiry?: string | null
   closeHref: string
 }) {
   const router = useRouter()
@@ -175,6 +172,8 @@ export function ModelSheet({
   if (startSpread !== null && settled) setStartDone(true)
   const rulerPos = Math.floor(cur / S) * N + ((visible[0] ?? 0) + (visible[visible.length - 1] ?? 0)) / 2
 
+  const { has, toggle, open: trayOpen, setOpen: setTrayOpen } = useSelection()
+
   const close = useCallback(() => {
     if (hasSitePageBehind()) router.back()
     else router.push(closeHref)
@@ -190,6 +189,11 @@ export function ModelSheet({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // The selection open over the sheet: Escape closes it first.
+      if (trayOpen) {
+        if (e.key === 'Escape') setTrayOpen(false)
+        return
+      }
       if (e.key === 'Escape') close()
       if (!showBook) return
       if (e.key === 'ArrowRight') step(1)
@@ -197,7 +201,7 @@ export function ModelSheet({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [close, step, showBook])
+  }, [close, step, showBook, trayOpen, setTrayOpen])
 
   const wheelLock = useRef(false)
   const onWheel = (e: React.WheelEvent) => {
@@ -222,8 +226,12 @@ export function ModelSheet({
     }
   }
 
-  const { has, toggle } = useSelection()
   const selected = talent ? has(talent._id) : false
+  // Adding her opens the selection, so you see where she went.
+  const select_ = (t: TalentCard) => {
+    toggle(t)
+    if (!has(t._id)) setTrayOpen(true)
+  }
   const handle = instagram?.replace('@', '')
   // Both units, so each value keeps the width of the wider one and nothing moves when switching.
   const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
@@ -305,8 +313,8 @@ export function ModelSheet({
   const bookActions = (stacked = false) => (
     <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
       {book && N > 0 && (
-        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
-          {view === 'book' ? 'Thumbnails' : 'Book'}
+        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Overview')}>
+          {view === 'book' ? 'Overview' : 'Book'}
         </button>
       )}
       {compCard && (
@@ -315,14 +323,9 @@ export function ModelSheet({
         </a>
       )}
       {talent && (
-        <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
+        <button type="button" onClick={() => select_(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
           {selected ? 'Selected' : '+ Selection'}
         </button>
-      )}
-      {enquiry && (
-        <a href={enquiry} className="intro-write uppercase underline decoration-2 underline-offset-[5px] hover:opacity-60" style={write('Book her →')}>
-          {division === 'men' ? 'Book him →' : 'Book her →'}
-        </a>
       )}
     </div>
   )
@@ -358,7 +361,7 @@ export function ModelSheet({
         // gap above the name as between it and the pictures.
         <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter py-[clamp(18px,1.9vw,34px)]">
           <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
-            <Logo division={division} className="text-[clamp(46px,4.86vw,70px)]" />
+            <BrandMark division={division} className="text-[clamp(46px,4.86vw,70px)]" />
           </Link>
           <h1 aria-label={name} className="wordmark whitespace-nowrap uppercase" style={{ fontSize: `clamp(${46 * NAME_PER_LOGO}px, ${4.86 * NAME_PER_LOGO}vw, ${70 * NAME_PER_LOGO}px)` }}>
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
@@ -376,7 +379,7 @@ export function ModelSheet({
         <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
-              <Logo division={division} className="text-[32px] md:text-[48px]" />
+              <BrandMark division={division} className="text-[32px] md:text-[48px]" />
             </Link>
             <h1 aria-label={name} className="wordmark text-center text-[calc(32px*var(--name-per-logo))] uppercase md:text-[calc(48px*var(--name-per-logo))]" style={{ '--name-per-logo': NAME_PER_LOGO } as React.CSSProperties}>
               <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
@@ -474,7 +477,7 @@ export function ModelSheet({
 
       {/* Thumbnails: the whole book at once, as large as fits, in the middle of the stage. */}
       {view === 'thumbnails' && book && (
-        <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${book.title}, thumbnails`}>
+        <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${book.title}, overview`}>
           <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: THUMB_GAP }} className="intro-crop m-auto grid shrink-0 py-4">
             {slides.map((s, i) => (
               <li key={i}>
@@ -542,5 +545,18 @@ export function ModelSheet({
         )}
       </div>
     </div>
+  )
+}
+
+/** The brand's symbol alone (” or ■), as tall as the logo would be at this font size. */
+function BrandMark({ division, className = '' }: { division: Division; className?: string }) {
+  return (
+    <span role="img" aria-label={division === 'men' ? 'DOT.' : 'INCH”'} className={`block leading-none ${className}`}>
+      {division === 'men' ? (
+        <span aria-hidden className="block size-[0.5em] bg-current" />
+      ) : (
+        <QuoteMark className="h-[0.72em] w-auto" />
+      )}
+    </span>
   )
 }
