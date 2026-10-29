@@ -493,11 +493,12 @@ export function ModelSheet({
         </section>
       )}
 
-      {/* The bio: one paragraph in the middle of the screen, writing itself in as it opens. */}
+      {/* The bio: one paragraph in the middle of the screen, writing itself in as it opens (quickly:
+          the whole of it in about a second, however long it is). */}
       {segment === 'bio' && bio && (
         <section style={at(INTRO_AT)} className="intro-fade flex min-h-0 flex-1 flex-col overflow-y-auto px-gutter lg:px-[calc(var(--gutter)+230px)]">
           <p className="m-auto max-w-[44ch] whitespace-pre-line py-8 text-center text-[clamp(19px,1.7vw,27px)] leading-[1.4] tracking-[-0.01em]">
-            <TypeText text={bio} at={150} ms={9} />
+            <TypeText text={bio} at={40} ms={Math.min(3, 1100 / Math.max(1, Array.from(bio).length))} />
           </p>
         </section>
       )}
