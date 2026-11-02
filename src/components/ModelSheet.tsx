@@ -49,6 +49,8 @@ const POLAROID_GAP = 22
 const POLAROID_ASPECT = 1 / (0.05 + 0.9 * (4 / 3) + 0.18)
 const POLAROID_FRAME = 'bg-[#fbfbf8] px-[5%] pb-[18%] pt-[5%] shadow-[0_1px_2px_rgb(0_0_0/0.12),0_10px_22px_-12px_rgb(0_0_0/0.35)]'
 const ZOOM_MS = 420
+/** Room under a print for its shadow (0 10px 22px -12px: about 20px below it). */
+const POLAROID_SHADOW = 22
 /** The name's capitals as tall as the logo: Archivo's cap height is 0.69em, the logo is drawn 0.72em tall. */
 const NAME_PER_LOGO = 0.72 / 0.69
 
@@ -561,9 +563,10 @@ export function ModelSheet({
                   return (
                     <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
                       {polaroids ? (
-                        // Polaroids: each page a print in its white frame, as tall as the page.
-                        <div className="flex items-center justify-center" style={{ width: w, height: pageH }}>
-                          <div style={{ width: Math.min(w, pageH * POLAROID_ASPECT) }}>
+                        // Polaroids: each page a print in its white frame, as tall as the page less the
+                        // room its shadow takes below it (else the foot of the stage cuts the shadow off).
+                        <div className="flex items-start justify-center" style={{ width: w, height: pageH }}>
+                          <div style={{ width: Math.min(w, Math.max(0, pageH - POLAROID_SHADOW) * POLAROID_ASPECT) }}>
                             <div className={POLAROID_FRAME}>
                               <div className="aspect-[3/4] overflow-hidden bg-line">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
