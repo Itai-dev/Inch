@@ -43,6 +43,12 @@ const INTRO_AT = 0 // everything starts opening together, as soon as the sheet a
 const WRITE_MS_PER_CHAR = 28
 const INTRO_MS = 1600 // by then every opening animation is done
 const THUMB_GAP = 6
+/** Polaroids: each print in its white frame (wider at the foot), with room between them for their shadows. */
+const POLAROID_GAP = 22
+/** A print's width to its height: a 3:4 picture in a frame 5% wide at the sides and top, 18% at the foot. */
+const POLAROID_ASPECT = 1 / (0.05 + 0.9 * (4 / 3) + 0.18)
+const POLAROID_FRAME = 'bg-[#fbfbf8] px-[5%] pb-[18%] pt-[5%] shadow-[0_1px_2px_rgb(0_0_0/0.12),0_10px_22px_-12px_rgb(0_0_0/0.35)]'
+const ZOOM_MS = 420
 /** The name's capitals as tall as the logo: Archivo's cap height is 0.69em, the logo is drawn 0.72em tall. */
 const NAME_PER_LOGO = 0.72 / 0.69
 
@@ -180,6 +186,7 @@ export function ModelSheet({
 
   const open = (s: string) => {
     const b = books.find((x) => x.segment === s)
+    setZoom(null)
     setSegment(s)
     setView(b?.view ?? 'book')
     setCur(0)
@@ -242,21 +249,61 @@ export function ModelSheet({
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
   // Thumbnails: as large as they can be and still all on screen (the columns chosen for the largest
-  // cells), centred in the stage; phones get three across and scroll.
+  // cells), centred in the stage; phones get three across and scroll. Polaroids are prints in their
+  // white frames (two across on phones).
+  const polaroids = book?.segment === 'polaroids'
+  const gapPx = polaroids ? POLAROID_GAP : THUMB_GAP
+  const aspect = polaroids ? POLAROID_ASPECT : 0.75
   const thumbPad = wide ? SIDE_W + 16 : 20
   const thumbW = Math.max(0, stage.w - thumbPad * 2)
   const thumbH = Math.max(0, stage.h - 32)
-  let thumbCols = 3
-  let thumbSize = (thumbW - THUMB_GAP * 2) / 3
+  let thumbCols = polaroids ? 2 : 3
+  let thumbSize = (thumbW - gapPx * (thumbCols - 1)) / thumbCols
   if (per === 2) {
     thumbSize = 0
     for (let c = 2; c <= 6; c++) {
       const rows = Math.ceil(N / c)
-      const s = Math.min((thumbW - THUMB_GAP * (c - 1)) / c, ((thumbH - THUMB_GAP * (rows - 1)) / rows) * 0.75)
+      const s = Math.min((thumbW - gapPx * (c - 1)) / c, ((thumbH - gapPx * (rows - 1)) / rows) * aspect)
       if (s > thumbSize) [thumbSize, thumbCols] = [s, c]
     }
   }
   thumbSize = Math.max(100, Math.floor(thumbSize))
+
+  // A polaroid enlarged: a click lifts it from its place to the middle of the screen, a click
+  // (anywhere, or Escape) lays it back. Only the print moves (it grows out of its place and back).
+  const [zoom, setZoom] = useState<number | null>(null)
+  const zoomed = polaroids && view === 'thumbnails' && zoom !== null && zoom < N ? zoom : null
+  const zoomEl = useRef<HTMLDivElement>(null)
+  const prints = useRef<(HTMLElement | null)[]>([])
+  const fromPrint = (k: number) => {
+    const a = prints.current[k]?.getBoundingClientRect()
+    const b = zoomEl.current?.getBoundingClientRect()
+    if (!a || !b) return 'none'
+    return `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width})`
+  }
+  useLayoutEffect(() => {
+    if (zoomed === null || reduced) return
+    zoomEl.current?.animate([{ transform: fromPrint(zoomed) }, { transform: 'none' }], { duration: ZOOM_MS, easing: EASE })
+    // Plays as it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoomed])
+  const unzoom = () => {
+    if (zoomed === null) return
+    const el = zoomEl.current
+    if (!el || reduced) return setZoom(null)
+    const a = el.animate([{ transform: 'none' }, { transform: fromPrint(zoomed) }], { duration: ZOOM_MS * 0.85, easing: EASE, fill: 'forwards' })
+    a.onfinish = () => setZoom(null)
+  }
+  useEffect(() => {
+    if (zoomed === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      unzoom()
+    }
+    addEventListener('keydown', onKey, true)
+    return () => removeEventListener('keydown', onKey, true)
+  })
 
   // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
   // other line writes itself in letter by letter, and the spread slides into its frame as one.
@@ -329,6 +376,69 @@ export function ModelSheet({
     </div>
   )
   const rowCls = 'text-detail font-bold uppercase'
+  // Phones: the books and actions fold into Menu (what is open shown beside it); the sizes stay out.
+  const [menu, setMenu] = useState(false)
+  const current = `${tabs.find((t) => t.segment === segment)?.title ?? ''}${book?.view === 'book' && view === 'thumbnails' ? ' · Overview' : ''}`
+  const phoneRow = (
+    <div className={`flex items-center justify-between gap-4 px-gutter ${rowCls}`} style={narrow}>
+      <span className="intro-write truncate" style={write(current)}>
+        {current}
+      </span>
+      <button type="button" aria-expanded={menu} aria-haspopup="dialog" onClick={() => setMenu(true)} className="intro-write flex shrink-0 items-center gap-2 uppercase" style={write('Menu')}>
+        Menu
+        <svg viewBox="0 0 18 12" aria-hidden className="w-[1.05em]">
+          <path d="M0 1.5h18M0 10.5h18" stroke="currentColor" strokeWidth="2.2" />
+        </svg>
+      </button>
+    </div>
+  )
+  const done = (fn: () => void) => () => {
+    fn()
+    setMenu(false)
+  }
+  const phoneMenu = (
+    // Slides up from the foot over the book; a tap above it (or Close) puts it away.
+    <div inert={!menu} aria-hidden={!menu || undefined} className={`fixed inset-0 z-40 ${menu ? '' : 'pointer-events-none'}`} onClick={() => setMenu(false)}>
+      <div
+        role="dialog"
+        aria-label="Menu"
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute inset-x-0 bottom-0 flex flex-col gap-6 bg-bg px-gutter pb-[max(22px,env(safe-area-inset-bottom))] pt-5 shadow-[0_-24px_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${menu ? 'translate-y-0' : 'translate-y-[105%]'}`}
+      >
+        <div className={`flex items-center justify-between ${rowCls}`} style={narrow}>
+          <span className="text-muted">{name}</span>
+          <button type="button" onClick={() => setMenu(false)} className="uppercase">
+            Close
+          </button>
+        </div>
+        <nav className="flex flex-col items-start gap-1" aria-label="Books">
+          {tabs.map((t) => (
+            <button key={t.segment} type="button" onClick={done(() => open(t.segment))} aria-current={t.segment === segment ? 'page' : undefined} className={`wordmark text-[clamp(34px,10.5vw,48px)] uppercase leading-[1.02] ${t.segment === segment ? '' : 'text-muted'}`}>
+              {t.title}
+            </button>
+          ))}
+        </nav>
+        <div className={`flex flex-wrap gap-x-6 gap-y-2 ${rowCls}`} style={narrow}>
+          {book && N > 0 && (
+            <button type="button" onClick={done(() => setView(view === 'book' ? 'thumbnails' : 'book'))} className="uppercase">
+              {view === 'book' ? 'Overview' : 'Book'}
+            </button>
+          )}
+          {compCard && <a href={compCard}>Comp card</a>}
+          {talent && (
+            <button type="button" onClick={done(() => select_(talent))} aria-pressed={selected} className="uppercase">
+              {selected ? 'Selected' : '+ Selection'}
+            </button>
+          )}
+          {handle && (
+            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer">
+              Instagram
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  )
   const actionsRow = (className: string, style?: React.CSSProperties) => (
     <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
       {bookTabs()}
@@ -495,19 +605,48 @@ export function ModelSheet({
       {/* Thumbnails: the whole book at once, as large as fits, in the middle of the stage. */}
       {view === 'thumbnails' && book && (
         <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${book.title}, overview`}>
-          <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: THUMB_GAP }} className="intro-crop m-auto grid shrink-0 py-4">
+          <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: gapPx }} className={`intro-crop m-auto grid shrink-0 ${polaroids ? 'py-6' : 'py-4'}`}>
             {slides.map((s, i) => (
               <li key={i}>
-                <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
-                  <span className="block aspect-[3/4] overflow-hidden bg-line">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
-                  </span>
-                </button>
+                {polaroids ? (
+                  // A polaroid: the picture in its white frame. A click enlarges it.
+                  <button type="button" onClick={() => setZoom(i)} className="block w-full cursor-zoom-in" aria-label={`Enlarge ${s.alt}`}>
+                    <span ref={(el) => void (prints.current[i] = el)} className={`block ${POLAROID_FRAME} ${zoomed === i ? 'invisible' : ''}`}>
+                      <span className="block aspect-[3/4] overflow-hidden bg-line">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={s.src} alt="" loading="lazy" className="size-full object-cover" />
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
+                    <span className="block aspect-[3/4] overflow-hidden bg-line">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
+                    </span>
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         </section>
+      )}
+
+      {!wide && per === 1 && phoneMenu}
+
+      {/* The polaroid enlarged, in the middle of the screen; a click anywhere lays it back. */}
+      {zoomed !== null && (
+        <button type="button" onClick={unzoom} className="fixed inset-0 z-30 grid cursor-zoom-out place-items-center" aria-label="Back to the polaroids">
+          <div ref={zoomEl} className="origin-top-left" style={{ width: `min(88vw, calc(78dvh * ${POLAROID_ASPECT.toFixed(4)}))` }}>
+            {/* (The frame inside its own box, so its edges are measured on the print, not the screen.) */}
+            <span className={`block ${POLAROID_FRAME}`}>
+              <span className="block aspect-[3/4] overflow-hidden bg-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={slides[zoomed].src} alt={slides[zoomed].alt} className="size-full object-cover" />
+              </span>
+            </span>
+          </div>
+        </button>
       )}
 
       {/* The bio: one paragraph in the middle of the screen, writing itself in as it opens (quickly:
@@ -536,7 +675,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        {!underSpread && !wide && actionsRow('px-gutter')}
+        {!underSpread && !wide && (per === 1 ? phoneRow : actionsRow('px-gutter'))}
 
         {showBook && S > 1 && (
           <>
