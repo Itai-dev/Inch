@@ -101,7 +101,7 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
                 <div role="radiogroup" aria-label="What to send" className="flex items-center justify-between gap-3 py-1 text-[13px] font-bold uppercase" style={{ fontStretch: '80%' }}>
                   {(
                     [
-                      ['cards', 'Comp cards'],
+                      ['cards', 'Cards'],
                       ['with', 'Cards + polaroids'],
                       ['only', 'Polaroids'],
                     ] as const
