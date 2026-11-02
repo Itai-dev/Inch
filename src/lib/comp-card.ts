@@ -10,8 +10,8 @@ import type { SanityImage, SiteSettings, Talent } from '@/sanity/lib/types'
  * Comp cards as a PDF: A4 landscape, a page a model. Cover on the left, four book images on the
  * right; the name, measurements (cm and inches) and the agency's contact along the bottom. The
  * name and a "View online" line link to the model's page on the site, so the card is a way in.
- * With polaroids, each model's polaroids follow her card (or stand alone): eight prints a page, each
- * in its white frame, numbered, under her name.
+ * With polaroids, each model's polaroids follow her card (or stand alone): eight a page, laid out as
+ * the card's pictures, under her name.
  */
 const W = 842
 const H = 595
@@ -41,13 +41,9 @@ export async function compCardsPdf(talents: Talent[], site: Site, settings: Site
   return pdf.save()
 }
 
-/** A polaroid's frame: 5% of its width at the sides and top, 18% at the foot, round a 3:4 picture. */
-const POL_SIDE = 0.05
-const POL_FOOT = 0.18
-const POL_ASPECT = 1 / (POL_SIDE + (1 - 2 * POL_SIDE) * (4 / 3) + POL_FOOT)
 const POLS_PER_PAGE = 8
 
-async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, origin: string) {
+async function drawPolaroids(pdf: PDFDocument, { bold }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, origin: string) {
   const all = polaroidsOf(t)
   if (!all.length) return
   const url = `${origin}${talentPath(t)}/polaroids`
@@ -55,32 +51,18 @@ async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFon
   for (let pg = 0; pg < pages; pg++) {
     const page = pdf.addPage([W, H])
     const items = all.slice(pg * POLS_PER_PAGE, (pg + 1) * POLS_PER_PAGE)
-    // Four across, two down, as large as the page allows; a short last row is centred.
-    const areaTop = H - M
+    // As the card's pictures: 3:4, cropped, four across and two down, a short last row centred.
     const areaH = H - M - FOOT
-    const gap = 18
-    const frameH = (areaH - gap) / 2
-    const frameW = Math.min(frameH * POL_ASPECT, (W - 2 * M - gap * 3) / 4)
-    const fh = frameW / POL_ASPECT
-    const pic = { w: frameW * (1 - 2 * POL_SIDE), h: frameW * (1 - 2 * POL_SIDE) * (4 / 3) }
-    const imgs = await Promise.all(items.map((img) => embed(pdf, img, pic.w, pic.h)))
-    const rows = [items.slice(0, 4), items.slice(4)]
-    rows.forEach((row, r) => {
-      const rowW = row.length * frameW + (row.length - 1) * gap
-      const x0 = (W - rowW) / 2
-      const y = areaTop - (r + 1) * fh - r * gap
+    const gap = 8
+    const cellH = (areaH - gap) / 2
+    const cellW = Math.min((cellH * 3) / 4, (W - 2 * M - gap * 3) / 4)
+    const imgs = await Promise.all(items.map((img) => embed(pdf, img, cellW, cellH)))
+    ;[items.slice(0, 4), items.slice(4)].forEach((row, r) => {
+      const x0 = (W - (row.length * cellW + (row.length - 1) * gap)) / 2
+      const y = H - M - (r + 1) * cellH - r * gap
       row.forEach((_, c) => {
-        const k = r * 4 + c
-        const x = x0 + c * (frameW + gap)
-        // The print: a soft shadow under it, its white frame, the picture, its number at the foot.
-        page.drawRectangle({ x: x + 1.2, y: y - 1.8, width: frameW, height: fh, color: rgb(0.86, 0.86, 0.85) })
-        page.drawRectangle({ x, y, width: frameW, height: fh, color: rgb(0.985, 0.985, 0.975), borderColor: rgb(0.82, 0.82, 0.8), borderWidth: 0.4 })
-        const img = imgs[k]
-        if (img) page.drawImage(img, { x: x + frameW * POL_SIDE, y: y + frameW * POL_FOOT, width: pic.w, height: pic.h })
-        const n = String(pg * POLS_PER_PAGE + k + 1).padStart(2, '0')
-        const footY = y + (frameW * POL_FOOT) / 2 - 3
-        page.drawText(safe(t.name.split(' ')[0].toUpperCase(), bold), { x: x + frameW * 0.07, y: footY, size: 7, font: bold, color: INK })
-        page.drawText(n, { x: x + frameW * 0.93 - regular.widthOfTextAtSize(n, 7), y: footY, size: 7, font: regular, color: MUTED })
+        const img = imgs[r * 4 + c]
+        if (img) page.drawImage(img, { x: x0 + c * (cellW + gap), y, width: cellW, height: cellH })
       })
     })
     // Foot: her name and "Polaroids", the agency's mark, and the way to them online.

@@ -43,11 +43,6 @@ const INTRO_AT = 0 // everything starts opening together, as soon as the sheet a
 const WRITE_MS_PER_CHAR = 28
 const INTRO_MS = 1600 // by then every opening animation is done
 const THUMB_GAP = 6
-/** Polaroids: each print in its white frame (wider at the foot), a touch askew, the gap room for that. */
-const POLAROID_GAP = 22
-/** A print's width to its height: a 3:4 picture in a frame 5% wide at the sides and top, 18% at the foot. */
-const POLAROID_ASPECT = 1 / (0.05 + 0.9 * (4 / 3) + 0.18)
-const POLAROID_TILT = [-1.6, 1.1, -0.5, 1.4, -1.1, 0.6, -1.4, 0.9]
 /** The name's capitals as tall as the logo: Archivo's cap height is 0.69em, the logo is drawn 0.72em tall. */
 const NAME_PER_LOGO = 0.72 / 0.69
 
@@ -248,26 +243,21 @@ export function ModelSheet({
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
   // Thumbnails: as large as they can be and still all on screen (the columns chosen for the largest
-  // cells), centred in the stage; phones get three across and scroll. Polaroids are prints in their
-  // frames (two across on phones, so the writing on them reads).
-  const polaroids = book?.segment === 'polaroids'
-  const gapPx = polaroids ? POLAROID_GAP : THUMB_GAP
-  const aspect = polaroids ? POLAROID_ASPECT : 0.75
+  // cells), centred in the stage; phones get three across and scroll.
   const thumbPad = wide ? SIDE_W + 16 : 20
   const thumbW = Math.max(0, stage.w - thumbPad * 2)
   const thumbH = Math.max(0, stage.h - 32)
-  let thumbCols = polaroids ? 2 : 3
-  let thumbSize = (thumbW - gapPx * (thumbCols - 1)) / thumbCols
+  let thumbCols = 3
+  let thumbSize = (thumbW - THUMB_GAP * 2) / 3
   if (per === 2) {
     thumbSize = 0
     for (let c = 2; c <= 6; c++) {
       const rows = Math.ceil(N / c)
-      const s = Math.min((thumbW - gapPx * (c - 1)) / c, ((thumbH - gapPx * (rows - 1)) / rows) * aspect)
+      const s = Math.min((thumbW - THUMB_GAP * (c - 1)) / c, ((thumbH - THUMB_GAP * (rows - 1)) / rows) * 0.75)
       if (s > thumbSize) [thumbSize, thumbCols] = [s, c]
     }
   }
   thumbSize = Math.max(100, Math.floor(thumbSize))
-  const first = name.split(' ')[0]
 
   // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
   // other line writes itself in letter by letter, and the spread slides into its frame as one.
@@ -488,35 +478,14 @@ export function ModelSheet({
       {/* Thumbnails: the whole book at once, as large as fits, in the middle of the stage. */}
       {view === 'thumbnails' && book && (
         <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${book.title}, overview`}>
-          <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: gapPx }} className={`intro-crop m-auto grid shrink-0 ${polaroids ? 'py-6' : 'py-4'}`}>
+          <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: THUMB_GAP }} className="intro-crop m-auto grid shrink-0 py-4">
             {slides.map((s, i) => (
               <li key={i}>
                 <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
-                  {polaroids ? (
-                    // A polaroid: the picture in its white frame, the foot written on by hand, lying a
-                    // touch askew; it straightens and lifts under the pointer.
-                    <span
-                      className="relative block bg-[#fbfbf8] px-[5%] pb-[18%] pt-[5%] shadow-[0_1px_2px_rgb(0_0_0/0.12),0_10px_22px_-12px_rgb(0_0_0/0.35)] transition-transform duration-300 ease-out [transform:rotate(var(--tilt))] hover:[transform:translateY(-4px)_rotate(0deg)]"
-                      style={{ '--tilt': `${POLAROID_TILT[i % POLAROID_TILT.length]}deg` } as React.CSSProperties}
-                    >
-                      <span className="block aspect-[3/4] overflow-hidden bg-line">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.src} alt="" loading="lazy" className="size-full object-cover" />
-                      </span>
-                      <span
-                        className="absolute inset-x-[7%] bottom-0 flex items-center justify-between text-[#1a1a1a]"
-                        style={{ height: thumbSize * 0.18, fontFamily: '"Mrs Saint Delafield", cursive', fontSize: Math.max(14, thumbSize * 0.1), lineHeight: 1 }}
-                      >
-                        <span>{first}</span>
-                        <span>{pad2(i + 1)}</span>
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="block aspect-[3/4] overflow-hidden bg-line">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
-                    </span>
-                  )}
+                  <span className="block aspect-[3/4] overflow-hidden bg-line">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
+                  </span>
                 </button>
               </li>
             ))}
