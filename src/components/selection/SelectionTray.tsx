@@ -3,12 +3,11 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { isPlaceholder } from '@/lib/placeholders'
-import { enquiryMailto } from '@/lib/enquiry'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
-export function SelectionTray({ site, email }: { site: Site; email: string }) {
+export function SelectionTray({ site }: { site: Site; email?: string }) {
   const { items, remove, clear, open, setOpen } = useSelection()
   // What to send: the comp cards, the cards with each model's polaroids, or the polaroids alone.
   const [include, setInclude] = useState<'cards' | 'with' | 'only'>('cards')
@@ -20,8 +19,6 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
   const [state, setState] = useState<'idle' | 'making' | 'link' | 'copied' | 'error'>('idle')
   // The link to the PDF itself, for when the device can't share the file.
   const pdfLink = typeof location === 'undefined' ? compCards : location.origin + compCards
-  // The shortlist, straight to the agency as a booking enquiry (the comp cards linked in it).
-  const request = enquiryMailto(email, { brand: SITES[site].brand, models: items.map((t) => t.name), link: real ? `Comp cards: ${pdfLink}` : undefined })
 
   /**
    * Shares the comp cards: the PDF itself through the device's share sheet where it can take a
@@ -69,7 +66,7 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
         </div>
 
         {items.length === 0 ? (
-          <p className="text-muted">Add models with the + button to build your shortlist, then send it to us as one request, or share it as comp cards.</p>
+          <p className="text-muted">Add models with the + button to build your shortlist, then share it or download it as comp cards.</p>
         ) : (
           // The first model large, the pictures getting smaller as more are added.
           <ul className={`grid gap-3 ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length <= 6 ? 'grid-cols-3' : 'grid-cols-4'}`}>
@@ -92,9 +89,6 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
         {items.length > 0 && (
           // Pinned to the foot of the panel, every action in view however many models are above it.
           <div className="sticky bottom-0 -mx-6 -mb-6 mt-auto flex flex-col gap-2.5 border-t border-line bg-bg px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
-            <a href={request} className="flex h-12 items-center justify-center bg-fg text-[14px] font-bold uppercase text-bg hover:opacity-85" style={{ fontStretch: '80%' }}>
-              {items.length > 1 ? `Request these ${items.length} models →` : 'Request this model →'}
-            </a>
             {real > 0 ? (
               <>
                 {/* What goes in the PDF. */}
@@ -113,11 +107,11 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
                 </div>
                 {/* Share and download side by side. */}
                 <div className="grid grid-cols-2 gap-2.5">
-                  <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg disabled:opacity-50" style={{ fontStretch: '80%' }}>
-                    {state === 'making' ? 'Making…' : include === 'only' ? 'Share polaroids' : real > 1 ? `Share cards (${real})` : 'Share card'}
+                  <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center bg-fg px-2 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-50" style={{ fontStretch: '80%' }}>
+                    {state === 'making' ? 'Making…' : 'Share selection'}
                   </button>
                   <a href={compCards} download className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
-                    Download PDF
+                    Download selection
                   </a>
                 </div>
                 {(state === 'link' || state === 'copied') && (

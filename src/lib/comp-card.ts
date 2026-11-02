@@ -11,8 +11,9 @@ import type { SanityImage, SiteSettings, Talent } from '@/sanity/lib/types'
  * Comp cards as a PDF: A4 landscape, a page a model. Cover on the left, four book images on the
  * right; the name, measurements (cm and inches) and the agency's contact along the bottom. The
  * name and a "View online" line link to the model's page on the site, so the card is a way in.
- * With polaroids, each model's polaroids follow her card (or stand alone): eight a page, each print
- * in its white frame (as on her page), then placeholder prints for now, under her name.
+ * With polaroids, each model's polaroids follow her card (or stand alone): three a page, as large as
+ * the page's width allows, each print in its white frame (as on her page), then placeholder prints
+ * for now, under her name.
  */
 const W = 842
 const H = 595
@@ -42,7 +43,7 @@ export async function compCardsPdf(talents: Talent[], site: Site, settings: Site
   return pdf.save()
 }
 
-const POLS_PER_PAGE = 8
+const POLS_PER_PAGE = 3
 /** A polaroid: a 3:4 picture in a white frame 5% of its width at the sides and top, 18% at the foot. */
 const POL_SIDE = 0.05
 const POL_FOOT = 0.18
@@ -62,33 +63,32 @@ async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFon
   for (let pg = 0; pg < pages; pg++) {
     const page = pdf.addPage([W, H])
     const items = all.slice(pg * POLS_PER_PAGE, (pg + 1) * POLS_PER_PAGE)
-    // Four across and two down, as large as the page allows (room under each for its shadow); a short last row centred.
+    // Three across, filling the page's width (and no taller than the room above the foot, less
+    // their shadows), in the middle of that room; a short last page centred.
     const areaH = H - M - FOOT
     const gap = 18
-    const fh = Math.min((areaH - gap - 6) / 2, ((W - 2 * M - gap * 3) / 4) / POL_ASPECT)
-    const fw = fh * POL_ASPECT
+    const fw = Math.min((W - 2 * M - gap * (POLS_PER_PAGE - 1)) / POLS_PER_PAGE, (areaH - 6) * POL_ASPECT)
+    const fh = fw / POL_ASPECT
     const pic = { w: fw * (1 - 2 * POL_SIDE), h: fw * (1 - 2 * POL_SIDE) * (4 / 3) }
     const imgs = await Promise.all(items.map((it) => (typeof it === 'number' ? null : embed(pdf, it, pic.w, pic.h))))
-    ;[items.slice(0, 4), items.slice(4)].forEach((row, r) => {
-      const x0 = (W - (row.length * fw + (row.length - 1) * gap)) / 2
-      const y = H - M - (r + 1) * fh - r * gap
-      row.forEach((it, c) => {
-        const x = x0 + c * (fw + gap)
-        // The print: a soft shadow under it, its white frame, the picture.
-        page.drawRectangle({ x: x + 1, y: y - 2.5, width: fw, height: fh, color: rgb(0.87, 0.87, 0.86) })
-        page.drawRectangle({ x, y, width: fw, height: fh, color: rgb(0.984, 0.984, 0.973), borderColor: rgb(0.84, 0.84, 0.82), borderWidth: 0.35 })
-        const px = x + fw * POL_SIDE
-        const py = y + fw * POL_FOOT
-        const img = imgs[r * 4 + c]
-        if (img) page.drawImage(img, { x: px, y: py, width: pic.w, height: pic.h })
-        else if (typeof it === 'number') {
-          // A placeholder, drawn as on the site: its tone, PLACEHOLDER at the top, its number large at the foot.
-          const [bg, ink] = PLACEHOLDER_TONES[it % PLACEHOLDER_TONES.length]
-          page.drawRectangle({ x: px, y: py, width: pic.w, height: pic.h, color: grey(bg) })
-          page.drawText('PLACEHOLDER', { x: px + pic.w * 0.07, y: py + pic.h * 0.9, size: pic.w * 0.045, font: regular, color: grey(ink), opacity: 0.6 })
-          page.drawText(String(it + 1).padStart(2, '0'), { x: px + pic.w * 0.065, y: py + pic.h * 0.05, size: pic.w * 0.24, font: bold, color: grey(ink), opacity: 0.9 })
-        }
-      })
+    const x0 = (W - (items.length * fw + (items.length - 1) * gap)) / 2
+    const y = FOOT + (areaH - fh) / 2 + 3
+    items.forEach((it, c) => {
+      const x = x0 + c * (fw + gap)
+      // The print: a soft shadow under it, its white frame, the picture.
+      page.drawRectangle({ x: x + 1, y: y - 2.5, width: fw, height: fh, color: rgb(0.87, 0.87, 0.86) })
+      page.drawRectangle({ x, y, width: fw, height: fh, color: rgb(0.984, 0.984, 0.973), borderColor: rgb(0.84, 0.84, 0.82), borderWidth: 0.35 })
+      const px = x + fw * POL_SIDE
+      const py = y + fw * POL_FOOT
+      const img = imgs[c]
+      if (img) page.drawImage(img, { x: px, y: py, width: pic.w, height: pic.h })
+      else if (typeof it === 'number') {
+        // A placeholder, drawn as on the site: its tone, PLACEHOLDER at the top, its number large at the foot.
+        const [bg, ink] = PLACEHOLDER_TONES[it % PLACEHOLDER_TONES.length]
+        page.drawRectangle({ x: px, y: py, width: pic.w, height: pic.h, color: grey(bg) })
+        page.drawText('PLACEHOLDER', { x: px + pic.w * 0.07, y: py + pic.h * 0.9, size: pic.w * 0.045, font: regular, color: grey(ink), opacity: 0.6 })
+        page.drawText(String(it + 1).padStart(2, '0'), { x: px + pic.w * 0.065, y: py + pic.h * 0.05, size: pic.w * 0.24, font: bold, color: grey(ink), opacity: 0.9 })
+      }
     })
     // Foot: her name and "Polaroids", the agency's mark, and the way to them online.
     const base = FOOT - 36
