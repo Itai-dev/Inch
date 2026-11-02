@@ -8,6 +8,8 @@ import { placeholderSlides } from './slides'
  * to 0 to switch placeholders off.
  */
 export const PLACEHOLDER_FILL = 20
+/** For now, every model's polaroids are followed by this many placeholder prints (on her page and in the PDF), until her set is in the Studio. */
+export const POLAROID_PLACEHOLDERS = 10
 
 const NAMES: Record<Division, string[]> = {
   women: [

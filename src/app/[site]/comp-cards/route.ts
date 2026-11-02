@@ -1,4 +1,4 @@
-import { compCardsPdf, polaroidsOf, type CardsMode } from '@/lib/comp-card'
+import { compCardsPdf, type CardsMode } from '@/lib/comp-card'
 import { singletonId, siteForDivision, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { SITE_SETTINGS_QUERY, TALENTS_FULL_BY_IDS_QUERY } from '@/sanity/lib/queries'
@@ -7,7 +7,7 @@ import type { SiteSettings, Talent } from '@/sanity/lib/types'
 /**
  * The selection as one PDF: a comp card a model, in the order chosen (`?ids=a,b,c`). Each card
  * links to the model's page on the site. `&polaroids=with` follows each card with the model's
- * polaroids; `&polaroids=only` is the polaroids alone (models without any are left out).
+ * polaroids; `&polaroids=only` is the polaroids alone.
  */
 export async function GET(req: Request, { params }: RouteContext<'/[site]/comp-cards'>) {
   const site = (await params).site as Site
@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: RouteContext<'/[site]/comp-c
   const mode: CardsMode = which === 'only' ? 'polaroids' : which === 'with' ? 'with-polaroids' : 'cards'
   const talents = ids
     .map((id) => found.find((t) => t._id === id))
-    .filter((t): t is Talent => !!t && siteForDivision(t.division) === site && (mode !== 'polaroids' || polaroidsOf(t).length > 0))
+    .filter((t): t is Talent => !!t && siteForDivision(t.division) === site)
   if (!talents.length) return new Response(mode === 'polaroids' ? 'No polaroids for this selection yet.' : 'No comp cards for this selection yet.', { status: 404 })
   const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
 

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { ModelSheet, type Book } from '@/components/ModelSheet'
-import { isPlaceholder, placeholderBook, placeholderTalent } from '@/lib/placeholders'
+import { isPlaceholder, placeholderBook, placeholderTalent, POLAROID_PLACEHOLDERS } from '@/lib/placeholders'
 import { siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
 import { imageSlides, placeholderSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
@@ -15,8 +15,6 @@ const BOOKS = [
   { segment: 'covers', field: 'coversAds', title: 'Covers + Ads', view: 'book', placeholders: 6, wideAt: undefined },
   { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'book', placeholders: 10, wideAt: undefined },
 ] as const
-/** For now, every model's polaroids are followed by this many placeholder prints (until her set is in the Studio). */
-const POLAROID_PLACEHOLDERS = 10
 
 const load = async (slug: string) => (await sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])) ?? placeholderTalent(slug)
 
