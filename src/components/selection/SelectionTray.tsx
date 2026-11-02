@@ -10,10 +10,13 @@ import { useSelection } from './SelectionProvider'
 
 export function SelectionTray({ site, email }: { site: Site; email: string }) {
   const { items, remove, clear, open, setOpen } = useSelection()
-  // The selection as comp cards: one PDF, a page a model, each linking to her page on the site.
-  const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}`
+  // What to send: the comp cards, the cards with each model's polaroids, or the polaroids alone.
+  const [include, setInclude] = useState<'cards' | 'with' | 'only'>('cards')
+  // The selection as one PDF, a page a model, each linking to her page on the site.
+  const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}${include === 'cards' ? '' : `&polaroids=${include}`}`
   const real = items.filter((t) => !isPlaceholder(t)).length
-  const name = real > 1 ? `${SITES[site].brand} comp cards` : 'Comp card'
+  const what = include === 'only' ? 'polaroids' : real > 1 ? 'comp cards' : 'comp card'
+  const name = real > 1 || include === 'only' ? `${SITES[site].brand} ${what}` : 'Comp card'
   const [state, setState] = useState<'idle' | 'making' | 'link' | 'copied' | 'error'>('idle')
   // The link to the PDF itself, for when the device can't share the file.
   const pdfLink = typeof location === 'undefined' ? compCards : location.origin + compCards
@@ -29,7 +32,7 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
     try {
       const res = await fetch(compCards)
       if (!res.ok) throw new Error()
-      const file = new File([await res.blob()], `${site}-comp-cards.pdf`, { type: 'application/pdf' })
+      const file = new File([await res.blob()], `${site}-${what.replace(' ', '-')}.pdf`, { type: 'application/pdf' })
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: name }).catch(() => {})
         setState('idle')
@@ -94,10 +97,24 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
             </a>
             {real > 0 ? (
               <>
+                {/* What goes in the PDF. */}
+                <div role="radiogroup" aria-label="What to send" className="flex items-center justify-between gap-3 py-1 text-[13px] font-bold uppercase" style={{ fontStretch: '80%' }}>
+                  {(
+                    [
+                      ['cards', 'Comp cards'],
+                      ['with', 'Cards + polaroids'],
+                      ['only', 'Polaroids'],
+                    ] as const
+                  ).map(([v, label]) => (
+                    <button key={v} type="button" role="radio" aria-checked={include === v} onClick={() => { setInclude(v); setState('idle') }} className={`uppercase ${include === v ? 'border-b border-fg' : 'text-muted hover:text-fg'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 {/* Share and download side by side. */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg disabled:opacity-50" style={{ fontStretch: '80%' }}>
-                    {state === 'making' ? 'Making…' : real > 1 ? `Share cards (${real})` : 'Share card'}
+                    {state === 'making' ? 'Making…' : include === 'only' ? 'Share polaroids' : real > 1 ? `Share cards (${real})` : 'Share card'}
                   </button>
                   <a href={compCards} download className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
                     Download PDF
@@ -112,7 +129,7 @@ export function SelectionTray({ site, email }: { site: Site; email: string }) {
                     <a href={`mailto:?subject=${encodeURIComponent(name)}&body=${encodeURIComponent(pdfLink)}`} className="grid h-11 place-items-center border border-fg hover:bg-fg hover:text-bg">Email</a>
                   </div>
                 )}
-                {state === 'error' && <p className="text-sm text-red-600">Couldn’t make the PDF. Try again.</p>}
+                {state === 'error' && <p className="text-sm text-red-600">{include === 'only' ? 'No polaroids for these models yet.' : 'Couldn’t make the PDF. Try again.'}</p>}
               </>
             ) : (
               <p className="text-sm text-muted">Comp cards are made for models in the Studio; placeholders don’t have one.</p>

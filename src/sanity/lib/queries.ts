@@ -30,7 +30,7 @@ export const TALENT_QUERY = defineQuery(`*[_type == "talent" && slug.current == 
 
 /** Whole talents by id, for comp cards of a selection. */
 export const TALENTS_FULL_BY_IDS_QUERY = defineQuery(`*[_type == "talent" && _id in $ids]{
-  ${cardFields}, portfolio, coversAds, measurements
+  ${cardFields}, portfolio, coversAds, polaroids, measurements
 }`)
 
 export const TALENTS_BY_IDS_QUERY = defineQuery(
