@@ -136,7 +136,6 @@ export function ModelSheet({
   // Two pages: the books and actions sit just under the spread, so leave room for them.
   // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
   const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
-  const beside = wide && showBook && per === 2
   const underSpread = showBook && per === 2 && !wide
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
@@ -337,15 +336,33 @@ export function ModelSheet({
     </div>
   )
 
-  // The side columns sit level with the middle of the pictures, or the middle of the screen without them.
+  // The side columns sit level with the middle of the pictures, and stay exactly there whatever is
+  // open (a book, an overview, polaroids, the bio): placed by their top edge, measured once on the
+  // book (else on whatever first shows), so a shorter column (no Overview in the bio) or another
+  // view's stage never moves them.
   const leftCol = useRef<HTMLDivElement>(null)
   const rightCol = useRef<HTMLDivElement>(null)
+  const sideTop = useRef<{ at: 'book' | 'other'; w: number; h: number; tops: number[] } | null>(null)
   useLayoutEffect(() => {
     if (!wide) return
+    const cols = [leftCol.current, rightCol.current]
     const st = stageRef.current
-    const mid = beside && st ? st.getBoundingClientRect().top + top + pageH / 2 : innerHeight / 2
-    for (const c of [leftCol.current, rightCol.current]) if (c) c.style.top = `${mid.toFixed(1)}px`
+    const kind = showBook ? 'book' : 'other'
+    const was = sideTop.current
+    // (On the book, again whenever its stage settles on another size.)
+    if (st && per === 2 && (!was || (kind === 'book' && (was.at === 'other' || was.w !== stage.w || was.h !== stage.h)))) {
+      const mid = st.getBoundingClientRect().top + top + pageH / 2
+      sideTop.current = { at: kind, w: stage.w, h: stage.h, tops: cols.map((c) => mid - (c?.offsetHeight ?? 0) / 2) }
+    }
+    const tops = sideTop.current?.tops ?? cols.map((c) => innerHeight / 2 - (c?.offsetHeight ?? 0) / 2)
+    cols.forEach((c, k) => c && (c.style.top = `${tops[k].toFixed(1)}px`))
   })
+  // The window resized: measure again.
+  useEffect(() => {
+    const again = () => (sideTop.current = null)
+    addEventListener('resize', again)
+    return () => removeEventListener('resize', again)
+  }, [])
 
   return (
     <div
@@ -507,10 +524,10 @@ export function ModelSheet({
           middle of the pictures (else of the screen), in line with the name's margins. */}
       {wide && (
         <>
-          <div ref={leftCol} className="absolute left-[var(--gutter)] z-20 -translate-y-1/2" style={{ top: '50%' }}>
+          <div ref={leftCol} className="absolute left-[var(--gutter)] z-20" style={{ top: '50%' }}>
             {renderStats('text-detail flex flex-col items-start gap-2')}
           </div>
-          <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex -translate-y-1/2 flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, top: '50%' }}>
+          <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, top: '50%' }}>
             {bookTabs(true)}
             {bookActions(true)}
           </div>
