@@ -560,10 +560,24 @@ export function ModelSheet({
                   const s = slides[i]
                   return (
                     <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
-                      <div className="relative overflow-hidden bg-line" style={{ width: w, height: pageH }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
-                      </div>
+                      {polaroids ? (
+                        // Polaroids: each page a print in its white frame, as tall as the page.
+                        <div className="flex items-center justify-center" style={{ width: w, height: pageH }}>
+                          <div style={{ width: Math.min(w, pageH * POLAROID_ASPECT) }}>
+                            <div className={POLAROID_FRAME}>
+                              <div className="aspect-[3/4] overflow-hidden bg-line">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className="block size-full object-cover" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative overflow-hidden bg-line" style={{ width: w, height: pageH }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
+                        </div>
+                      )}
                       {o === 0 && per === 1 && s.caption && (
                         <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
                       )}
