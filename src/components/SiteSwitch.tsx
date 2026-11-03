@@ -37,7 +37,7 @@ const TAB_PAGES = ['/', '/contact', '/logotest']
 /**
  * INCH” only, on the home and contact pages: DOT.'s box in the bottom-left corner, "Men division"
  * above it, as wide as the box. On the home page it pops up as soon as the video has opened, standing
- * just above the hero's ruler (level with the sound switch on the right), and drops to the corner
+ * just above the hero's ruler, and drops to the corner
  * once the ruler fades away. It goes again when the footer arrives. (On DOT. the way back to INCH”
  * is in the header.) White + difference blend like the header, so it inverts against whatever is
  * behind it. Not on phones, where it is in the menu.
@@ -59,7 +59,7 @@ export function SiteSwitch({ site }: { site: Site }) {
       const open = !hero || stage === 'over' || stage === 'past'
       const atFooter = !!footer && footer.getBoundingClientRect().top < innerHeight - 24
       el.toggleAttribute('data-shown', open && !atFooter)
-      // Over the video, while its ruler shows: just above the ruler, the sound switch's gap away.
+      // Over the video, while its ruler shows: just above the ruler, a small gap away.
       const ruler = document.querySelector('[data-hero-ruler]')
       if (ruler && scrollY < innerHeight * 0.25) {
         const top = ruler.getBoundingClientRect().top + scrollY

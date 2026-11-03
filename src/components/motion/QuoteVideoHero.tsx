@@ -14,7 +14,7 @@
  * the video fading in inside it, into its left stroke until the video fills the screen.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { preload } from 'react-dom'
 import { Logo } from '@/components/brand/Logo'
 import { LEFT_PATH, QuoteMark, QuoteStroke, RIGHT_PATH, STROKE_GAP_RATIO } from '@/components/brand/Marks'
@@ -464,57 +464,17 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
   const showVideo = stage !== 'intro' || skip
-  // Sound: off until the sound button turns it on, and only while the video is on screen.
-  const [soundOn, setSoundOn] = useState(false)
-  const [audible, setAudible] = useState(false)
-  const unlocked = useRef(false)
-  const wantSound = soundOn && stage !== 'past'
-  const sync = useCallback(() => {
-    const v = els.current[current]
-    if (!(v instanceof HTMLVideoElement)) return setAudible(false)
-    const on = wantSound && unlocked.current
-    v.muted = !on
-    setAudible(on && !v.paused)
-  }, [current, wantSound])
+  // Always silent.
   useEffect(() => {
     els.current.forEach((v, i) => {
       if (!(v instanceof HTMLVideoElement)) return
       if (i === current && showVideo) {
         v.currentTime = 0
-        // With sound if the browser allows it; else silently, until the first touch.
-        v.muted = !wantSound
-        v.play()
-          .then(() => {
-            if (!v.muted) unlocked.current = true
-            sync()
-          })
-          .catch(() => {
-            v.muted = true
-            v.play().catch(() => {})
-            sync()
-          })
+        v.muted = true
+        v.play().catch(() => {})
       } else v.pause()
     })
-    // Only a new video restarts playback; sound changes are applied by sync below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, showVideo])
-  useEffect(() => {
-    sync()
-  }, [sync])
-  useEffect(() => {
-    const touch = (e: Event) => {
-      // The sound button decides for itself.
-      if ((e.target as Element | null)?.closest?.('[data-sound]')) return
-      unlocked.current = true
-      sync()
-    }
-    addEventListener('pointerdown', touch, { passive: true })
-    addEventListener('keydown', touch)
-    return () => {
-      removeEventListener('pointerdown', touch)
-      removeEventListener('keydown', touch)
-    }
-  }, [sync])
 
   const step = (d: number) => N > 1 && setIdx((i) => i + d)
 
@@ -669,35 +629,6 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       {showUi && N > 0 && (
         <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-blink 0.4s steps(1, end) ${RULER_IN_MS}ms both` }}>
           <div ref={rulerRef} data-hero-ruler className="relative">
-            {/* Sound on / off, over the ruler's right end. */}
-            {videos.some((v) => v.kind === 'video') && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  unlocked.current = true
-                  if (audible) setSoundOn(false)
-                  else {
-                    setSoundOn(true)
-                    // Straight away, inside the tap, so the browser lets it play.
-                    const v = els.current[current]
-                    if (v instanceof HTMLVideoElement) {
-                      v.muted = false
-                      v.play().catch(() => {})
-                      setAudible(true)
-                    }
-                  }
-                }}
-                data-sound
-                aria-pressed={audible}
-                aria-label={audible ? 'Sound off' : 'Sound on'}
-                className="absolute bottom-[calc(100%+clamp(10px,1.4vw,22px))] right-[var(--gutter)] -m-2 flex items-center gap-2 p-2 text-[clamp(12px,0.9vw,15px)] font-bold uppercase leading-none"
-                style={{ fontStretch: '80%' }}
-              >
-                <SoundIcon on={audible} />
-                {audible ? 'Sound on' : 'Sound off'}
-              </button>
-            )}
             <Ruler
               count={N}
               pos={idx}
@@ -722,15 +653,5 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         </div>
       )}
     </section>
-  )
-}
-
-/** A speaker, with its waves when the sound is on, crossed out when it is off. */
-function SoundIcon({ on }: { on: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="size-[1.4em]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
-      {on ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="M17 9l5 6M22 9l-5 6" />}
-    </svg>
   )
 }
