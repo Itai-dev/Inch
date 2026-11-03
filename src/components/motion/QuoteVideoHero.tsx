@@ -30,7 +30,7 @@ const DOT_VH = 0.045 // DOT.'s blinking ■, as a share of viewport height
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
-const BLINK_MS = 900 // one blink, as the text cursor's: on half the time, off half, hard cuts; the open always starts at the top of one
+const BLINK_MS = 900 // one blink, as the text cursor's: off half the time, on half, hard cuts; the open always starts at the end of one (the mark shown)
 const MIN_BLINKS = 2 // whole blinks seen, even when the video is cached
 const MAX_WAIT_MS = BLINK_MS * 3 // open anyway after three blinks if the video is slow (its poster shows until it plays)
 const OPEN_MS = 2400
@@ -205,8 +205,6 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   const winRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<HTMLDivElement>(null)
   const blinkAnim = useRef<Animation | null>(null)
-  /** When the blinking started (performance.now()), to open exactly as the mark next appears. */
-  const blinkStart = useRef<number | null>(null)
   // A picture for the window to open onto: the first video's still (or the first image), loaded.
   // Without it the window could open onto an empty black box on a slow connection.
   const [picReady, setPicReady] = useState(!firstPic)
@@ -246,7 +244,6 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         ],
         { duration: BLINK_MS, iterations: Infinity },
       ) ?? null
-    blinkStart.current = performance.now()
     // Counted from when the blinking starts: two whole blinks are always seen, three at most when
     // the video is slow (it opens onto its still); longer only if not even the still has come.
     const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
@@ -339,13 +336,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     openedRef.current = true
     let raf = 0
     let done = false
-    // Start as the ” next appears (halfway through a blink), so it opens from a whole mark.
-    const into = blinkStart.current === null ? BLINK_MS / 2 : (performance.now() - blinkStart.current) % BLINK_MS
-    const until = (BLINK_MS / 2 - into + BLINK_MS) % BLINK_MS
-    // (Just past it: start now rather than a whole blink later.)
-    const wait = until > BLINK_MS - 120 ? 0 : until
-    const timer = setTimeout(() => {
-      blinkAnim.current?.cancel()
+    // The blink under way is let finish, ending on the mark shown for a whole beat (held there, on
+    // the compositor, so it never goes out for a frame), and the opening starts from it: always a
+    // full off and on before the mark grows, never a short flash.
+    let cancelled = false
+    const a = blinkAnim.current
+    const begin = () => {
+      if (cancelled) return
+      if (blinkRef.current) blinkRef.current.style.opacity = '1'
       const draw = dot ? layoutDot : grow ? layoutGrow : layout
       const total = grow ? GROW_MS : OPEN_MS
       draw(0)
@@ -366,9 +364,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         }
       }
       raf = requestAnimationFrame(tick)
-    }, wait)
+    }
+    if (a && a.playState === 'running' && a.effect) {
+      const ct = Number(a.currentTime ?? 0)
+      a.effect.updateTiming({ iterations: Math.floor(ct / BLINK_MS) + 1, fill: 'forwards' })
+      a.finished.then(begin, begin)
+    } else begin()
     return () => {
-      clearTimeout(timer)
+      cancelled = true
       cancelAnimationFrame(raf)
       if (!done) openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
     }
