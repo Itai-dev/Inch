@@ -101,8 +101,13 @@ export function ModelSheet({
   const reduced = useReducedMotion()
   const [segment, setSegment] = useState(initial)
   const book = books.find((b) => b.segment === segment)
+  // The book last open: the bio leads back to it (the first book if the page opened on the bio).
+  const [lastBook, setLastBook] = useState(book ? initial : (books[0]?.segment ?? ''))
+  const backBook = segment === 'bio' ? books.find((b) => b.segment === lastBook) : undefined
   const [view, setView] = useState<View>(book?.view ?? 'book')
   const [unit, setUnit] = useState<Unit>('cm')
+  /** The polaroid enlarged (see below). */
+  const [zoom, setZoom] = useState<number | null>(null)
   const slides = book?.slides ?? []
   const N = slides.length
   const showBook = !!book && view === 'book' && N > 0
@@ -192,8 +197,11 @@ export function ModelSheet({
     setSegment(s)
     setView(b?.view ?? 'book')
     setCur(0)
+    if (b) setLastBook(s)
     window.history.replaceState(null, '', s ? `${base}/${s}` : base)
   }
+  // In the bio, close (and Escape) goes back to the book rather than out of the model.
+  const closeOrBack = () => (backBook ? open(backBook.segment) : close())
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -202,14 +210,14 @@ export function ModelSheet({
         if (e.key === 'Escape') setTrayOpen(false)
         return
       }
-      if (e.key === 'Escape') close()
+      if (e.key === 'Escape') closeOrBack()
       if (!showBook) return
       if (e.key === 'ArrowRight') step(1)
       if (e.key === 'ArrowLeft') step(-1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [close, step, showBook, trayOpen, setTrayOpen])
+  })
 
   const wheelLock = useRef(false)
   const onWheel = (e: React.WheelEvent) => {
@@ -273,7 +281,6 @@ export function ModelSheet({
 
   // A polaroid enlarged: a click lifts it from its place to the middle of the screen, a click
   // (anywhere, or Escape) lays it back. Only the print moves (it grows out of its place and back).
-  const [zoom, setZoom] = useState<number | null>(null)
   const zoomed = polaroids && view === 'thumbnails' && zoom !== null && zoom < N ? zoom : null
   const zoomEl = useRef<HTMLDivElement>(null)
   const prints = useRef<(HTMLElement | null)[]>([])
@@ -496,7 +503,7 @@ export function ModelSheet({
             <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
           </h1>
           <div className="flex justify-end">
-            <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
+            <button type="button" onClick={closeOrBack} aria-label={backBook ? `Back to ${backBook.title}` : 'Close'} className="hover:opacity-60">
               <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
                 <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
               </svg>
@@ -513,7 +520,7 @@ export function ModelSheet({
             <h1 aria-label={name} className="wordmark text-center text-[calc(32px*var(--name-per-logo))] uppercase md:text-[calc(48px*var(--name-per-logo))]" style={{ '--name-per-logo': NAME_PER_LOGO } as React.CSSProperties}>
               <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
             </h1>
-            <button type="button" onClick={close} aria-label="Close" className="-m-2 justify-self-end p-2 hover:opacity-60">
+            <button type="button" onClick={closeOrBack} aria-label={backBook ? `Back to ${backBook.title}` : 'Close'} className="-m-2 justify-self-end p-2 hover:opacity-60">
               <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
                 <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
               </svg>
@@ -673,6 +680,14 @@ export function ModelSheet({
           <p className="m-auto max-w-[44ch] whitespace-pre-line py-8 text-center text-[clamp(19px,1.7vw,27px)] leading-[1.4] tracking-[-0.01em]">
             <TypeText text={bio} at={40} ms={Math.min(3, 1100 / Math.max(1, Array.from(bio).length))} />
           </p>
+          {backBook && (
+            <button type="button" onClick={() => open(backBook.segment)} className={`mx-auto mb-auto flex items-center gap-2 pb-8 ${rowCls} hover:opacity-60`} style={narrow}>
+              <svg viewBox="0 0 64 24" aria-hidden className="h-[0.9em] w-auto scale-x-[-1]">
+                <path d="M1 12h60M50 2l11 10-11 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
+              </svg>
+              Back to {backBook.title}
+            </button>
+          )}
         </section>
       )}
 

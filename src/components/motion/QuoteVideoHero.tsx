@@ -464,10 +464,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
   const showVideo = stage !== 'intro' || skip
-  // Sound: on unless turned off, and only while the video is on screen. Browsers only let a page
-  // play sound once it has been touched, so until then the video plays silently and the first
-  // tap, click or key anywhere turns the sound on.
-  const [soundOn, setSoundOn] = useState(true)
+  // Sound: off until the sound button turns it on, and only while the video is on screen.
+  const [soundOn, setSoundOn] = useState(false)
   const [audible, setAudible] = useState(false)
   const unlocked = useRef(false)
   const wantSound = soundOn && stage !== 'past'

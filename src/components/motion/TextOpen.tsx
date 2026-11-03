@@ -15,14 +15,14 @@ import { useScrollProgress } from '@/hooks/useScrollProgress'
 // Moved, split and written by 78% of the zone's scroll, then held to be read.
 const ANIM_END = 0.78
 /** First the ” comes up from under the video, at its own size, to the middle of the screen. Then,
- * with the scroll, it moves slowly to the left, to the statement's start
- * (MOVE_FROM to MOVE_END of the writing: about half a screen of scrolling), then splits (to DROP_END).
+ * with the scroll, it moves to the left, to the statement's start (MOVE_FROM to MOVE_END: a short
+ * stretch, so the writing starts soon and the page never seems stuck), then splits (to DROP_END).
  * It stays at the middle of the screen's height the whole way: the statement starts there and
  * runs down from it, the block rising as it is written until it sits centred. */
 const MARK_BIG = 1
-const MOVE_FROM = 0.03
-const MOVE_END = 0.4
-const DROP_END = 0.48
+const MOVE_FROM = 0
+const MOVE_END = 0.12
+const DROP_END = 0.17
 const EXIT_UP = 40
 const AIR = 48 // kept clear above and below the written statement (its exit, and room to breathe)
 const WIDTH_PER_FONT = 11 // container width ÷ font size (as large as the height then allows)

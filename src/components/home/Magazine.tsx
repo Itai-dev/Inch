@@ -2,8 +2,8 @@
 
 /**
  * A chapter told as a magazine, on the page itself, right under the statement. The closed
- * magazine first shows its spine, lying across ("INCH” Model Management 2026"), and turns with
- * the scroll to face you with its cover, upright, as it rises to the middle of the screen: a
+ * magazine comes up already showing its cover, a little tilted and turned (a sliver of its
+ * spine showing), and straightens with the scroll to face you as it settles in the middle of the screen: a
  * solid box, cover, spine and the pages' edges, shading as it turns, with its shadow under it. Then the reader
  * turns the pages: a click or tap on the right page (or the cover) turns on, on the left page
  * back; also a swipe, or the buttons under it. The cover opens onto the chapter on the first
@@ -139,19 +139,21 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
 
 /**
  * While the section is pinned, its scroll (0–1) plays the opening, then opens the cover:
- * - until INTRO_END, the opening: the spine holds, large and close, until TURN_FROM of it; the
- *   magazine turns to its cover and sinks onto the surface until TURN_TO of it; then rests;
+ * - until INTRO_END, the opening: the magazine, its cover a little tilted and closer, straightens
+ *   and sinks onto the surface from TURN_FROM to TURN_TO of it; then rests;
  * - from OPEN_FROM to OPEN_TO, the cover opens onto the first spread; then it rests open.
  * Once the reader turns a page themselves, the scroll leaves the pages alone. The section is
  * 380vh tall (pinned for 280vh of scroll); on phones 220vh, so it doesn't take a long thumb to get past.
  */
 const INTRO_END = 0.55
-const TURN_FROM = 0.3
+const TURN_FROM = 0
 const TURN_TO = 0.82
 const OPEN_FROM = 0.64
 const OPEN_TO = 0.9
-/** How much bigger the spine is when it's close (at most; it also stays inside the screen). */
-const CLOSE = 1.9
+/** How much bigger the cover is when it's close (at most; it also stays inside the screen). */
+const CLOSE = 1.12
+/** How far the cover is tilted and turned at first (degrees): enough to show it's a magazine, never the spine alone. */
+const START_DEG = 22
 /** A page to turn (ms). */
 const TURN_MS = 900
 /** The book's width, the closed magazine's (the cover's) width and height, and its thickness. */
@@ -194,7 +196,7 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
       ref={boxRef}
       aria-hidden
       className="pointer-events-none absolute inset-y-0 left-1/4 w-1/2 [transform-style:preserve-3d]"
-      style={{ transform: 'rotateZ(-90deg) rotateY(90deg)' }}
+      style={{ transform: `rotateZ(-${START_DEG}deg) rotateY(${START_DEG}deg)` }}
     >
       {/* Cover. */}
       <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]" style={{ transform: `translateZ(${half})`, borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
@@ -293,12 +295,12 @@ export function Magazine({
       const T = W * 0.036
       const opened = clamp01(at)
 
-      // The opening: the spine, close and large, lying across; then the magazine turns upright to
-      // its cover and sinks onto the surface.
+      // The opening: the cover, a little closer, tilted and turned; it straightens to face you and
+      // sinks onto the surface.
       const turn = smooth(clamp01((a - TURN_FROM) / (TURN_TO - TURN_FROM)))
-      const near = Math.min(CLOSE, (innerWidth * 0.86) / coverH)
+      const near = Math.max(1, Math.min(CLOSE, (innerHeight * 0.86) / coverH, (innerWidth * 0.86) / coverW))
       const scale = lerp(near, 1, easeOut(turn))
-      const deg = 90 * (1 - turn)
+      const deg = START_DEG * (1 - turn)
       const sin = Math.sin((deg * Math.PI) / 180)
       const cos = Math.cos((deg * Math.PI) / 180)
       const bx = box.current
