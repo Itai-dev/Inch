@@ -336,14 +336,16 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     openedRef.current = true
     let raf = 0
     let done = false
-    // The blink under way is let finish, ending on the mark shown for a whole beat (held there, on
-    // the compositor, so it never goes out for a frame), and the opening starts from it: always a
-    // full off and on before the mark grows, never a short flash.
+    // The blink under way is let finish, ending on the mark shown for a whole beat, and the opening
+    // starts on the very frame that beat ends, from the mark as it is: always a full off and on
+    // before it grows, never a short flash. (The rest of the blink is kept in step here, frame by
+    // frame, so its last beat and the start of the opening can't fall on different frames.)
     let cancelled = false
     const a = blinkAnim.current
+    const el = blinkRef.current
     const begin = () => {
       if (cancelled) return
-      if (blinkRef.current) blinkRef.current.style.opacity = '1'
+      if (el) el.style.opacity = '1'
       const draw = dot ? layoutDot : grow ? layoutGrow : layout
       const total = grow ? GROW_MS : OPEN_MS
       draw(0)
@@ -365,10 +367,20 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       }
       raf = requestAnimationFrame(tick)
     }
-    if (a && a.playState === 'running' && a.effect) {
-      const ct = Number(a.currentTime ?? 0)
-      a.effect.updateTiming({ iterations: Math.floor(ct / BLINK_MS) + 1, fill: 'forwards' })
-      a.finished.then(begin, begin)
+    if (a && el && a.playState === 'running' && a.currentTime !== null) {
+      const ct = Number(a.currentTime)
+      const origin = performance.now() - ct
+      const end = (Math.floor(ct / BLINK_MS) + 1) * BLINK_MS
+      const beat = (t: number) => (t % BLINK_MS < BLINK_MS / 2 ? '0' : '1') // off the first half, on the second
+      el.style.opacity = beat(ct)
+      a.cancel()
+      const run = (now: number) => {
+        const t = now - origin
+        if (t >= end) return begin()
+        el.style.opacity = beat(t)
+        raf = requestAnimationFrame(run)
+      }
+      raf = requestAnimationFrame(run)
     } else begin()
     return () => {
       cancelled = true
@@ -528,7 +540,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       }}
     >
       {/* 1. Blinking ” while loading. */}
-      {!showVideo && !fast && (
+      {/* (Growing from it, as the ” or DOT.'s ■, it stays under the opening until that is over, so
+          there is never a frame with neither.) */}
+      {(!showVideo || ((grow || dot) && stage === 'open' && !skip)) && !fast && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
           <div>
             {/* Sized in CSS (dvh), not from JS, so it's right from the first frame — no jump on load. */}
