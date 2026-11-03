@@ -38,7 +38,9 @@ const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the
 const GROW_FADE = [0.3, 0.7] // the video fades in inside the ” (share of GROW_MS)…
 const GROW_INTO = [15.7 / 64, 16.3 / 72] // …as it grows into the solid top of its left stroke (share of the mark)
 const GROW_SQUARE = [28.6 / 64, 32.7 / 72] // size of that solid part (share of the mark)
-const MARK_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72"><path d="${LEFT_PATH}"/><path d="${RIGHT_PATH}"/></svg>`)}")`
+/** The "grow" opening's veil: the page's colour all round, the ” cut out of it (in the mark's own
+ * units, reaching far past the screen at any size), so the video shows through the mark. */
+const VEIL_PATH = `M-6000 -6000H6064V6072H-6000Z${LEFT_PATH}${RIGHT_PATH}`
 const SPLIT = 0.25
 const SLIDE_MS = 6000 // each item stays this long, then the next pushes it out
 const PUSH_MS = 1300
@@ -300,11 +302,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     win.style.setProperty('--cover', String(1 - smooth(Math.max(0, Math.min(1, (p - 0.08) / 0.8)))))
   }
 
-  // The "grow" opening: the video, full screen, seen through the ” as it grows (mask size and
-  // place), with a black cover over the video that lifts so it fades in inside the mark.
+  // The "grow" opening: the video, full screen and still, seen through the ” cut out of a veil that
+  // grows over it (one transform, in sub-pixels: no mask redrawn on the video each frame, nothing
+  // snapped to whole pixels), with a black cover over the video that lifts so it fades in inside the mark.
+  const veilRef = useRef<SVGSVGElement>(null)
   const layoutGrow = (p: number) => {
     const win = winRef.current
-    if (!win) return
+    const veil = veilRef.current
+    if (!win || !veil) return
     // The stage's own size (not the window's, which counts a scrollbar), so the ” starts
     // exactly where the blinking one was centred.
     const W = win.clientWidth
@@ -321,10 +326,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     const into = (s - 1) / (sEnd - 1)
     const ax = lerp(0.5, GROW_INTO[0], into)
     const ay = lerp(0.5, GROW_INTO[1], into)
-    win.style.setProperty('--mw', `${mw}px`)
-    win.style.setProperty('--mh', `${mh}px`)
-    win.style.setProperty('--mx', `${W / 2 - ax * mw}px`)
-    win.style.setProperty('--my', `${H / 2 - ay * mh}px`)
+    veil.style.width = `${mw0}px`
+    veil.style.height = `${mh0}px`
+    veil.style.transform = `translate(${(W / 2 - ax * mw).toFixed(3)}px, ${(H / 2 - ay * mh).toFixed(3)}px) scale(${s.toFixed(5)})`
     const f = easeOut(Math.max(0, Math.min(1, (p - GROW_FADE[0]) / (GROW_FADE[1] - GROW_FADE[0]))))
     win.style.setProperty('--cover', String(1 - f))
   }
@@ -540,21 +544,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
           transform: 'translate(-50%, -50%)',
           visibility: showVideo ? 'visible' : 'hidden',
           ...(settled ? { width: '100%', height: '100%' } : null),
-          // "grow": full screen from the start, seen through the growing ”.
-          ...(grow && !settled
-            ? {
-                width: '100%',
-                height: '100%',
-                maskImage: MARK_MASK,
-                WebkitMaskImage: MARK_MASK,
-                maskRepeat: 'no-repeat',
-                WebkitMaskRepeat: 'no-repeat',
-                maskSize: 'var(--mw) var(--mh)',
-                WebkitMaskSize: 'var(--mw) var(--mh)',
-                maskPosition: 'var(--mx) var(--my)',
-                WebkitMaskPosition: 'var(--mx) var(--my)',
-              }
-            : null),
+          // "grow": full screen from the start, seen through the growing ” (the veil over it).
+          ...(grow && !settled ? { width: '100%', height: '100%' } : null),
         }}
       >
         {videos.map((v, i) => {
@@ -597,6 +588,19 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
         {/* "grow": the ” is black until the video fades in inside it. */}
         {(grow || dot) && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
       </div>
+      {/* "grow": the veil with the ” cut out of it, growing over the still video. */}
+      {grow && !settled && (
+        <svg
+          ref={veilRef}
+          aria-hidden
+          viewBox="0 0 64 72"
+          overflow="visible"
+          className="pointer-events-none absolute left-0 top-0 origin-top-left"
+          style={{ visibility: showVideo ? 'visible' : 'hidden' }}
+        >
+          <path d={VEIL_PATH} fillRule="evenodd" fill="var(--bg)" />
+        </svg>
+      )}
       {!settled && !grow && !dot && (
         <div
           ref={strokesRef}

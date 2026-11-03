@@ -156,6 +156,8 @@ const CLOSE = 1.12
 const START_DEG = 22
 /** A page to turn (ms). */
 const TURN_MS = 900
+/** How quickly the magazine catches up with the scroll (ms to close about two thirds of the gap). */
+const FOLLOW_MS = 90
 /** The book's width, the closed magazine's (the cover's) width and height, and its thickness. */
 const BOOK_W = 'min(94vw, 100dvh)'
 const COVER_H = `(${BOOK_W} / 1.5)`
@@ -322,13 +324,14 @@ export function Magazine({
       // below it, soft and faint; set down it lies just under it, tighter and darker.
       const sh = boxShadow.current
       if (sh) {
+        // (Drawn once at the cover's size and blur, then only moved, turned, scaled and faded: no
+        // new blur to paint as the page scrolls. Its softness grows with it, held up close.)
         const lift = 1 - easeOut(turn)
-        sh.style.opacity = a >= 1 ? '0' : '1'
-        sh.style.width = `${((coverW * 0.96 * cos + T * sin) * scale).toFixed(1)}px`
-        sh.style.height = `${(coverH * scale).toFixed(1)}px`
-        sh.style.background = `rgb(0 0 0 / ${lerp(0.14, 0.25, 1 - lift).toFixed(3)})`
-        sh.style.filter = `blur(${lerp(40, 70, lift).toFixed(1)}px)`
-        sh.style.transform = `translate(-50%, -50%) translate(${(coverW * 0.02 + lift * W * 0.03).toFixed(1)}px, ${(coverH * 0.02 + lift * coverH * 0.22).toFixed(1)}px) rotate(${(-deg).toFixed(2)}deg)`
+        const bw = coverW * 0.96
+        sh.style.width = `${bw.toFixed(1)}px`
+        sh.style.height = `${coverH.toFixed(1)}px`
+        sh.style.opacity = a >= 1 ? '0' : lerp(0.56, 1, 1 - lift).toFixed(3)
+        sh.style.transform = `translate(-50%, -50%) translate(${(coverW * 0.02 + lift * W * 0.03).toFixed(2)}px, ${(coverH * 0.02 + lift * coverH * 0.22).toFixed(2)}px) rotate(${(-deg).toFixed(3)}deg) scale(${(((bw * cos + T * sin) * scale) / bw).toFixed(4)}, ${scale.toFixed(4)})`
       }
       if (controls.current) controls.current.style.opacity = a >= 1 ? (1 - clamp01(live.current.leave / 0.3)).toFixed(3) : '0'
       // The tape under the arrows follows the pages; the number in the middle is at full strength.
@@ -346,7 +349,8 @@ export function Magazine({
         b.style.transform = `translateX(${(-25 * (1 - opened)).toFixed(2)}%)`
         b.style.opacity = a >= 1 ? '1' : '0'
       }
-      if (shadow.current) shadow.current.style.left = `${(50 * (1 - opened) + 1).toFixed(2)}%`
+      // (Its left edge comes out from under the cover to under both pages: scaled from its right edge.)
+      if (shadow.current) shadow.current.style.transform = `scaleX(${((49 + 49 * opened) / 98).toFixed(4)})`
       if (spine.current) spine.current.style.opacity = String(opened)
       // The page block's thickness on each side, a pair of sheets a pixel each.
       const sheets = (n: number, dir: 1 | -1) =>
@@ -388,7 +392,37 @@ export function Magazine({
       l.draw()
       return
     }
+    // The magazine eases after the scroll rather than jumping with it (a wheel moves the page in
+    // steps; the scroll and the drawing don't always land on the same frame): it chases where the
+    // scroll says it should be, quickly, and comes to rest on it.
     let raf = 0
+    let follow = 0
+    let last = 0
+    let first = true
+    const goal = { arrive: l.arrive, at: l.at }
+    const show = () => {
+      const shown = Math.round(l.at)
+      if (shown !== l.page) {
+        l.page = shown
+        setPage(shown)
+      }
+      l.draw()
+    }
+    const chase = (now: number) => {
+      follow = 0
+      if (l.user) return
+      const dt = last ? Math.min(64, now - last) : 16
+      last = now
+      const k = 1 - Math.exp(-dt / FOLLOW_MS)
+      // Each comes to rest on its own (the book shows once it has fully arrived, so arriving can't
+      // be left a hair short while the pages are still on their way).
+      const near = (x: number, to: number) => (Math.abs(to - x) < 0.001 ? to : x + (to - x) * k)
+      l.arrive = near(l.arrive, goal.arrive)
+      l.at = near(l.at, goal.at)
+      const resting = l.arrive === goal.arrive && l.at === goal.at
+      show()
+      if (!resting) follow = requestAnimationFrame(chase)
+    }
     const read = () => {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
@@ -402,14 +436,20 @@ export function Magazine({
         }
         // Once the reader has turned a page, the scroll leaves the magazine as it is.
         if (l.user) return
-        l.arrive = Math.min(1, p / INTRO_END)
-        l.at = smooth(clamp01((p - OPEN_FROM) / (OPEN_TO - OPEN_FROM)))
-        const shown = Math.round(l.at)
-        if (shown !== l.page) {
-          l.page = shown
-          setPage(shown)
+        goal.arrive = Math.min(1, p / INTRO_END)
+        goal.at = smooth(clamp01((p - OPEN_FROM) / (OPEN_TO - OPEN_FROM)))
+        // (On load, it is simply where the scroll is.)
+        if (first) {
+          first = false
+          l.arrive = goal.arrive
+          l.at = goal.at
+          show()
+          return
         }
-        l.draw()
+        if (!follow) {
+          last = 0
+          follow = requestAnimationFrame(chase)
+        }
       })
     }
     read()
@@ -417,6 +457,7 @@ export function Magazine({
     addEventListener('resize', read)
     return () => {
       cancelAnimationFrame(raf)
+      cancelAnimationFrame(follow)
       removeEventListener('scroll', read)
       removeEventListener('resize', read)
     }
@@ -627,11 +668,11 @@ export function Magazine({
           }}
         >
           {/* The closed magazine's shadow on the surface, following its outline as it turns. */}
-          <span ref={boxShadow} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2" />
+          <span ref={boxShadow} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 bg-black/25 blur-[42px] will-change-[transform,opacity]" />
           <ClosedBook boxRef={box} cover={cover} division={division} number={number} heading={heading} />
           <div ref={book} className="absolute inset-0 will-change-transform" style={{ perspective: '2600px', transform: 'translateX(-25%)', opacity: 0 }}>
             {/* The book's shadow on the surface: under the cover while closed, under both pages once open. */}
-            <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[51%] right-[1%] bg-black/25 blur-[40px]" style={{ bottom: '-2%' }} />
+            <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[1%] right-[1%] origin-right bg-black/25 blur-[40px] will-change-transform" style={{ bottom: '-2%', transform: 'scaleX(0.5)' }} />
 
             {/* The pages' edges, stacked under each side: as many as are left to turn on the right,
                 as many as are turned on the left (drawn as offset outlines, so they only show at the edges). */}
