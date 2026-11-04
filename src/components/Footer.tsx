@@ -128,14 +128,14 @@ export async function Footer({ site }: { site: Site }) {
               href="https://www.itaiagami.com"
               target="_blank"
               rel="noreferrer"
-              aria-label="Built with love by Itai"
+              aria-label="Built with love by Itai Agami"
               className="inline-flex w-fit items-center gap-[0.35em] text-[11px] normal-case tracking-normal text-[#5c5c5c] transition-colors hover:text-[#8a8a8a]"
             >
               <TypeText text="Built with" at={colAt(4) + 200} ms={10} />
-              <svg viewBox="0 0 16 14" aria-hidden className="type-char h-[1.05em] w-auto" style={cut(colAt(4) + 300)} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">
+              <svg viewBox="0 0 16 14" aria-hidden className="type-char h-[0.72em] w-auto" style={cut(colAt(4) + 300)} fill="currentColor">
                 <path d="M8 13 1.9 7.1A3.6 3.6 0 0 1 8 2.6a3.6 3.6 0 0 1 6.1 4.5Z" />
               </svg>
-              <TypeText text="by Itai" at={colAt(4) + 320} ms={10} />
+              <TypeText text="by Itai Agami" at={colAt(4) + 320} ms={10} />
             </a>
           </span>
           <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
