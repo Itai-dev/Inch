@@ -129,7 +129,7 @@ export async function Footer({ site }: { site: Site }) {
               target="_blank"
               rel="noreferrer"
               aria-label="Built with love by Itai"
-              className="inline-flex w-fit items-center gap-[0.45em] text-[9px] text-[#5c5c5c] transition-colors hover:text-[#8a8a8a]"
+              className="inline-flex w-fit items-center gap-[0.35em] text-[11px] normal-case tracking-normal text-[#5c5c5c] transition-colors hover:text-[#8a8a8a]"
             >
               <TypeText text="Built with" at={colAt(4) + 200} ms={10} />
               <svg viewBox="0 0 16 14" aria-hidden className="type-char h-[1.05em] w-auto" style={cut(colAt(4) + 300)} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">
