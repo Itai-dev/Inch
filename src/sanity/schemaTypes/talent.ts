@@ -1,5 +1,7 @@
-import { defineArrayMember, defineField, defineType } from 'sanity'
-import { DIVISIONS } from './division'
+import { orderRankField, orderRankOrdering } from '@sanity/orderable-document-list'
+import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
+import { NumberedPreview } from '../components/NumberedPreview'
+import { divisionField } from './division'
 import { creditedImage } from './objects/creditedImage'
 
 const gallery = (name: string, title: string) =>
@@ -33,13 +35,10 @@ export const talent = defineType({
       options: { source: 'name' },
       validation: (r) => r.required(),
     }),
-    defineField({
-      name: 'division',
-      type: 'string',
-      group: 'main',
-      options: { list: DIVISIONS, layout: 'radio' },
-      validation: (r) => r.required(),
-    }),
+    // Set by the Studio the model is made in (INCH” or DOT.), not chosen.
+    defineField({ ...divisionField(), group: 'main', validation: (r: Rule) => r.required() }),
+    // The model's place on the board: dragged in the Models list.
+    orderRankField({ type: 'talent', newItemPosition: 'after' }),
     defineField({
       name: 'categories',
       type: 'array',
@@ -54,7 +53,8 @@ export const talent = defineType({
       ],
     }),
     defineField({ name: 'cover', title: 'Cover image', type: 'image', group: 'main', options: { hotspot: true } }),
-    defineField({ name: 'order', title: 'Sort order', type: 'number', group: 'main' }),
+    // (Replaced by the dragged order; kept hidden for older documents.)
+    defineField({ name: 'order', title: 'Sort order', type: 'number', group: 'main', hidden: true }),
     gallery('portfolio', 'Portfolio'),
     gallery('coversAds', 'Covers + Ads'),
     gallery('polaroids', 'Polaroids'),
@@ -62,7 +62,11 @@ export const talent = defineType({
     defineField({ name: 'bio', type: 'text', rows: 4, group: 'details' }),
     defineField({ name: 'instagram', title: 'Instagram handle', type: 'string', group: 'details' }),
   ],
+  orderings: [orderRankOrdering],
+  // Numbered by her place on the board (the id and division ride in the description for that).
   preview: {
-    select: { title: 'name', subtitle: 'division', media: 'cover' },
+    select: { title: 'name', media: 'cover', id: '_id', division: 'division' },
+    prepare: ({ title, media, id, division }) => ({ title, media, description: `${id}|${division}` }),
   },
+  components: { preview: NumberedPreview },
 })

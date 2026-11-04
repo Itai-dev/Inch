@@ -135,13 +135,17 @@ export function ModelSheet({
     }
   }, [showBook])
   const per = stage.w < 640 ? 1 : 2
-  // Spreads: two portrait pages side by side, or one horizontal image filling the same frame.
-  // A portrait with no portrait partner (before a horizontal one, or last) sits alone. Phones: one image each.
+  const polaroids = book?.segment === 'polaroids'
+  // Pages side by side: two portraits (three polaroids); phones one.
+  const cols = per === 2 ? (polaroids ? 3 : 2) : 1
+  // Spreads: portrait pages side by side, or one horizontal image filling the same frame.
+  // A portrait with too few portrait partners (before a horizontal one, or at the end) sits with fewer. Phones: one image each.
   const spreads: number[][] = []
   for (let i = 0; i < N; ) {
-    const pair = per === 2 && !slides[i].landscape && i + 1 < N && !slides[i + 1].landscape
-    spreads.push(pair ? [i, i + 1] : [i])
-    i += pair ? 2 : 1
+    let k = 1
+    if (!slides[i].landscape) while (k < cols && i + k < N && !slides[i + k].landscape) k++
+    spreads.push(Array.from({ length: k }, (_, j) => i + j))
+    i += k
   }
   const S = Math.max(1, spreads.length)
   // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
@@ -155,12 +159,12 @@ export function ModelSheet({
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
   let pageH = Math.max(0, stage.h - capH - rowH) * (wide ? 0.95 : 1)
   let pageW = pageH * 0.75
-  if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
-    pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
+  if (pageW * cols + FOLD * (cols - 1) > stage.w - peek * 2) {
+    pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (cols - 1)) / cols)
     pageH = pageW / 0.75
   }
   // Every spread takes the same frame, so the margins never change.
-  const frameW = pageW * per + FOLD * (per - 1)
+  const frameW = pageW * cols + FOLD * (cols - 1)
   const left = (stage.w - frameW) / 2
   // Wide: the pictures start right under the name, the same gap below it as above it.
   const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH) / 2)
@@ -261,7 +265,6 @@ export function ModelSheet({
   // Thumbnails: as large as they can be and still all on screen (the columns chosen for the largest
   // cells), centred in the stage; phones get three across and scroll. Polaroids are prints in their
   // white frames (two across on phones).
-  const polaroids = book?.segment === 'polaroids'
   const gapPx = polaroids ? POLAROID_GAP : THUMB_GAP
   const aspect = polaroids ? POLAROID_ASPECT : 0.75
   const thumbPad = wide ? SIDE_W + 16 : 20
@@ -354,7 +357,7 @@ export function ModelSheet({
   const bookTabs = (stacked = false) => (
     <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
       {tabs.map((t) => (
-        <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
+        <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
           {t.title}
         </button>
       ))}
@@ -368,8 +371,9 @@ export function ModelSheet({
   const bookActions = (stacked = false) => (
     <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
       {book && N > 0 && (
-        <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Overview')}>
-          {view === 'book' ? 'Overview' : 'Book'}
+        // The book's overview, as a tab of its own: marked while it is open; the book's tab goes back.
+        <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+          Overview
         </button>
       )}
       {compCard && (
@@ -378,13 +382,27 @@ export function ModelSheet({
         </a>
       )}
       {talent && (
-        <button type="button" onClick={() => select_(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
-          {selected ? 'Selected' : '+ Selection'}
+        // An action, so a button (as in the selection): solid to add, outlined once added.
+        <button
+          type="button"
+          onClick={() => select_(talent)}
+          aria-pressed={selected}
+          className={`intro-write mt-1 border border-fg px-3.5 py-2 uppercase ${selected ? 'hover:bg-fg hover:text-bg' : 'bg-fg text-bg hover:opacity-85'}`}
+          style={write('+ Selection')}
+        >
+          {selected ? 'Selected ✓' : '+ Selection'}
         </button>
       )}
     </div>
   )
   const rowCls = 'text-detail font-bold uppercase'
+  /** The overview (all the book at once) is open. */
+  const overview = view === 'thumbnails' && !!book && book.view === 'book'
+  /** A book's tab: opens that book, or (its own, from its overview) goes back to it where it was. */
+  const tab = (seg: string) => {
+    if (seg === segment && view === 'thumbnails' && book?.view === 'book') setView('book')
+    else open(seg)
+  }
   // Phones: the books and actions fold into Menu (what is open shown beside it); the sizes stay out.
   const [menu, setMenu] = useState(false)
   const current = `${tabs.find((t) => t.segment === segment)?.title ?? ''}${book?.view === 'book' && view === 'thumbnails' ? ' · Overview' : ''}`
@@ -422,29 +440,35 @@ export function ModelSheet({
         </div>
         <nav className="flex flex-col items-start gap-1" aria-label="Books">
           {tabs.map((t) => (
-            <button key={t.segment} type="button" onClick={done(() => open(t.segment))} aria-current={t.segment === segment ? 'page' : undefined} className={`wordmark text-[clamp(34px,10.5vw,48px)] uppercase leading-[1.02] ${t.segment === segment ? '' : 'text-muted'}`}>
+            <button key={t.segment} type="button" onClick={done(() => tab(t.segment))} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`wordmark text-[clamp(34px,10.5vw,48px)] uppercase leading-[1.02] ${t.segment === segment && !overview ? '' : 'text-muted'}`}>
               {t.title}
             </button>
           ))}
+          {book && N > 0 && (
+            <button type="button" onClick={done(() => setView('thumbnails'))} aria-current={overview ? 'page' : undefined} className={`wordmark text-[clamp(34px,10.5vw,48px)] uppercase leading-[1.02] ${overview ? '' : 'text-muted'}`}>
+              Overview
+            </button>
+          )}
         </nav>
         <div className={`flex flex-wrap gap-x-6 gap-y-2 ${rowCls}`} style={narrow}>
-          {book && N > 0 && (
-            <button type="button" onClick={done(() => setView(view === 'book' ? 'thumbnails' : 'book'))} className="uppercase">
-              {view === 'book' ? 'Overview' : 'Book'}
-            </button>
-          )}
           {compCard && <a href={compCard}>Comp card</a>}
-          {talent && (
-            <button type="button" onClick={done(() => select_(talent))} aria-pressed={selected} className="uppercase">
-              {selected ? 'Selected' : '+ Selection'}
-            </button>
-          )}
           {handle && (
             <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer">
               Instagram
             </a>
           )}
         </div>
+        {talent && (
+          <button
+            type="button"
+            onClick={done(() => select_(talent))}
+            aria-pressed={selected}
+            className={`flex h-12 items-center justify-center border border-fg ${rowCls} ${selected ? '' : 'bg-fg text-bg'}`}
+            style={narrow}
+          >
+            {selected ? 'Selected ✓' : '+ Selection'}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -588,7 +612,7 @@ export function ModelSheet({
                           <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                         </div>
                       )}
-                      {o === 0 && per === 1 && s.caption && (
+                      {o === 0 && per === 1 && s.caption && !polaroids && (
                         <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
                       )}
                     </figure>
@@ -600,6 +624,7 @@ export function ModelSheet({
           </div>
           {/* The credits, set vertically: up the left edge of the left page, down the right edge of the right one. */}
           {per === 2 &&
+            !polaroids &&
             visible.map((i, j) => {
               const caption = slides[i]?.caption
               if (!caption) return null

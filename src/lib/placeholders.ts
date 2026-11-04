@@ -69,7 +69,7 @@ export const placeholderBook = (t: TalentCard, n: number, wideAt?: number): Slid
   const all = placeholderSlides(10)
   return Array.from({ length: n }, (_, j) =>
     j === wideAt
-      ? { id: String(j), src: '/placeholders/look-wide.svg', alt: 'Horizontal look', caption: 'Horizontal look', landscape: true }
-      : { ...all[(j + shift) % 10], id: String(j) },
+      ? { id: String(j), src: '/placeholders/look-wide.svg', alt: 'Horizontal look', landscape: true }
+      : { ...all[(j + shift) % 10], id: String(j), caption: undefined },
   )
 }

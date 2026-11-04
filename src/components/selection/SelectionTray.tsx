@@ -9,7 +9,7 @@ import { useSelection } from './SelectionProvider'
 
 export function SelectionTray({ site }: { site: Site; email?: string }) {
   const { items, remove, clear, open, setOpen } = useSelection()
-  // What to send: the comp cards, the cards with each model's polaroids, or the polaroids alone.
+  // What to send: each model's book (her comp card), the book with her polaroids, or the polaroids alone.
   const [include, setInclude] = useState<'cards' | 'with' | 'only'>('cards')
   // The selection as one PDF, a page a model, each linking to her page on the site.
   const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}${include === 'cards' ? '' : `&polaroids=${include}`}`
@@ -95,8 +95,8 @@ export function SelectionTray({ site }: { site: Site; email?: string }) {
                 <div role="radiogroup" aria-label="What to send" className="flex items-center justify-between gap-3 py-1 text-[13px] font-bold uppercase" style={{ fontStretch: '80%' }}>
                   {(
                     [
-                      ['cards', 'Cards'],
-                      ['with', 'Cards + polaroids'],
+                      ['cards', 'Book'],
+                      ['with', 'Book + polaroids'],
                       ['only', 'Polaroids'],
                     ] as const
                   ).map(([v, label]) => (

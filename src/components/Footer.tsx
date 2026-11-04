@@ -40,18 +40,20 @@ export async function Footer({ site }: { site: Site }) {
       items: [
         { text: `${s.brand} ${s.label}`, href: sitePath(site) },
         { text: `${SITES[other].brand} ${SITES[other].label}`, href: sitePath(other) },
-        { text: 'Apply', href: sitePath(site, '/apply') },
-        { text: 'Contact', href: sitePath(site, '/contact') },
       ],
     },
     {
       title: 'Studio',
-      items: [{ text: address, pre: true }, { text: phone, href: `tel:${phone.replace(/\s/g, '')}`, external: true }, { text: HOURS }],
+      items: [
+        { text: address, pre: true },
+        { text: phone, href: `tel:${phone.replace(/\s/g, '')}`, external: true },
+        { text: HOURS },
+        { text: `Instagram ${instagramHandle(instagram)}`, href: instagram, external: true },
+      ],
     },
     {
-      title: 'Follow',
+      title: 'Legal',
       items: [
-        { text: `Instagram ${instagramHandle(instagram)}`, href: instagram, external: true },
         { text: 'Privacy', href: sitePath(site, '/privacy') },
         { text: 'Accessibility', href: sitePath(site, '/accessibility') },
       ],
@@ -79,9 +81,10 @@ export async function Footer({ site }: { site: Site }) {
               <TypeText text={BRIEF} at={typeEnd(email, emailAt, 24)} ms={10} />
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <a href={enquiry} className="type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
+              {/* Booking starts on the board: choose the models, then send the selection. */}
+              <Link href={sitePath(site, '/models')} className="type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
                 Book talent →
-              </a>
+              </Link>
               <Link href={sitePath(site, '/apply')} className="type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt + 120) }}>
                 Become a model →
               </Link>
@@ -118,7 +121,12 @@ export async function Footer({ site }: { site: Site }) {
         </div>
 
         <div className="label mt-10 flex md:mt-[clamp(56px,7vw,120px)] flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
-          <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
+          <span className="flex flex-col gap-1.5">
+            <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
+            <a href="https://www.itaiagami.com" target="_blank" rel="noreferrer" className="ink-line inline-block w-fit hover:text-paper">
+              <TypeText text="Built with love by Itai Agami" at={colAt(4) + 200} ms={10} />
+            </a>
+          </span>
           <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
         </div>
       </TypeOnView>

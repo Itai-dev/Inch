@@ -15,12 +15,12 @@ export const CATEGORIES_BY_DIVISION_QUERY = defineQuery(
 )
 
 export const TALENTS_BY_DIVISION_QUERY = defineQuery(
-  `*[_type == "talent" && division == $division] | order(order asc, name asc){ ${cardFields}, "pics": portfolio[0...6], "work": coversAds[0...4] }`,
+  `*[_type == "talent" && division == $division] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields}, "pics": portfolio[0...6], "work": coversAds[0...4] }`,
 )
 
 export const CATEGORY_QUERY = defineQuery(`*[_type == "category" && division == $division && slug.current == $category][0]{
   _id, title, "slug": slug.current, division,
-  "talents": *[_type == "talent" && references(^._id)] | order(order asc, name asc){ ${cardFields} }
+  "talents": *[_type == "talent" && references(^._id)] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields} }
 }`)
 
 export const TALENT_QUERY = defineQuery(`*[_type == "talent" && slug.current == $slug][0]{
