@@ -123,8 +123,19 @@ export async function Footer({ site }: { site: Site }) {
         <div className="label mt-10 flex md:mt-[clamp(56px,7vw,120px)] flex-wrap items-center justify-between gap-4 text-[#8a8a8a]">
           <span className="flex flex-col gap-1.5">
             <span><TypeText text={`© ${new Date().getFullYear()} ${s.brand} Model Management`} at={colAt(4)} ms={10} /></span>
-            <a href="https://www.itaiagami.com" target="_blank" rel="noreferrer" className="ink-line inline-block w-fit hover:text-paper">
-              <TypeText text="Built with love by Itai Agami" at={colAt(4) + 200} ms={10} />
+            {/* The maker's mark: quieter than everything else in the footer. */}
+            <a
+              href="https://www.itaiagami.com"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Built with love by Itai"
+              className="inline-flex w-fit items-center gap-[0.45em] text-[9px] text-[#5c5c5c] transition-colors hover:text-[#8a8a8a]"
+            >
+              <TypeText text="Built with" at={colAt(4) + 200} ms={10} />
+              <svg viewBox="0 0 16 14" aria-hidden className="type-char h-[1.05em] w-auto" style={cut(colAt(4) + 300)} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">
+                <path d="M8 13 1.9 7.1A3.6 3.6 0 0 1 8 2.6a3.6 3.6 0 0 1 6.1 4.5Z" />
+              </svg>
+              <TypeText text="by Itai" at={colAt(4) + 320} ms={10} />
             </a>
           </span>
           <a href="#" className="ink-line inline-block hover:text-paper"><TypeText text="Back to top ↑" at={colAt(4)} ms={10} /></a>
