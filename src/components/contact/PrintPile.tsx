@@ -4,7 +4,8 @@
  * A pile of white-bordered prints. When the pile comes into view they land one after another, like
  * a stop-motion: each appears at once (a jump cut, no fade) and drops the last few pixels onto the
  * pile, quickly. Then any print can be picked up and moved anywhere on the page with the hand
- * (the site's grab cursor) or a finger (sideways first on a phone, so a vertical swipe still scrolls the page): caught, it turns a little and nudges aside the prints lying on it as it comes
+ * (the site's grab cursor) or a finger (a finger on a print always moves it, never the page; the page
+ * scrolls from beside the pile): caught, it turns a little and nudges aside the prints lying on it as it comes
  * to the top; moved, it leans with the movement.
  */
 import Image from 'next/image'
@@ -155,7 +156,7 @@ export function PrintPile({ prints, className = '' }: { prints: Print[]; classNa
               items.current[k] = n
             }}
             onPointerDown={onDown(k)}
-            className="absolute m-0 touch-pan-y"
+            className="absolute m-0 touch-none"
             style={{
               left: `${l.x}%`,
               top: `${l.y}%`,

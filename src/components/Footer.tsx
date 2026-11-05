@@ -88,7 +88,7 @@ export async function Footer({ site }: { site: Site }) {
               <Link href={sitePath(site, '/models')} className="type-char flex h-12 w-fit items-center bg-paper px-7 text-[14px] font-bold uppercase text-ink hover:opacity-85" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
                 Book talent →
               </Link>
-              <Link href={sitePath(site, '/apply')} className="type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt + 120) }}>
+              <Link href={sitePath(site, '/apply')} className="type-char flex h-12 w-fit items-center border border-paper px-7 text-[14px] font-bold uppercase hover:bg-paper hover:text-ink" style={{ fontStretch: '80%', ...cut(ctaAt) }}>
                 Become a model →
               </Link>
             </div>

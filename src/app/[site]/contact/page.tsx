@@ -48,7 +48,8 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
 
 /**
  * Contact, in one screen: a pile of prints in the middle of the page, that you can move about, and
- * the details either side, typing themselves in.
+ * the details either side, typing themselves in. Phones: the details first (what the page is for),
+ * then the pile, smaller, under them.
  */
 export default async function ContactPage({ params }: PageProps<'/[site]/contact'>) {
   const site = (await params).site as Site
@@ -89,23 +90,38 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
     { label: 'Hours', text: HOURS },
   ]
 
+  const BRIEF = 'Send us the brief: dates, location and usage. We come back with a shortlist from the board.'
+  const bookings = enquiryMailto(email, { brand })
   return (
     // The first screen under the header; scrolling on reaches the footer.
     <div>
       <h1 className="sr-only">Contact {brand}</h1>
-      <div className="grid items-center gap-y-12 px-gutter pb-16 pt-4 md:min-h-[calc(100svh-7rem)] md:grid-cols-[1fr_auto_1fr] md:gap-x-[clamp(32px,4vw,80px)] md:pb-[clamp(24px,4vh,48px)] md:pt-0">
-        <div className="order-2 md:order-1">
-          <Details rows={left} at={300} />
-        </div>
-
+      {/* Computers: the details either side of the pile. */}
+      <div className="hidden min-h-[calc(100svh-7rem)] grid-cols-[1fr_auto_1fr] items-center gap-x-[clamp(32px,4vw,80px)] px-gutter pb-[clamp(24px,4vh,48px)] md:grid">
+        <Details rows={left} at={300} />
         {/* Prints from the board, landing on a pile; pick any of them up and move it about. */}
-        <PrintPile prints={prints} className="order-1 mx-auto aspect-[600/720] w-[min(86vw,420px)] md:order-2 md:w-[min(36vw,62vh)]" />
-
-        <div className="order-3">
-          <Details rows={right} at={1000} align="right" />
-        </div>
+        <PrintPile prints={prints} className="aspect-[600/720] w-[min(36vw,62vh)]" />
+        <Details rows={right} at={1000} align="right" />
       </div>
-
+      {/* Phones: what the page is for first. The bookings address large, as in the footer, with the
+          brief under it; the other details two by two; then the pile, smaller. */}
+      <div className="flex flex-col gap-10 px-gutter pb-16 pt-6 md:hidden">
+        <div className="flex flex-col gap-3">
+          <p className="uppercase text-muted" style={{ fontStretch: '80%' }}>
+            <TypeText text="Bookings" at={200} />
+          </p>
+          <a href={bookings} className="ink-line wordmark w-fit text-[clamp(28px,8.6vw,44px)] leading-none">
+            <TypeText text={email} at={300} ms={24} />
+          </a>
+          <p className="max-w-[440px] text-[15px] leading-snug text-muted">
+            <TypeText text={BRIEF} at={typeEnd(email, 300, 24)} ms={10} />
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-6 [&>dl]:contents">
+          <Details rows={[...left.slice(1), ...right]} at={typeEnd(BRIEF, typeEnd(email, 300, 24), 10) + 100} />
+        </div>
+        <PrintPile prints={prints} className="mx-auto aspect-[600/720] w-[min(62vw,280px)]" />
+      </div>
     </div>
   )
 }

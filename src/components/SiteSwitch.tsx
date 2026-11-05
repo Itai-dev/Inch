@@ -31,11 +31,11 @@ export function useFitWidth<L extends HTMLElement, B extends HTMLElement>(active
   return [label, box] as const
 }
 
-/** Only these pages carry the tab, on either site (/logotest is the home page too). */
-const TAB_PAGES = ['/', '/contact', '/logotest']
+/** Only the home page carries the tab, on either site (/logotest is the home page too). */
+const TAB_PAGES = ['/', '/logotest']
 
 /**
- * On the home and contact pages of both sites: the other site's box in the bottom-left corner, its
+ * On the home page of both sites: the other site's box in the bottom-left corner, its
  * division ("Men division", "Women division") above it, as wide as the box. On the home page it pops
  * up as soon as the video has opened, standing just above the hero's ruler, and drops to the corner
  * once the ruler fades away. It goes again when the footer arrives. White + difference blend like the
