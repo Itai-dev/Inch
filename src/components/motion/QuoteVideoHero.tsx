@@ -341,10 +341,11 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     openedRef.current = true
     let raf = 0
     let done = false
-    // The blink under way is let finish, ending on the mark shown for a whole beat, and the opening
-    // starts on the very frame that beat ends, from the mark as it is: always a full off and on
-    // before it grows, never a short flash. (The rest of the blink is kept in step here, frame by
-    // frame, so its last beat and the start of the opening can't fall on different frames.)
+    // The blink under way is let finish by the blink itself: told to stop at the end of the beat it is
+    // in (its mark shown for a whole beat, then held), and the opening starts from the mark as it is.
+    // Always a full off and on before it grows, never a short flash. (Nothing here takes the blink
+    // over or works out where it is: on a phone what it shows can be a few ms ahead of what the page
+    // reads, and a beat worked out on the page could then flip the mark for a frame.)
     let cancelled = false
     const a = blinkAnim.current
     const el = blinkRef.current
@@ -372,25 +373,27 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       }
       raf = requestAnimationFrame(tick)
     }
-    if (a && el && a.playState === 'running' && a.currentTime !== null) {
-      const ct = Number(a.currentTime)
-      const origin = performance.now() - ct
-      const end = (Math.floor(ct / BLINK_MS) + 1) * BLINK_MS
-      const beat = (t: number) => (t % BLINK_MS < BLINK_MS / 2 ? '0' : '1') // off the first half, on the second
-      el.style.opacity = beat(ct)
-      a.cancel()
-      const run = (now: number) => {
-        const t = now - origin
-        if (t >= end) return begin()
-        el.style.opacity = beat(t)
-        raf = requestAnimationFrame(run)
-      }
-      raf = requestAnimationFrame(run)
+    const iteration = a?.playState === 'running' ? a.effect?.getComputedTiming().currentIteration : null
+    if (a && el && iteration != null) {
+      // This blink is the last: it ends on its mark shown, and holds it there (fill) until the
+      // opening has taken over.
+      a.effect?.updateTiming({ iterations: iteration + 1, fill: 'forwards' })
+      a.finished
+        .then(() => {
+          if (cancelled) return
+          el.style.opacity = '1'
+          a.cancel()
+          begin()
+        })
+        .catch(() => {})
     } else begin()
     return () => {
       cancelled = true
       cancelAnimationFrame(raf)
-      if (!done) openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
+      if (!done) {
+        openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
+        if (a?.playState === 'running') a.effect?.updateTiming({ iterations: Infinity }) // and the blink goes on
+      }
     }
   }, [opening, grow, dot])
 
