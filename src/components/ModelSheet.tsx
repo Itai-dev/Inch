@@ -403,11 +403,11 @@ export function ModelSheet({
     if (seg === segment && view === 'thumbnails' && book?.view === 'book') setView('book')
     else open(seg)
   }
-  // Phones: every book and action on the page, as on a computer: the books and the overview in a
-  // row, then the comp card, Instagram and the selection button under them (the sizes stay above).
+  // Phones: every book and action on the page, as on a computer, each row edge to edge: the books
+  // and the overview, then the comp card and Instagram, then the selection button across the width.
   const phoneBar = (
-    <div className={`flex flex-col gap-3 px-gutter ${rowCls}`} style={narrow}>
-      <nav className="flex flex-wrap justify-between gap-x-4 gap-y-1" aria-label="Books">
+    <div className={`flex flex-col gap-4 px-gutter ${rowCls}`} style={narrow}>
+      <nav className="flex justify-between gap-x-4" aria-label="Books">
         {tabs.map((t) => (
           <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
             {t.title}
@@ -419,31 +419,31 @@ export function ModelSheet({
           </button>
         )}
       </nav>
-      <div className="flex items-center justify-between gap-4">
-        <span className="flex gap-5">
+      {(compCard || handle) && (
+        <div className="flex justify-between gap-4">
           {compCard && (
-            <a href={compCard} className="intro-write" style={write('Comp card')}>
+            <a href={compCard} className="intro-write ink-line" style={write('Comp card')}>
               Comp card
             </a>
           )}
           {handle && (
-            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="intro-write" style={write('Instagram')}>
+            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
               Instagram
             </a>
           )}
-        </span>
-        {talent && (
-          <button
-            type="button"
-            onClick={() => select_(talent)}
-            aria-pressed={selected}
-            className={`intro-write shrink-0 border border-fg px-3.5 py-2 uppercase ${selected ? '' : 'bg-fg text-bg'}`}
-            style={write('+ Selection')}
-          >
-            {selected ? 'Selected ✓' : '+ Selection'}
-          </button>
-        )}
-      </div>
+        </div>
+      )}
+      {talent && (
+        <button
+          type="button"
+          onClick={() => select_(talent)}
+          aria-pressed={selected}
+          className={`intro-write flex h-12 w-full items-center justify-center border border-fg uppercase ${selected ? '' : 'bg-fg text-bg'}`}
+          style={write('+ Selection')}
+        >
+          {selected ? 'Selected ✓' : '+ Selection'}
+        </button>
+      )}
     </div>
   )
   const actionsRow = (className: string, style?: React.CSSProperties) => (
@@ -510,7 +510,7 @@ export function ModelSheet({
         </header>
       ) : (
         /* Top rail: logo | name | close, then the sizes under them */
-        <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)]">
+        <header className="flex shrink-0 flex-col gap-6 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] sm:gap-3">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
               <BrandMark division={division} className="text-[32px] md:text-[48px]" />
@@ -703,7 +703,7 @@ export function ModelSheet({
       )}
 
       {/* Books | counter | actions, then the ruler across the full width */}
-      <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
+      <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'}`}>
         {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
 
         {showBook && S > 1 && (
