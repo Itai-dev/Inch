@@ -7,7 +7,7 @@ import type { Division } from '@/sanity/lib/types'
 export type CardStat = [label: string, value: string | number | undefined]
 
 /**
- * The application as a comp card: a light grey card with a fine outline, lifted off the page, and
+ * The application as a comp card: heavy white paper (.paper, a faint sheen moving on it as it turns) with a fine outline, lifted off the page, and
  * turned a little toward the mouse wherever it is (also while filling in the form). It fills in while the form is filled in: the name, the stats, then the photos. The
  * name isn't set between the ’ ’ marks (those are for INCH” models); the card carries the
  * ” logo instead (DOT.: the ■).
@@ -20,6 +20,7 @@ export function CompCard({
   photos,
   contact,
   flat = false,
+  still = false,
   className = '',
 }: {
   brand: string
@@ -30,6 +31,8 @@ export function CompCard({
   contact: string[]
   /** No lift or tilt (the folded card on phones). */
   flat?: boolean
+  /** The look without the pointer tilt (a copy that is being moved about). */
+  still?: boolean
   className?: string
 }) {
   const card = useRef<HTMLDivElement>(null)
@@ -38,7 +41,7 @@ export function CompCard({
   // away from it. Mouse only, and not with reduced motion.
   useEffect(() => {
     const el = card.current
-    if (flat || !el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (flat || still || !el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let frame = 0
     const face = (e: PointerEvent) => {
       if (e.pointerType !== 'mouse') return
@@ -48,14 +51,19 @@ export function CompCard({
         const clamp = (v: number) => Math.max(-1, Math.min(1, v))
         const x = clamp((e.clientX - (r.left + r.width / 2)) / (innerWidth / 2))
         const y = clamp((e.clientY - (r.top + r.height / 2)) / (innerHeight / 2))
-        el.style.transform = `perspective(1100px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) translateY(-4px)`
-        el.style.boxShadow = `${(-8 - x * 14).toFixed(1)}px ${(30 - y * 10).toFixed(1)}px 20px -24px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.06)`
+        // Well felt: up to ~11° each way, and lifted higher still while the pointer is on it.
+        const over = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+        el.style.transform = `perspective(1000px) rotateX(${(-y * 9).toFixed(2)}deg) rotateY(${(x * 11).toFixed(2)}deg) translateY(${over ? -14 : -6}px) scale(${over ? 1.03 : 1})`
+        // The light slides across the paper as it turns.
+        el.style.setProperty('--sheen', `${(50 + x * 38).toFixed(1)}%`)
+        el.style.boxShadow = `0 1px 0 #e2dfd8, 0 2px 0 #d6d3cb, ${(-14 - x * 26).toFixed(1)}px ${(44 - y * 18 + (over ? 12 : 0)).toFixed(1)}px ${over ? 40 : 28}px -26px rgb(0 0 0 / 0.42), 0 2px 8px rgb(0 0 0 / 0.07)`
       })
     }
     const rest = () => {
       cancelAnimationFrame(frame)
       el.style.transform = ''
       el.style.boxShadow = ''
+      el.style.removeProperty('--sheen')
     }
     window.addEventListener('pointermove', face)
     document.documentElement.addEventListener('pointerleave', rest)
@@ -64,14 +72,14 @@ export function CompCard({
       window.removeEventListener('pointermove', face)
       document.documentElement.removeEventListener('pointerleave', rest)
     }
-  }, [flat])
+  }, [flat, still])
 
   return (
     <div
       ref={card}
-      // Light grey, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
-      style={flat ? undefined : ({ '--bg': '#f9f9f9', '--fg': '#0a0a0a', '--muted': '#6f6f6f', '--line': '#e6e6e6' } as React.CSSProperties)}
-      className={`flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'border border-[#bcbcbc] shadow-[-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] will-change-transform'} ${className}`}
+      // White paper, also on DOT.'s black page: its own light colours. (Folded, it takes the page's.)
+      style={flat ? undefined : ({ '--bg': '#fdfdfc', '--fg': '#0a0a0a', '--muted': '#6b6965', '--line': '#e4e2dd' } as React.CSSProperties)}
+      className={`relative flex flex-col gap-6 bg-bg p-[clamp(22px,2.6vw,40px)] text-fg ${flat ? '' : 'paper border border-[#dcdad5] shadow-[0_1px_0_#e2dfd8,0_2px_0_#d6d3cb,-8px_30px_20px_-24px_rgb(0_0_0/0.32),0_2px_8px_rgb(0_0_0/0.06)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]'} ${className}`}
     >
       <div className="label flex items-start justify-between text-[11px] text-muted">
         <span>{brand} — Application</span>
@@ -90,14 +98,15 @@ export function CompCard({
         ))}
       </dl>
 
-      <div className="grid grid-cols-3 gap-[3px]">
+      {/* The four digitals in a row; a new one is pasted down onto its spot (keyed by the picture, so a replacement is too). */}
+      <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${photos.length}, minmax(0, 1fr))` }}>
         {photos.map((p) => (
-          <div key={p.label} className="relative aspect-[3/4] overflow-hidden border border-dashed border-muted/40">
-            {p.url ? (
+          <div key={p.label} className="relative aspect-[3/4] border border-dashed border-muted/40">
+            {/* The empty spot stays as it is; the photo is laid onto it. */}
+            <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-[0.15em] text-muted">{p.label}</span>
+            {p.url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.url} alt={p.label} className="absolute inset-0 size-full object-cover" />
-            ) : (
-              <span className="absolute bottom-2 left-2 text-[10px] uppercase tracking-[0.15em] text-muted">{p.label}</span>
+              <img key={p.url} src={p.url} alt={p.label} className={`absolute -inset-px size-[calc(100%+2px)] max-w-none object-cover ${still || flat ? '' : 'photo-paste'}`} />
             )}
           </div>
         ))}
@@ -108,6 +117,8 @@ export function CompCard({
           <span key={c} className="truncate">{c}</span>
         ))}
       </div>
+      {/* The light on the paper (it moves as the card turns, or is carried). */}
+      {!flat && <span aria-hidden className="card-sheen" />}
     </div>
   )
 }

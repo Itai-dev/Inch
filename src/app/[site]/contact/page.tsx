@@ -1,21 +1,18 @@
 import type { Metadata } from 'next'
-import { Caveat } from 'next/font/google'
-import Image from 'next/image'
+import { PrintPile, type Print } from '@/components/contact/PrintPile'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { DEMO_CONTACT as DEMO, HOURS, instagramHandle } from '@/lib/copy'
+import { enquiryMailto } from '@/lib/enquiry'
 import { isPlaceholder } from '@/lib/placeholders'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
 import { SITE_SETTINGS_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
-import type { SiteSettings, TalentCard } from '@/sanity/lib/types'
-
-/** The pen on the contact sheet's notes. */
-const hand = Caveat({ subsets: ['latin'], weight: '400' })
+import type { SanityImage, SiteSettings, TalentCard } from '@/sanity/lib/types'
 
 export async function generateMetadata({ params }: PageProps<'/[site]/contact'>): Promise<Metadata> {
   const site = (await params).site as Site
-  return { title: 'Contact', alternates: { canonical: sitePath(site, '/contact') } }
+  return { title: 'Contact', description: `Book ${SITES[site].brand} talent or apply to join the board. Send us the brief: dates, location and usage, and we come back with a shortlist.`, alternates: { canonical: sitePath(site, '/contact') } }
 }
 
 type Row = { label: string; text: string; href?: string; external?: boolean }
@@ -36,7 +33,7 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
         </dt>
         <dd className="whitespace-pre-line font-bold leading-snug">
           {r.href ? (
-            <a href={r.href} target={r.external ? '_blank' : undefined} rel={r.external ? 'noreferrer' : undefined} className="underline-offset-4 hover:underline">
+            <a href={r.href} target={r.external ? '_blank' : undefined} rel={r.external ? 'noreferrer' : undefined} className="ink-line inline-block">
               {text}
             </a>
           ) : (
@@ -46,49 +43,12 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
       </div>
     )
   })
-  return <dl className={`flex flex-col gap-[clamp(18px,3vh,32px)] text-[clamp(16px,1.25vw,20px)] ${align === 'right' ? 'md:items-end md:text-right' : ''}`}>{items}</dl>
-}
-
-/** When a piece of the sheet comes in (ms), and for a print, the angle it lands from. */
-const at = (ms: number, turn?: string) => ({ '--at': `${ms}ms`, ...(turn ? { '--turn': turn } : {}) }) as React.CSSProperties
-
-/** A pencilled line, written left to right from `at`. */
-function Hand({ at: ms, children }: { at: number; children: React.ReactNode }) {
-  return (
-    <span className="hand-line block" style={at(ms)}>
-      {children}
-    </span>
-  )
-}
-
-/** Where the small print's top edge crosses the clip: a share of the clip's height from its top. */
-const CLIP_EDGE = '36%'
-
-/** One copy of the paper clip (see the sheet): `back` under the small print, `front` over it. */
-function Clip({ layer }: { layer: 'back' | 'front' }) {
-  // The front copy hides the clip's right part below the paper's edge, as if that side were behind it.
-  const mask = `linear-gradient(to bottom, #000 ${CLIP_EDGE}, transparent ${CLIP_EDGE}), linear-gradient(to right, #000 56%, transparent 56%)`
-  return (
-    <span
-      aria-hidden
-      className={`sheet-clip absolute left-[37%] top-[4.9%] block aspect-[164/560] h-[17%] -rotate-[7deg] ${layer === 'back' ? 'z-[5]' : 'z-20'}`}
-      style={{ '--at': '1350ms' } as React.CSSProperties}
-    >
-      <Image
-        src="/contact/paperclip.png"
-        alt=""
-        fill
-        sizes="40px"
-        className="object-contain drop-shadow-[0_2px_2px_rgb(0_0_0/0.3)]"
-        style={layer === 'front' ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
-      />
-    </span>
-  )
+  return <dl className={`flex flex-col text-detail gap-[clamp(18px,3vh,32px)] ${align === 'right' ? 'md:items-end md:text-right' : ''}`}>{items}</dl>
 }
 
 /**
- * Contact, in one screen: a contact sheet in the middle of the page (a print clipped over a
- * larger one, with pencilled notes) and the details either side, typing themselves in.
+ * Contact, in one screen: a pile of prints in the middle of the page, that you can move about, and
+ * the details either side, typing themselves in.
  */
 export default async function ContactPage({ params }: PageProps<'/[site]/contact'>) {
   const site = (await params).site as Site
@@ -102,16 +62,25 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   const address = s?.address || DEMO.address
   const instagram = s?.instagram || DEMO.instagram
 
-  // The sheet's pictures: a model's cover, and a picture from her book on the clipped print.
-  const model = talents.find((t) => !isPlaceholder(t) && t.cover?.asset)
-  const big = model?.cover ? urlFor(model.cover).width(1000).url() : '/placeholders/look-02.svg'
-  const bookPic = model?.pics?.find((p) => p?.asset && p.asset._ref !== model.cover?.asset?._ref)
-  const small = bookPic ? urlFor(bookPic).width(700).url() : model?.cover ? urlFor(model.cover).width(700).url() : '/placeholders/look-05.svg'
-  const city = address.split('\n').pop()?.replace(/\s*\d+$/, '') || 'the studio'
+  // The prints: the real models' pictures (cover and book, a model at a time), else the placeholder looks.
+  const real = talents.filter((t) => !isPlaceholder(t))
+  const own = real.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
+  const interleaved = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l, m) => (l[i] ? [{ img: l[i], name: real[m].name }] : []))).flat()
+  // Eight prints: the real pictures, round again if there are fewer (a different crop each time round).
+  const PRINTS = 8
+  const prints: Print[] = interleaved.length
+    ? Array.from({ length: Math.max(interleaved.length, PRINTS) }, (_, i) => {
+        const { img, name } = interleaved[i % interleaved.length]
+        const round = Math.floor(i / interleaved.length)
+        const shot = urlFor(img).width(900)
+        return { src: (round ? shot.height(1100).focalPoint(0.5, round % 2 ? 0.25 : 0.7).fit('crop') : shot).url(), alt: img.alt || name }
+      })
+    : [1, 3, 5, 7, 2, 9, 4, 6].map((n) => ({ src: `/placeholders/look-${String(n).padStart(2, '0')}.svg`, alt: '' }))
 
   const left: Row[] = [
-    { label: 'Bookings', text: email, href: `mailto:${email}` },
-    { label: 'New faces', text: email, href: `mailto:${email}?subject=New%20faces` },
+    // Bookings: an email with the brief laid out, so the client only fills it in.
+    { label: 'Bookings', text: email, href: enquiryMailto(email, { brand }) },
+    { label: 'New faces', text: 'Apply online →', href: sitePath(site, '/apply') },
     { label: 'Phone', text: phone, href: `tel:${phone.replace(/\s/g, '')}` },
   ]
   const right: Row[] = [
@@ -129,35 +98,8 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
           <Details rows={left} at={300} />
         </div>
 
-        {/* The contact sheet. */}
-        <figure className={`relative order-1 mx-auto aspect-[600/720] w-[min(86vw,420px)] md:order-2 md:w-[min(34vw,58vh)] ${hand.className}`}>
-          <figcaption className="absolute left-[3%] top-[-5%] z-20 -rotate-2 text-[clamp(18px,1.7vw,26px)] leading-[1.05] text-[#4a4a47]">
-            <Hand at={1250}>{brand} Studio</Hand>
-            <Hand at={1700}>Bookings 001/004</Hand>
-          </figcaption>
-          {/* The larger print behind. */}
-          <div className="sheet-print absolute bottom-[6%] left-[22%] right-[2%] top-[13%] border border-[#e4e4df] bg-[#f6f6f2] p-[3.5%] shadow-[0_18px_40px_-24px_rgb(0_0_0/0.35)]" style={at(100, '2deg')}>
-            <div className="relative h-full overflow-hidden bg-line">
-              <Image src={big} alt={model ? model.name : ''} fill priority sizes="(min-width: 768px) 30vw, 80vw" unoptimized={big.endsWith('.svg')} className="object-cover object-[50%_20%] grayscale" />
-            </div>
-          </div>
-          {/* The print clipped over it. */}
-          <div className="sheet-print absolute left-[1%] top-[11%] z-10 w-[52%] bg-[#fbfbf9] p-[3%] pb-[12%] shadow-[0_14px_30px_-14px_rgb(0_0_0/0.4)]" style={at(520, '-4deg')}>
-            <div className="relative aspect-[4/4.6] overflow-hidden bg-line">
-              {/* Without a second picture, a close crop of the same one. */}
-              <Image src={small} alt="" fill sizes="(min-width: 768px) 18vw, 45vw" unoptimized={small.endsWith('.svg')} className={`object-cover object-top grayscale ${bookPic ? '' : 'origin-[50%_12%] scale-[1.9]'}`} />
-            </div>
-          </div>
-          {/* The paper clip, gripping the small print's top edge (and the large one under it): drawn
-              twice, behind the small print and in front of it, the front copy without its right part
-              below the edge, so that side runs behind the paper. It lands with the prints. */}
-          <Clip layer="back" />
-          <Clip layer="front" />
-          <p aria-hidden className="absolute bottom-[-1%] right-[3%] z-20 -rotate-1 text-right text-[clamp(17px,1.5vw,24px)] leading-[1.05] text-[#4a4a47]">
-            <Hand at={2150}>Fig. 001 {model?.name ?? 'The board'}</Hand>
-            <Hand at={2650}>in {city}</Hand>
-          </p>
-        </figure>
+        {/* Prints from the board, landing on a pile; pick any of them up and move it about. */}
+        <PrintPile prints={prints} className="order-1 mx-auto aspect-[600/720] w-[min(86vw,420px)] md:order-2 md:w-[min(36vw,62vh)]" />
 
         <div className="order-3">
           <Details rows={right} at={1000} align="right" />

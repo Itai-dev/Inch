@@ -1,6 +1,6 @@
-import { defineField, defineType } from 'sanity'
+import { defineField, defineType, type Rule } from 'sanity'
 import { apiVersion } from '../env'
-import { DIVISIONS } from './division'
+import { divisionField } from './division'
 
 export const category = defineType({
   name: 'category',
@@ -24,12 +24,8 @@ export const category = defineType({
       },
       validation: (r) => r.required(),
     }),
-    defineField({
-      name: 'division',
-      type: 'string',
-      options: { list: DIVISIONS, layout: 'radio' },
-      validation: (r) => r.required(),
-    }),
+    // Set by the Studio the category is made in (INCH” or DOT.), not chosen.
+    defineField({ ...divisionField(), validation: (r: Rule) => r.required() }),
     defineField({ name: 'order', type: 'number' }),
   ],
   preview: { select: { title: 'title', subtitle: 'division' } },

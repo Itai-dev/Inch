@@ -25,7 +25,9 @@ export const application = defineType({
     defineField({ name: 'name', type: 'string' }),
     defineField({ name: 'birthdate', title: 'Date of birth', type: 'date' }),
     defineField({ name: 'age', title: 'Age when applying', type: 'number' }),
-    defineField({ name: 'city', type: 'string' }),
+    // Asked by earlier versions of the form: shown only on the applications that have them.
+    defineField({ name: 'country', type: 'string', hidden: ({ value }) => !value }),
+    defineField({ name: 'city', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'email', type: 'string' }),
     defineField({ name: 'phone', type: 'string' }),
     defineField({
@@ -34,9 +36,19 @@ export const application = defineType({
       fields: [
         defineField({ name: 'name', type: 'string' }),
         defineField({ name: 'phone', type: 'string' }),
+        defineField({ name: 'consent', title: 'Consented to the application', type: 'boolean', readOnly: true }),
       ],
     }),
     defineField({ name: 'measurements', type: 'measurements' }),
+    defineField({
+      name: 'sizes',
+      type: 'object',
+      options: { columns: 2 },
+      fields: [
+        defineField({ name: 'tshirt', title: 'T-shirt', type: 'string' }),
+        defineField({ name: 'pants', title: 'Pants (EU)', type: 'number' }),
+      ],
+    }),
     defineField({
       name: 'digitals',
       type: 'array',
@@ -44,7 +56,7 @@ export const application = defineType({
       of: [defineArrayMember({ type: 'image' })],
     }),
     defineField({ name: 'instagram', type: 'string' }),
-    defineField({ name: 'tiktok', title: 'TikTok', type: 'string' }),
+    defineField({ name: 'tiktok', title: 'TikTok', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'experience', type: 'text', rows: 3 }),
     defineField({
       name: 'outsideCriteria',

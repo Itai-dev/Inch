@@ -9,7 +9,7 @@ import type { Category, TalentCard } from '@/sanity/lib/types'
 
 export async function generateMetadata({ params }: PageProps<'/[site]/models'>): Promise<Metadata> {
   const site = (await params).site as Site
-  return { title: 'Models', alternates: { canonical: sitePath(site, '/models') } }
+  return { title: 'Models', description: `The ${SITES[site].brand} board. Open any model's book, add them to your shortlist and send it to us as one booking request.`, alternates: { canonical: sitePath(site, '/models') } }
 }
 
 export default async function ModelsPage({ params }: PageProps<'/[site]/models'>) {

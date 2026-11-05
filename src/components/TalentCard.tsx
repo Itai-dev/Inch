@@ -31,7 +31,7 @@ export function TalentCard({ talent, priority, n }: { talent: TalentCardType; pr
               sizes="(min-width: 1280px) 17vw, (min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
               priority={priority}
               unoptimized={src.endsWith('.svg')}
-              className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+              className="object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:scale-[1.03]"
             />
           )}
         </div>
@@ -86,10 +86,11 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
               <span aria-hidden className="ruler-seg relative self-stretch" style={{ ...rulerTicksDown(26, 9), marginBottom: `-${SEG_OVERLAP}` }}>
                 <span className="absolute left-[34px] top-1/2 -translate-y-1/2 text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
               </span>
-              <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line md:my-4">
+              {/* The picture comes along with the name on hover, a little larger. */}
+              <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2 group-hover:scale-[1.06] md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
               </span>
-              <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-300 ease-[var(--ease-out)] group-hover:translate-x-2">
+              <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2">
                 {t.name}
               </span>
               <span aria-hidden className="label text-muted transition-opacity md:opacity-0 md:group-hover:opacity-100">View →</span>
@@ -103,6 +104,6 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
 
 /** The board with its view switch: thumbnails or list. */
 export function TalentBoard({ talents }: { talents: TalentCardType[] }) {
-  return <BoardView count={talents.length} grid={<TalentGrid talents={talents} />} list={<TalentList talents={talents} />} />
+  return <BoardView grid={<TalentGrid talents={talents} />} list={<TalentList talents={talents} />} />
 }
 

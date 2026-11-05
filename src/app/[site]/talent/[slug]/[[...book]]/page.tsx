@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { ModelSheet, type Book } from '@/components/ModelSheet'
-import { isPlaceholder, placeholderBook, placeholderTalent } from '@/lib/placeholders'
+import { isPlaceholder, placeholderBook, placeholderTalent, POLAROID_PLACEHOLDERS } from '@/lib/placeholders'
 import { siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
-import { imageSlides } from '@/lib/slides'
+import { imageSlides, placeholderSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
 import { TALENT_QUERY } from '@/sanity/lib/queries'
@@ -12,8 +12,7 @@ import type { Talent } from '@/sanity/lib/types'
 /** Each book has its own URL so bookers can send exactly the right one. */
 const BOOKS = [
   { segment: '', field: 'portfolio', title: 'Modelbook', view: 'book', placeholders: 13, wideAt: 4 },
-  { segment: 'covers', field: 'coversAds', title: 'Covers + Ads', view: 'book', placeholders: 6, wideAt: undefined },
-  { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'thumbnails', placeholders: 8, wideAt: undefined },
+  { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'book', placeholders: 10, wideAt: undefined },
 ] as const
 
 const load = async (slug: string) => (await sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])) ?? placeholderTalent(slug)
@@ -23,7 +22,9 @@ const booksFor = (t: Talent): Book[] =>
     segment: b.segment,
     title: b.title,
     view: b.view,
-    slides: isPlaceholder(t) ? placeholderBook(t, b.placeholders, b.wideAt) : imageSlides(t[b.field] ?? [], t.name),
+    slides: isPlaceholder(t)
+      ? placeholderBook(t, b.placeholders, b.wideAt)
+      : [...imageSlides(t[b.field] ?? [], t.name), ...(b.field === 'polaroids' ? placeholderSlides(POLAROID_PLACEHOLDERS) : [])],
   })).filter((b) => b.slides.length)
 
 const tabsFor = (t: Talent) => [...booksFor(t), ...(t.bio ? [{ segment: 'bio', title: 'Bio' }] : [])]

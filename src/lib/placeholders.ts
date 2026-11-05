@@ -8,6 +8,8 @@ import { placeholderSlides } from './slides'
  * to 0 to switch placeholders off.
  */
 export const PLACEHOLDER_FILL = 20
+/** For now, every model's polaroids are followed by this many placeholder prints (on her page and in the PDF), until her set is in the Studio. */
+export const POLAROID_PLACEHOLDERS = 10
 
 const NAMES: Record<Division, string[]> = {
   women: [
@@ -67,7 +69,7 @@ export const placeholderBook = (t: TalentCard, n: number, wideAt?: number): Slid
   const all = placeholderSlides(10)
   return Array.from({ length: n }, (_, j) =>
     j === wideAt
-      ? { id: String(j), src: '/placeholders/look-wide.svg', alt: 'Horizontal look', caption: 'Horizontal look', landscape: true }
-      : { ...all[(j + shift) % 10], id: String(j) },
+      ? { id: String(j), src: '/placeholders/look-wide.svg', alt: 'Horizontal look', landscape: true }
+      : { ...all[(j + shift) % 10], id: String(j), caption: undefined },
   )
 }

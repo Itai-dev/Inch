@@ -1,6 +1,7 @@
 import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { DEMO_CONTACT } from '@/lib/copy'
+import { POLAROID_PLACEHOLDERS } from '@/lib/placeholders'
 import { SITES, talentPath, type Site } from '@/lib/sites'
 import { cmToFeet, cmToInches } from '@/lib/units'
 import { urlFor } from '@/sanity/lib/image'
@@ -10,6 +11,9 @@ import type { SanityImage, SiteSettings, Talent } from '@/sanity/lib/types'
  * Comp cards as a PDF: A4 landscape, a page a model. Cover on the left, four book images on the
  * right; the name, measurements (cm and inches) and the agency's contact along the bottom. The
  * name and a "View online" line link to the model's page on the site, so the card is a way in.
+ * With polaroids, each model's polaroids follow her card (or stand alone): three a page, as large as
+ * the page's width allows, each print in its white frame (as on her page), then placeholder prints
+ * for now, under her name.
  */
 const W = 842
 const H = 595
@@ -20,13 +24,96 @@ const MUTED = rgb(0.43, 0.43, 0.43)
 /** The model's name, in points. */
 const NAME_PT = 24
 
-/** One PDF with a comp card for each model, in order. `origin` makes the links absolute. */
-export async function compCardsPdf(talents: Talent[], site: Site, settings: SiteSettings | null, origin: string) {
+/** What goes in: the comp cards, the cards each followed by the model's polaroids, or the polaroids alone. */
+export type CardsMode = 'cards' | 'with-polaroids' | 'polaroids'
+
+/** The models' polaroids that can be drawn. */
+export const polaroidsOf = (t: Talent) => (t.polaroids ?? []).filter((i) => i.asset)
+
+/** One PDF with a comp card (and/or polaroids) for each model, in order. `origin` makes the links absolute. */
+export async function compCardsPdf(talents: Talent[], site: Site, settings: SiteSettings | null, origin: string, mode: CardsMode = 'cards') {
   const pdf = await PDFDocument.create()
-  pdf.setTitle(talents.length === 1 ? `${talents[0].name} — comp card` : `${SITES[site].brand} — comp cards`)
+  const what = mode === 'polaroids' ? 'polaroids' : talents.length === 1 ? 'comp card' : 'comp cards'
+  pdf.setTitle(talents.length === 1 ? `${talents[0].name} — ${what}` : `${SITES[site].brand} — ${what}`)
   const fonts = { bold: await pdf.embedFont(StandardFonts.HelveticaBold), regular: await pdf.embedFont(StandardFonts.Helvetica) }
-  for (const t of talents) await drawCard(pdf, fonts, t, site, settings, origin)
+  for (const t of talents) {
+    if (mode !== 'polaroids') await drawCard(pdf, fonts, t, site, settings, origin)
+    if (mode !== 'cards') await drawPolaroids(pdf, fonts, t, site, origin)
+  }
   return pdf.save()
+}
+
+const POLS_PER_PAGE = 3
+/** A polaroid: a 3:4 picture in a white frame 5% of its width at the sides and top, 18% at the foot. */
+const POL_SIDE = 0.05
+const POL_FOOT = 0.18
+const POL_ASPECT = 1 / (POL_SIDE + (1 - 2 * POL_SIDE) * (4 / 3) + POL_FOOT)
+/** The placeholder prints, as on the site: [background, ink], one a print in turn. */
+const PLACEHOLDER_TONES: [number, number][] = [
+  [0x1a, 0xff], [0x3a, 0xff], [0x5d, 0xff], [0x2a, 0xff], [0xa7, 0x0a],
+  [0x6f, 0xff], [0x12, 0xff], [0x89, 0xff], [0x44, 0xff], [0xcd, 0x0a],
+]
+const grey = (v: number) => rgb(v / 255, v / 255, v / 255)
+
+async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, origin: string) {
+  // Hers, then the placeholder prints.
+  const all: (SanityImage | number)[] = [...polaroidsOf(t), ...Array.from({ length: POLAROID_PLACEHOLDERS }, (_, k) => k)]
+  const url = `${origin}${talentPath(t)}/polaroids`
+  const pages = Math.ceil(all.length / POLS_PER_PAGE)
+  for (let pg = 0; pg < pages; pg++) {
+    const page = pdf.addPage([W, H])
+    const items = all.slice(pg * POLS_PER_PAGE, (pg + 1) * POLS_PER_PAGE)
+    // Three across, filling the page's width (and no taller than the room above the foot, less
+    // their shadows), in the middle of that room; a short last page centred.
+    const areaH = H - M - FOOT
+    const gap = 18
+    const fw = Math.min((W - 2 * M - gap * (POLS_PER_PAGE - 1)) / POLS_PER_PAGE, (areaH - 6) * POL_ASPECT)
+    const fh = fw / POL_ASPECT
+    const pic = { w: fw * (1 - 2 * POL_SIDE), h: fw * (1 - 2 * POL_SIDE) * (4 / 3) }
+    const imgs = await Promise.all(items.map((it) => (typeof it === 'number' ? null : embed(pdf, it, pic.w, pic.h))))
+    const x0 = (W - (items.length * fw + (items.length - 1) * gap)) / 2
+    const y = FOOT + (areaH - fh) / 2 + 3
+    items.forEach((it, c) => {
+      const x = x0 + c * (fw + gap)
+      // The print: a soft shadow under it, its white frame, the picture.
+      page.drawRectangle({ x: x + 1, y: y - 2.5, width: fw, height: fh, color: rgb(0.87, 0.87, 0.86) })
+      page.drawRectangle({ x, y, width: fw, height: fh, color: rgb(0.984, 0.984, 0.973), borderColor: rgb(0.84, 0.84, 0.82), borderWidth: 0.35 })
+      const px = x + fw * POL_SIDE
+      const py = y + fw * POL_FOOT
+      const img = imgs[c]
+      if (img) page.drawImage(img, { x: px, y: py, width: pic.w, height: pic.h })
+      else if (typeof it === 'number') {
+        // A placeholder, drawn as on the site: its tone, PLACEHOLDER at the top, its number large at the foot.
+        const [bg, ink] = PLACEHOLDER_TONES[it % PLACEHOLDER_TONES.length]
+        page.drawRectangle({ x: px, y: py, width: pic.w, height: pic.h, color: grey(bg) })
+        page.drawText('PLACEHOLDER', { x: px + pic.w * 0.07, y: py + pic.h * 0.9, size: pic.w * 0.045, font: regular, color: grey(ink), opacity: 0.6 })
+        page.drawText(String(it + 1).padStart(2, '0'), { x: px + pic.w * 0.065, y: py + pic.h * 0.05, size: pic.w * 0.24, font: bold, color: grey(ink), opacity: 0.9 })
+      }
+    })
+    // Foot: her name and "Polaroids", the agency's mark, and the way to them online.
+    const base = FOOT - 36
+    const name = safe(t.name.toUpperCase(), bold)
+    page.drawText(name, { x: M, y: base, size: NAME_PT, font: bold, color: INK })
+    link(pdf, page, [M, base - 4, M + bold.widthOfTextAtSize(name, NAME_PT), base + 20], url)
+    page.drawText(pages > 1 ? `POLAROIDS  ${pg + 1} / ${pages}` : 'POLAROIDS', { x: M, y: FOOT - 64, size: 9, font: bold, color: INK })
+    drawMark(page, site)
+    const view = safe(`VIEW ONLINE  ${url.replace(/^https?:\/\//, '')}`, bold)
+    const vw = bold.widthOfTextAtSize(view, 8)
+    page.drawText(view, { x: W - M - vw, y: FOOT - 58, size: 8, font: bold, color: INK })
+    link(pdf, page, [W - M - vw, FOOT - 61, W - M, FOOT - 50], url)
+  }
+}
+
+/** The agency's mark (” or ■) at the foot's right, top-aligned with the name's cap height. */
+function drawMark(page: PDFPage, site: Site) {
+  const markH = 18
+  const markTop = FOOT - 36 + 17
+  if (SITES[site].division === 'men') {
+    page.drawRectangle({ x: W - M - markH * 0.7, y: markTop - markH * 0.7, width: markH * 0.7, height: markH * 0.7, color: INK })
+  } else {
+    const k = markH / 72 // brand ” is 64×72
+    for (const d of [LEFT_PATH, RIGHT_PATH]) page.drawSvgPath(d, { x: W - M - 64 * k, y: markTop, scale: k, color: INK })
+  }
 }
 
 async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, settings: SiteSettings | null, origin: string) {
@@ -39,7 +126,7 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
   const gridX = M + coverW + gap
   const cellW = (W - M - gridX - gap) / 2
   const cellH = (areaH - gap) / 2
-  const book = [...(t.portfolio ?? []), ...(t.coversAds ?? [])].filter((i) => i.asset)
+  const book = (t.portfolio ?? []).filter((i) => i.asset)
   const coverSrc = t.cover?.asset ? t.cover : book[0]
   const rest = book.filter((i) => i.asset?._ref !== coverSrc?.asset?._ref).slice(0, 4)
 
@@ -62,25 +149,9 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
   const name = safe(t.name.toUpperCase(), bold)
   const nameW = bold.widthOfTextAtSize(name, NAME_PT)
   const base = FOOT - 36
-  // As on her page: INCH” names between the ’ ’ marks, hanging from the capitals, a letter's gap
-  // away; DOT. names end on the ■.
-  let end = M + nameW
-  if (t.division === 'men') {
-    text(name, M, base, NAME_PT, bold)
-    const sq = NAME_PT * 0.2
-    page.drawRectangle({ x: end + NAME_PT * 0.06, y: base, width: sq, height: sq, color: INK })
-    end += NAME_PT * 0.06 + sq
-  } else {
-    const mh = NAME_PT * 0.42
-    const k = mh / 72 // brand ” is 64×72; each stroke 30×72
-    const mw = 30.05 * k
-    const gap = NAME_PT * 0.06
-    const capTop = base + NAME_PT * 0.718
-    page.drawSvgPath(LEFT_PATH, { x: M, y: capTop, scale: k, color: INK })
-    text(name, M + mw + gap, base, NAME_PT, bold)
-    page.drawSvgPath(RIGHT_PATH, { x: M + mw + gap * 2 + nameW - 33.71 * k, y: capTop, scale: k, color: INK })
-    end = M + mw * 2 + gap * 2 + nameW
-  }
+  // The name on its own; the agency's mark stands at the right.
+  text(name, M, base, NAME_PT, bold)
+  const end = M + nameW
   link(pdf, page, [M, base - 4, end, base + 20], url)
 
   // As on the site: the label regular and muted, the value bold.
@@ -107,15 +178,8 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
     page.drawText(v, { x: W - M - w, y, size, font, color })
     return w
   }
-  // Agency mark (” or ■), not the full wordmark — top-aligned with the name's cap height.
-  const markH = 18
-  const markTop = FOOT - 36 + 17
-  if (SITES[site].division === 'men') {
-    page.drawRectangle({ x: W - M - markH * 0.7, y: markTop - markH * 0.7, width: markH * 0.7, height: markH * 0.7, color: INK })
-  } else {
-    const k = markH / 72 // brand ” is 64×72
-    for (const d of [LEFT_PATH, RIGHT_PATH]) page.drawSvgPath(d, { x: W - M - 64 * k, y: markTop, scale: k, color: INK })
-  }
+  // Agency mark (” or ■), not the full wordmark.
+  drawMark(page, site)
   // The way back to her page, then the agency's contact.
   const viewW = right(`VIEW ONLINE  ${url.replace(/^https?:\/\//, '')}`, FOOT - 58, 8, bold)
   link(pdf, page, [W - M - viewW, FOOT - 61, W - M, FOOT - 50], url)

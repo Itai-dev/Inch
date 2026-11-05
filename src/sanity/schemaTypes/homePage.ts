@@ -10,9 +10,9 @@ export const homePage = defineType({
   fields: [
     defineField({
       name: 'heroVideos',
-      title: 'Hero videos & images (INCH”)',
+      title: 'Hero videos & images',
       description:
-        'Full-screen behind the INCH” logo. Every 6 seconds the next one pushes in; the ruler at the bottom switches between them. Videos: MP4/WebM, muted.',
+        'Full-screen behind the logo at the top of this site’s home page (INCH” and DOT. each have their own). Every 6 seconds the next one pushes in; the ruler at the bottom switches between them. Videos: MP4/WebM; their sound plays (visitors can turn it off).',
       type: 'array',
       of: [
         defineArrayMember({

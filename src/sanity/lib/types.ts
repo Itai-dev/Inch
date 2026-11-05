@@ -31,13 +31,10 @@ export type TalentCard = {
   coverSrc?: string
   /** The first few book images, where a query asks for them (the home page's name strip). */
   pics?: SanityImage[] | null
-  /** The first few covers and ads, where a query asks for them (the home page's selected work). */
-  work?: SanityImage[] | null
 }
 
 export type Talent = TalentCard & {
   portfolio?: SanityImage[]
-  coversAds?: SanityImage[]
   polaroids?: SanityImage[]
   measurements?: Measurements
   bio?: string
@@ -48,3 +45,5 @@ export type Talent = TalentCard & {
 export type Category = { _id: string; title: string; slug: string; division: Division }
 
 export type SiteSettings = { email?: string; phone?: string; address?: string; instagram?: string }
+/** The page an applicant sees once the application is sent (each line falls back to the site's own). */
+export type ApplyThanks = { label?: string; title?: string; text?: string }

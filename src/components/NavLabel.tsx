@@ -9,7 +9,7 @@ export function NavLabel({ children }: { children: ReactNode }) {
   return (
     <span className="grid">
       <span aria-hidden className="invisible col-start-1 row-start-1 tracking-[-0.02em]">{children}</span>
-      <span className="nav-label col-start-1 row-start-1 justify-self-center">{children}</span>
+      <span className="nav-label ink-line col-start-1 row-start-1 justify-self-center">{children}</span>
     </span>
   )
 }

@@ -7,12 +7,15 @@ import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
 
-export function SelectionTray({ site }: { site: Site }) {
+export function SelectionTray({ site }: { site: Site; email?: string }) {
   const { items, remove, clear, open, setOpen } = useSelection()
-  // The selection as comp cards: one PDF, a page a model, each linking to her page on the site.
-  const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}`
+  // What to send: each model's book (her comp card), the book with her polaroids, or the polaroids alone.
+  const [include, setInclude] = useState<'cards' | 'with' | 'only'>('cards')
+  // The selection as one PDF, a page a model, each linking to her page on the site.
+  const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}${include === 'cards' ? '' : `&polaroids=${include}`}`
   const real = items.filter((t) => !isPlaceholder(t)).length
-  const name = real > 1 ? `${SITES[site].brand} comp cards` : 'Comp card'
+  const what = include === 'only' ? 'polaroids' : real > 1 ? 'comp cards' : 'comp card'
+  const name = real > 1 || include === 'only' ? `${SITES[site].brand} ${what}` : 'Comp card'
   const [state, setState] = useState<'idle' | 'making' | 'link' | 'copied' | 'error'>('idle')
   // The link to the PDF itself, for when the device can't share the file.
   const pdfLink = typeof location === 'undefined' ? compCards : location.origin + compCards
@@ -26,7 +29,7 @@ export function SelectionTray({ site }: { site: Site }) {
     try {
       const res = await fetch(compCards)
       if (!res.ok) throw new Error()
-      const file = new File([await res.blob()], `${site}-comp-cards.pdf`, { type: 'application/pdf' })
+      const file = new File([await res.blob()], `${site}-${what.replace(' ', '-')}.pdf`, { type: 'application/pdf' })
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: name }).catch(() => {})
         setState('idle')
@@ -49,7 +52,7 @@ export function SelectionTray({ site }: { site: Site }) {
       onClick={() => setOpen(false)}
     >
       <aside
-        className={`relative flex h-full w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`relative flex h-dvh w-full max-w-md flex-col gap-6 overflow-y-auto bg-bg p-6 shadow-[-24px_0_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${open ? 'translate-x-0' : 'translate-x-full'}`}
         onClick={(e) => e.stopPropagation()}
         aria-label="Selection"
       >
@@ -63,7 +66,7 @@ export function SelectionTray({ site }: { site: Site }) {
         </div>
 
         {items.length === 0 ? (
-          <p className="text-muted">Add talents with the + button to build a selection.</p>
+          <p className="text-muted">Add models with the + button to build your shortlist, then share it or download it as comp cards.</p>
         ) : (
           // The first model large, the pictures getting smaller as more are added.
           <ul className={`grid gap-3 ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length <= 6 ? 'grid-cols-3' : 'grid-cols-4'}`}>
@@ -84,12 +87,33 @@ export function SelectionTray({ site }: { site: Site }) {
         )}
 
         {items.length > 0 && (
-          <div className="mt-auto flex flex-col gap-3 border-t border-line pt-6">
+          // Pinned to the foot of the panel, every action in view however many models are above it.
+          <div className="sticky bottom-0 -mx-6 -mb-6 mt-auto flex flex-col gap-2.5 border-t border-line bg-bg px-6 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
             {real > 0 ? (
               <>
-                <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center text-[14px] font-bold uppercase tracking-[0.04em] bg-fg text-bg hover:opacity-85 disabled:opacity-50" style={{ fontStretch: '80%' }}>
-                  {state === 'making' ? 'Making the PDF…' : real > 1 ? `Share comp cards (${real})` : 'Share comp card'}
-                </button>
+                {/* What goes in the PDF. */}
+                <div role="radiogroup" aria-label="What to send" className="flex items-center justify-between gap-3 py-1 text-[13px] font-bold uppercase" style={{ fontStretch: '80%' }}>
+                  {(
+                    [
+                      ['cards', 'Book'],
+                      ['with', 'Book + polaroids'],
+                      ['only', 'Polaroids'],
+                    ] as const
+                  ).map(([v, label]) => (
+                    <button key={v} type="button" role="radio" aria-checked={include === v} onClick={() => { setInclude(v); setState('idle') }} className={`uppercase ${include === v ? 'border-b border-fg' : 'text-muted hover:text-fg'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Share and download side by side. */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button onClick={share} disabled={state === 'making'} className="flex h-12 items-center justify-center bg-fg px-2 text-[14px] font-bold uppercase text-bg hover:opacity-85 disabled:opacity-50" style={{ fontStretch: '80%' }}>
+                    {state === 'making' ? 'Making…' : 'Share selection'}
+                  </button>
+                  <a href={compCards} download className="flex h-12 items-center justify-center border border-fg px-2 text-[14px] font-bold uppercase hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
+                    Download selection
+                  </a>
+                </div>
                 {(state === 'link' || state === 'copied') && (
                   <div className="grid grid-cols-3 gap-2 text-[13px] font-bold uppercase tracking-[0.04em]" style={{ fontStretch: '80%' }}>
                     <button onClick={() => navigator.clipboard.writeText(pdfLink).then(() => setState('copied'))} className="h-11 border border-fg uppercase hover:bg-fg hover:text-bg">
@@ -99,15 +123,12 @@ export function SelectionTray({ site }: { site: Site }) {
                     <a href={`mailto:?subject=${encodeURIComponent(name)}&body=${encodeURIComponent(pdfLink)}`} className="grid h-11 place-items-center border border-fg hover:bg-fg hover:text-bg">Email</a>
                   </div>
                 )}
-                {state === 'error' && <p className="text-sm text-red-600">Couldn’t make the PDF. Try again.</p>}
-                <a href={compCards} download className="flex h-12 items-center justify-center text-[14px] font-bold uppercase tracking-[0.04em] border border-fg hover:bg-fg hover:text-bg" style={{ fontStretch: '80%' }}>
-                  Download PDF
-                </a>
+                {state === 'error' && <p className="text-sm text-red-600">{include === 'only' ? 'No polaroids for these models yet.' : 'Couldn’t make the PDF. Try again.'}</p>}
               </>
             ) : (
               <p className="text-sm text-muted">Comp cards are made for models in the Studio; placeholders don’t have one.</p>
             )}
-            <button onClick={clear} className="text-sm text-muted underline">Clear selection</button>
+            <button onClick={clear} className="ink-line self-center text-sm text-muted">Clear selection</button>
           </div>
         )}
       </aside>
