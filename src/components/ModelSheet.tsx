@@ -43,12 +43,13 @@ const INTRO_AT = 0 // everything starts opening together, as soon as the sheet a
 const WRITE_MS_PER_CHAR = 28
 const INTRO_MS = 1600 // by then every opening animation is done
 const THUMB_GAP = 6
-/** Polaroids: each print in its white frame (wider at the foot), with room between them for their shadows. */
-const POLAROID_GAP = 22
 /** A print's width to its height: a 3:4 picture in a frame 5% wide at the sides and top, 18% at the foot. */
 const POLAROID_ASPECT = 1 / (0.05 + 0.9 * (4 / 3) + 0.18)
 const POLAROID_FRAME = 'bg-[#fbfbf8] px-[5%] pb-[18%] pt-[5%] shadow-[0_1px_2px_rgb(0_0_0/0.12),0_10px_22px_-12px_rgb(0_0_0/0.35)]'
 const ZOOM_MS = 420
+/** The overview: the room for each book's name over its pictures, and between the books. */
+const SECTION_HEAD = 30
+const SECTION_GAP = 26
 /** Room under a print for its shadow (0 10px 22px -12px: about 20px below it). */
 const POLAROID_SHADOW = 22
 /** The name's capitals as tall as the logo: Archivo's cap height is 0.69em, the logo is drawn 0.72em tall. */
@@ -262,29 +263,44 @@ export function ModelSheet({
   const small = stage.w < 640
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
 
-  // Thumbnails: as large as they can be and still all on screen (the columns chosen for the largest
-  // cells), centred in the stage; phones get three across and scroll. Polaroids are prints in their
-  // white frames (two across on phones).
-  const gapPx = polaroids ? POLAROID_GAP : THUMB_GAP
-  const aspect = polaroids ? POLAROID_ASPECT : 0.75
+  // The overview: every book at once (the pictures, then the polaroids in their white frames), one
+  // section under another on the same columns, as large as they can be and still all on screen (the
+  // columns chosen for the largest cells), centred in the stage; phones get three across and scroll.
+  const shelf = books.filter((b) => b.view === 'book' && b.slides.length > 0)
+  const isPol = (b: Book) => b.segment === 'polaroids'
   const thumbPad = wide ? SIDE_W + 16 : 20
   const thumbW = Math.max(0, stage.w - thumbPad * 2)
   const thumbH = Math.max(0, stage.h - 32)
-  let thumbCols = polaroids ? 2 : 3
-  let thumbSize = (thumbW - gapPx * (thumbCols - 1)) / thumbCols
+  let thumbCols = 3
+  let thumbSize = (thumbW - THUMB_GAP * (thumbCols - 1)) / thumbCols
   if (per === 2) {
     thumbSize = 0
-    for (let c = 2; c <= 6; c++) {
-      const rows = Math.ceil(N / c)
-      const s = Math.min((thumbW - gapPx * (c - 1)) / c, ((thumbH - gapPx * (rows - 1)) / rows) * aspect)
-      if (s > thumbSize) [thumbSize, thumbCols] = [s, c]
+    for (let c = 2; c <= 14; c++) {
+      const across = (thumbW - THUMB_GAP * (c - 1)) / c
+      // The height the shelf takes for each pixel of a cell's width, and what doesn't scale with it.
+      let perPx = 0
+      let fixed = (shelf.length - 1) * SECTION_GAP + shelf.length * SECTION_HEAD
+      for (const b of shelf) {
+        const rows = Math.ceil(b.slides.length / c)
+        perPx += rows / (isPol(b) ? POLAROID_ASPECT : 0.75)
+        fixed += (rows - 1) * THUMB_GAP
+      }
+      const sz = Math.min(across, (thumbH - fixed) / perPx)
+      if (sz > thumbSize) [thumbSize, thumbCols] = [sz, c]
     }
   }
-  thumbSize = Math.max(100, Math.floor(thumbSize))
+  thumbSize = Math.max(90, Math.floor(thumbSize))
+  /** A picture of the overview opens its book there. */
+  const [jump, setJump] = useState<number | null>(null)
+  if (jump !== null && showBook) {
+    setJump(null)
+    setCur(spreadOf(jump))
+  }
 
   // A polaroid enlarged: a click lifts it from its place to the middle of the screen, a click
   // (anywhere, or Escape) lays it back. Only the print moves (it grows out of its place and back).
-  const zoomed = polaroids && view === 'thumbnails' && zoom !== null && zoom < N ? zoom : null
+  const polBook = books.find(isPol)
+  const zoomed = view === 'thumbnails' && polBook && zoom !== null && zoom < polBook.slides.length ? zoom : null
   const zoomEl = useRef<HTMLDivElement>(null)
   const prints = useRef<(HTMLElement | null)[]>([])
   const fromPrint = (k: number) => {
@@ -625,33 +641,50 @@ export function ModelSheet({
         </section>
       )}
 
-      {/* Thumbnails: the whole book at once, as large as fits, in the middle of the stage. */}
+      {/* The overview: every book at once, each under its name, as large as fits, in the middle of the stage. */}
       {view === 'thumbnails' && book && (
-        <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${book.title}, overview`}>
-          <ul style={{ ...at(INTRO_AT), gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: gapPx }} className={`intro-crop m-auto grid shrink-0 ${polaroids ? 'py-6' : 'py-4'}`}>
-            {slides.map((s, i) => (
-              <li key={i}>
-                {polaroids ? (
-                  // A polaroid: the picture in its white frame. A click enlarges it.
-                  <button type="button" onClick={() => setZoom(i)} className="block w-full cursor-zoom-in" aria-label={`Enlarge ${s.alt}`}>
-                    <span ref={(el) => void (prints.current[i] = el)} className={`block ${POLAROID_FRAME} ${zoomed === i ? 'invisible' : ''}`}>
-                      <span className="block aspect-[3/4] overflow-hidden bg-line">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.src} alt="" loading="lazy" className="size-full object-cover" />
-                      </span>
-                    </span>
-                  </button>
-                ) : (
-                  <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
-                    <span className="block aspect-[3/4] overflow-hidden bg-line">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
-                    </span>
-                  </button>
-                )}
-              </li>
+        <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${name}, overview`}>
+          <div style={{ ...at(INTRO_AT), width: thumbCols * thumbSize + (thumbCols - 1) * THUMB_GAP, gap: SECTION_GAP }} className="intro-crop m-auto flex shrink-0 flex-col py-4">
+            {shelf.map((b) => (
+              <div key={b.segment} className="flex flex-col">
+                <p className={`flex items-end ${rowCls} text-muted`} style={{ ...narrow, height: SECTION_HEAD, paddingBottom: 8 }}>
+                  {b.title}
+                </p>
+                <ul style={{ gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: THUMB_GAP }} className="grid">
+                  {b.slides.map((s, i) => (
+                    <li key={i}>
+                      {isPol(b) ? (
+                        // A polaroid: the picture in its white frame. A click enlarges it.
+                        <button type="button" onClick={() => setZoom(i)} className="block w-full cursor-zoom-in" aria-label={`Enlarge ${s.alt}`}>
+                          <span ref={(el) => void (prints.current[i] = el)} className={`block ${POLAROID_FRAME} ${zoomed === i ? 'invisible' : ''}`}>
+                            <span className="block aspect-[3/4] overflow-hidden bg-line">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={s.src} alt="" loading="lazy" className="size-full object-cover" />
+                            </span>
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            open(b.segment)
+                            setJump(i)
+                          }}
+                          className="block w-full"
+                          aria-label={`Open ${s.alt}`}
+                        >
+                          <span className="block aspect-[3/4] overflow-hidden bg-line">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
+                          </span>
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
       )}
 
@@ -663,7 +696,7 @@ export function ModelSheet({
             <span className={`block ${POLAROID_FRAME}`}>
               <span className="block aspect-[3/4] overflow-hidden bg-line">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={slides[zoomed].src} alt={slides[zoomed].alt} className="size-full object-cover" />
+                <img src={polBook!.slides[zoomed].src} alt={polBook!.slides[zoomed].alt} className="size-full object-cover" />
               </span>
             </span>
           </div>

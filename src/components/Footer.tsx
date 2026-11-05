@@ -39,8 +39,9 @@ export async function Footer({ site }: { site: Site }) {
     {
       title: 'Agency',
       items: [
-        { text: `${s.brand} ${s.label}`, href: sitePath(site) },
-        { text: `${SITES[other].brand} ${SITES[other].label}`, href: sitePath(other) },
+        // Each agency's board of models.
+        { text: `${s.brand} ${s.label}`, href: sitePath(site, '/models') },
+        { text: `${SITES[other].brand} ${SITES[other].label}`, href: sitePath(other, '/models') },
       ],
     },
     {

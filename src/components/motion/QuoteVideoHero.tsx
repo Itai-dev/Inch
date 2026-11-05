@@ -395,6 +395,10 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   }, [opening, grow, dot])
 
   const settled = skip || stage === 'over' || stage === 'past'
+  // The loader holds the page at its top (see globals.css: nothing scrolls until it is open).
+  useEffect(() => {
+    if (!settled) window.scrollTo(0, 0)
+  }, [settled])
 
   // Once open: the header sits over the video until it has scrolled away, and the
   // giant logo shrinks into the header position on the way.

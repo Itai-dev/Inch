@@ -132,6 +132,14 @@ body {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0 0 0 0); }
 }
+/* The loader (the blinking mark, then the opening) holds the page: nothing scrolls until it is open. */
+html:has([data-hero="intro"]),
+html:has([data-hero="open"]),
+html:has([data-hero="intro"]) body,
+html:has([data-hero="open"]) body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 /* Header hides during the intro, then types in over the video. */
 body:has([data-hero]) [data-site-header] {
   position: fixed;
