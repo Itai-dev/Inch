@@ -422,7 +422,8 @@ export function ModelSheet({
   // Phones: every book and action on the page, as on a computer, each row edge to edge: the books
   // and the overview, then the comp card and Instagram, then the selection button across the width.
   const phoneBar = (
-    <div className={`flex flex-col gap-4 px-gutter ${rowCls}`} style={narrow}>
+    // (A size smaller than the detail text elsewhere: a phone's screen is short.)
+    <div className={`flex flex-col gap-4 px-gutter ${rowCls} text-[14px]!`} style={narrow}>
       <nav className="flex justify-between gap-x-4" aria-label="Books">
         {tabs.map((t) => (
           <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
@@ -540,7 +541,7 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]')}
+          {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
         </header>
       )}
 
