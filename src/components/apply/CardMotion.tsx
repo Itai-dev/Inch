@@ -285,7 +285,7 @@ function Envelope({
           showing its inside. It is paper: a leaf that bends as it turns (as the magazine's pages do). */}
       <div ref={flap} style={OFF} className="absolute left-0 top-0 z-[4] origin-top [transform-style:preserve-3d]">
         <Leaf
-          strips={14}
+          strips={9}
           shade={false}
           front={flapFront}
           back={<div className="envelope-paper absolute inset-0" style={{ clipPath: FLAP_INSIDE, boxShadow: 'inset 0 0 0 999px rgb(0 0 0 / 0.06)' }} />}
@@ -697,18 +697,24 @@ export function CardPost({
       })
       // It goes behind the envelope's front at the top of its arc (wholly above the opening then).
       const peak = path.reduce((m, q, i) => (q.y < path[m].y ? i : m), 0)
+      // Its movement alone (only a transform, so the compositor carries it smoothly); the rest is
+      // set apart: the fold opening (phones, early on) and going behind the envelope's front.
       const card = el.animate(
-        [
-          ...path.map((q, i) => ({
-            transform: at(q.x, q.y, q.s),
-            clipPath: `inset(0 0 ${(folded * (1 - Math.min(1, q.t / 0.3))).toFixed(1)}px 0)`,
-            zIndex: i <= peak ? 5 : 2,
-            offset: o(q.at),
-          })),
-          { transform: at(cx, inY, sc), clipPath: 'inset(0 0 0px 0)', zIndex: 2, offset: 1 },
-        ],
+        [...path.map((q) => ({ transform: at(q.x, q.y, q.s), offset: o(q.at) })), { transform: at(cx, inY, sc), offset: 1 }],
         opts,
       )
+      el.style.zIndex = '5'
+      const behind = window.setTimeout(() => (el.style.zIndex = '2'), path[peak].at * SLOW)
+      const unfold =
+        folded > 0
+          ? el.animate(
+              [
+                { clipPath: `inset(0 0 ${folded.toFixed(1)}px 0)`, offset: 0 },
+                { clipPath: 'inset(0 0 0px 0)', offset: 1 },
+              ],
+              { duration: path[Math.round(N * 0.3)].at * SLOW, easing: 'linear', fill: 'forwards' },
+            )
+          : null
       // Carried, the card isn't rigid: one soft lean as it is lifted, settling as it goes in; the light
       // slides across it.
       const sheet = el.firstElementChild as HTMLElement | null
@@ -721,14 +727,14 @@ export function CardPost({
         ],
         opts,
       )
+      // (Only while it is carried: the light is redrawn each frame it moves, so not a moment longer.)
       const light = el.animate(
         [
           { '--sheen': '15%', offset: 0 },
-          { '--sheen': '70%', offset: o(900) },
-          { '--sheen': '30%', offset: o(CARD_END) },
+          { '--sheen': '70%', offset: 900 / CARD_END },
           { '--sheen': '30%', offset: 1 },
         ] as Keyframe[],
-        opts,
+        { duration: CARD_END * SLOW, fill: 'forwards' },
       )
       // The envelope comes up under it while it is still on its way, in place before it comes down.
       const upAt = path[peak].at
@@ -824,6 +830,7 @@ export function CardPost({
       })
       let raf = 0
       let drawn = ''
+      const bent = { flap: -1, sticker: -1 }
       const draw = () => {
         const ms = Number(post.currentTime ?? 0) / SLOW
         // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
@@ -833,8 +840,9 @@ export function CardPost({
         // The sticker: its top down first, the rest smoothed on after it.
         // (Worked out only while it goes on and is held: before, it is hidden; after, it is in the drawer.)
         if (sticker) sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
-        if (sticker && stickerLeaf && ms >= STICK[0] && ms <= LAND + 60) {
-          const sp = span(ms, ...STICK)
+        const sp = span(ms, ...STICK)
+        if (sticker && stickerLeaf && ms >= STICK[0] && ms <= LAND + 60 && (sp < 1 || bent.sticker < 1)) {
+          bent.sticker = sp
           const se = easeOut(sp)
           const press = 70 * (1 - se)
           bendLeaf(stickerLeaf, press, Math.sin(Math.PI * se) * 45)
@@ -850,7 +858,11 @@ export function CardPost({
         // The flap: open (stood up behind) until it closes; behind the card while more than upright.
         const fp = span(ms, FLAP, FLAP + FLAP_MS)
         const fa = 180 * (0.5 + 0.5 * Math.cos(Math.PI * fp))
-        if (flapLeaf) bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
+        // (Bent again only while it turns: before, it stands open; after, it lies flat.)
+        if (flapLeaf && fp !== bent.flap) {
+          bent.flap = fp
+          bendLeaf(flapLeaf, fa, Math.sin(Math.PI * fp) * 60)
+        }
         // Closed, the flat flap stands in for the strips.
         const flat = fa < 0.05
         if (flapLeaf) flapLeaf.style.visibility = flat ? 'hidden' : ''
@@ -909,9 +921,10 @@ export function CardPost({
       post.onfinish = () => done.current()
       return () => {
         clearTimeout(cutAt)
+        clearTimeout(behind)
         clearTimeout(shutAt)
         cancelAnimationFrame(raf)
-        ;[card, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
+        ;[card, unfold, sway, light, flapClose, post, ...parts].forEach((a) => a?.cancel())
       }
     }
     let live = true
