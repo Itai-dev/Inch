@@ -31,8 +31,7 @@ const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
 const BLINK_MS = 900 // one blink, as the text cursor's: off half the time, on half, hard cuts; the open always starts at the end of one (the mark shown)
-const MIN_BLINKS = 2 // whole blinks seen, even when the video is cached
-const MAX_WAIT_MS = BLINK_MS * 3 // open anyway after three blinks if the video is slow (its poster shows until it plays)
+const BLINKS = 3 // always exactly three whole blinks, then it opens (onto the video's still if the video isn't playing yet)
 const OPEN_MS = 2400
 const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the video fills the screen
 const GROW_FADE = [0.3, 0.7] // the video fades in inside the ” (share of GROW_MS)…
@@ -205,15 +204,11 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
   const winRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<HTMLDivElement>(null)
   const blinkAnim = useRef<Animation | null>(null)
-  // A picture for the window to open onto: the first video's still (or the first image), loaded.
-  // Without it the window could open onto an empty black box on a slow connection.
-  const [picReady, setPicReady] = useState(!firstPic)
-  const [late, setLate] = useState(false) // the usual wait is over
-  const [hard, setHard] = useState(false) // the longest wait is over: open whatever there is
+  // A picture for the window to open onto, fetched while it blinks: the first video's still (or the
+  // first image), shown until the video plays.
   useEffect(() => {
     if (!firstPic) return
     const img = new Image()
-    img.onload = img.onerror = () => setPicReady(true)
     img.src = firstPic
   }, [firstPic])
 
@@ -233,7 +228,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       return
     }
     if (reduced || fast) return
-    blinkAnim.current =
+    // A set number of blinks, played to the end by the browser itself (nothing cuts in or works out
+    // where it is), ending on the mark shown, held there (fill) until the opening takes it over.
+    const anim =
       blinkRef.current?.animate(
         [
           // Starting from nothing: the first beat is the mark appearing, on the white page.
@@ -242,22 +239,18 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
           { opacity: 1, offset: 0.5 },
           { opacity: 1, offset: 1 },
         ],
-        { duration: BLINK_MS, iterations: Infinity },
+        { duration: BLINK_MS, iterations: BLINKS, fill: 'forwards' },
       ) ?? null
-    // Counted from when the blinking starts: two whole blinks are always seen, three at most when
-    // the video is slow (it opens onto its still); longer only if not even the still has come.
-    const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
-    const b = setTimeout(() => setLate(true), MAX_WAIT_MS)
-    const c = setTimeout(() => setHard(true), MAX_WAIT_MS + BLINK_MS * 4)
+    blinkAnim.current = anim
+    let live = true
+    anim?.finished.then(() => live && setWaited(true)).catch(() => {})
     return () => {
-      clearTimeout(a)
-      clearTimeout(b)
-      clearTimeout(c)
+      live = false
     }
   }, [reduced, fast, seen])
 
   const skip = reduced || seen // no loader / reveal / intro choreography
-  const opening = !skip && (fast || (waited && (ready || (late && picReady) || hard))) // flips true once, starts the open
+  const opening = !skip && (fast || waited) // flips true once, starts the open
 
   // Reveal, drawn frame by frame straight onto the DOM (no React render per frame).
   // Phase 1 (SPLIT): the ” splits as a window opens between its strokes.
@@ -341,17 +334,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
     openedRef.current = true
     let raf = 0
     let done = false
-    // The blink under way is let finish by the blink itself: told to stop at the end of the beat it is
-    // in (its mark shown for a whole beat, then held), and the opening starts from the mark as it is.
-    // Always a full off and on before it grows, never a short flash. (Nothing here takes the blink
-    // over or works out where it is: on a phone what it shows can be a few ms ahead of what the page
-    // reads, and a beat worked out on the page could then flip the mark for a frame.)
+    // The blinks have played to their end (the mark shown, held): the opening starts from it as it is.
     let cancelled = false
     const a = blinkAnim.current
     const el = blinkRef.current
     const begin = () => {
       if (cancelled) return
       if (el) el.style.opacity = '1'
+      a?.cancel()
       const draw = dot ? layoutDot : grow ? layoutGrow : layout
       const total = grow ? GROW_MS : OPEN_MS
       draw(0)
@@ -373,26 +363,12 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split', division =
       }
       raf = requestAnimationFrame(tick)
     }
-    const iteration = a?.playState === 'running' ? a.effect?.getComputedTiming().currentIteration : null
-    if (a && el && iteration != null) {
-      // This blink is the last: it ends on its mark shown, and holds it there (fill) until the
-      // opening has taken over.
-      a.effect?.updateTiming({ iterations: iteration + 1, fill: 'forwards' })
-      a.finished
-        .then(() => {
-          if (cancelled) return
-          el.style.opacity = '1'
-          a.cancel()
-          begin()
-        })
-        .catch(() => {})
-    } else begin()
+    begin()
     return () => {
       cancelled = true
       cancelAnimationFrame(raf)
       if (!done) {
         openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
-        if (a?.playState === 'running') a.effect?.updateTiming({ iterations: Infinity }) // and the blink goes on
       }
     }
   }, [opening, grow, dot])
