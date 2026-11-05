@@ -419,37 +419,43 @@ export function ModelSheet({
     if (seg === segment && view === 'thumbnails' && book?.view === 'book') setView('book')
     else open(seg)
   }
-  // Phones: every book and action on the page, as on a computer, each row edge to edge: the books
-  // and the overview, then the comp card and Instagram, then the selection button across the width.
+  // Phones: every book and action on the page, in two sides: on the left the ways to see the
+  // pictures and take them (the books, the overview, the comp card), on the right the model herself
+  // (the bio, over Instagram); then the selection button across the width.
+  const bioTab = tabs.find((t) => t.segment === 'bio')
+  const tabBtn = (t: { segment: string; title: string }) => (
+    <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
+      {t.title}
+    </button>
+  )
   const phoneBar = (
     // (A size smaller than the detail text elsewhere: a phone's screen is short.)
     <div className={`flex flex-col gap-4 px-gutter ${rowCls} text-[14px]!`} style={narrow}>
-      <nav className="flex justify-between gap-x-4" aria-label="Books">
-        {tabs.map((t) => (
-          <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
-            {t.title}
-          </button>
-        ))}
-        {book && N > 0 && (
-          <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
-            Overview
-          </button>
-        )}
-      </nav>
-      {(compCard || handle) && (
-        <div className="flex justify-between gap-4">
+      <div className="grid grid-cols-[1fr_auto] items-start gap-x-5 gap-y-3">
+        <nav className="flex flex-wrap gap-x-[18px] gap-y-1" aria-label="Books">
+          {tabs.filter((t) => t !== bioTab).map(tabBtn)}
+          {book && N > 0 && (
+            <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+              Overview
+            </button>
+          )}
+        </nav>
+        <div className="flex justify-end">{bioTab && tabBtn(bioTab)}</div>
+        <div>
           {compCard && (
             <a href={compCard} className="intro-write ink-line" style={write('Comp card')}>
               Comp card
             </a>
           )}
+        </div>
+        <div className="flex justify-end">
           {handle && (
             <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
               Instagram
             </a>
           )}
         </div>
-      )}
+      </div>
       {talent && (
         <button
           type="button"
