@@ -154,6 +154,11 @@ const OPEN_TO = 0.9
 const CLOSE = 1.12
 /** How far the cover is tilted and turned at first (degrees): enough to show it's a magazine, never the spine alone. */
 const START_DEG = 22
+/** Coming up into view (before it settles in the middle), it is already turning: at most this much
+ * more (degrees) as it enters, and drifting in from this share of its width to the side. The turn
+ * speeds up as it comes and carries straight on into the opening, without a stop where they meet. */
+const ENTER_DEG = 18
+const ENTER_SHIFT = 0.1
 /** A page to turn (ms). */
 const TURN_MS = 900
 /** How quickly the magazine catches up with the scroll (ms to close about two thirds of the gap). */
@@ -165,6 +170,7 @@ const SPINE_T = `(${BOOK_W} * 0.036)`
 const css = (expr: string) => `calc(${expr})`
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const easeOut = (t: number) => 1 - (1 - t) ** 3
+const easeOutQuad = (t: number) => 1 - (1 - t) ** 2
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 /** The tape between the arrows: an inch a spread (00 the cover), seen through a window a little wider than an inch, with blank inches before and after. */
 const INCH_PX = 120
@@ -284,13 +290,13 @@ export function Magazine({
   // The page the reader is on: 0 = closed, k = k leaves turned.
   const [page, setPage] = useState(0)
   /** Where the pages are now (`at`: leaves turned, fractions mid-turn), how far the opening has gone, and the running turn. */
-  const live = useRef({ at: 0, arrive: 0, leave: 0, user: false, page: 0, draw: () => {}, frame: 0 })
+  const live = useRef({ at: 0, arrive: 0, enter: 1, leave: 0, user: false, page: 0, draw: () => {}, frame: 0 })
 
   // Draws the book for the current state, straight on the DOM.
   useEffect(() => {
     const strips = leaves.current.map((leaf) => Array.from(leaf?.querySelectorAll<HTMLElement>('[data-strip]') ?? []))
     live.current.draw = () => {
-      const { at, arrive: a } = live.current
+      const { at, arrive: a, enter } = live.current
       const W = stage.current?.offsetWidth ?? 900
       const coverW = W / 2
       const coverH = W / 1.5
@@ -298,17 +304,23 @@ export function Magazine({
       const opened = clamp01(at)
 
       // The opening: the cover, a little closer, tilted and turned; it straightens to face you and
-      // sinks onto the surface.
-      const turn = smooth(clamp01((a - TURN_FROM) / (TURN_TO - TURN_FROM)))
+      // sinks onto the surface. (Under way as it starts: it was already turning on its way up.)
+      const turn = easeOutQuad(clamp01((a - TURN_FROM) / (TURN_TO - TURN_FROM)))
       const near = Math.max(1, Math.min(CLOSE, (innerHeight * 0.86) / coverH, (innerWidth * 0.86) / coverW))
       const scale = lerp(near, 1, easeOut(turn))
-      const deg = START_DEG * (1 - turn)
+      // Coming up into view: turned further and a little to the side, slowly at first, then ever
+      // faster into the opening (as fast as the opening starts, at most ENTER_DEG).
+      const pre = 1 - enter * enter
+      const pinned = Math.max(1, (section.current?.offsetHeight ?? innerHeight * 3.8) - innerHeight)
+      const enterDeg = Math.min(ENTER_DEG, (START_DEG * innerHeight) / (pinned * INTRO_END * (TURN_TO - TURN_FROM)))
+      const deg = START_DEG * (1 - turn) + enterDeg * pre
+      const dx = coverW * ENTER_SHIFT * pre
       const sin = Math.sin((deg * Math.PI) / 180)
       const cos = Math.cos((deg * Math.PI) / 180)
       const bx = box.current
       if (bx) {
         bx.style.opacity = a >= 1 ? '0' : '1'
-        bx.style.transform = `scale(${scale.toFixed(4)}) rotateZ(${(-deg).toFixed(2)}deg) rotateY(${deg.toFixed(2)}deg)`
+        bx.style.transform = `translateX(${dx.toFixed(2)}px) scale(${scale.toFixed(4)}) rotateZ(${(-deg).toFixed(2)}deg) rotateY(${deg.toFixed(2)}deg)`
         // Light from in front: a face darkens as it turns away.
         const shade = (k: string, v: number) => bx.querySelector<HTMLElement>(`[data-shade="${k}"]`)?.style.setProperty('opacity', v.toFixed(3))
         shade('spine', 0.6 * (1 - sin))
@@ -331,7 +343,7 @@ export function Magazine({
         sh.style.width = `${bw.toFixed(1)}px`
         sh.style.height = `${coverH.toFixed(1)}px`
         sh.style.opacity = a >= 1 ? '0' : lerp(0.56, 1, 1 - lift).toFixed(3)
-        sh.style.transform = `translate(-50%, -50%) translate(${(coverW * 0.02 + lift * W * 0.03).toFixed(2)}px, ${(coverH * 0.02 + lift * coverH * 0.22).toFixed(2)}px) rotate(${(-deg).toFixed(3)}deg) scale(${(((bw * cos + T * sin) * scale) / bw).toFixed(4)}, ${scale.toFixed(4)})`
+        sh.style.transform = `translate(-50%, -50%) translate(${(dx + coverW * 0.02 + lift * W * 0.03).toFixed(2)}px, ${(coverH * 0.02 + lift * coverH * 0.22).toFixed(2)}px) rotate(${(-deg).toFixed(3)}deg) scale(${(((bw * cos + T * sin) * scale) / bw).toFixed(4)}, ${scale.toFixed(4)})`
       }
       if (controls.current) controls.current.style.opacity = a >= 1 ? (1 - clamp01(live.current.leave / 0.3)).toFixed(3) : '0'
       // The tape under the arrows follows the pages; the number in the middle is at full strength.
@@ -399,7 +411,7 @@ export function Magazine({
     let follow = 0
     let last = 0
     let first = true
-    const goal = { arrive: l.arrive, at: l.at }
+    const goal = { arrive: l.arrive, at: l.at, enter: l.enter }
     const show = () => {
       const shown = Math.round(l.at)
       if (shown !== l.page) {
@@ -419,7 +431,8 @@ export function Magazine({
       const near = (x: number, to: number) => (Math.abs(to - x) < 0.001 ? to : x + (to - x) * k)
       l.arrive = near(l.arrive, goal.arrive)
       l.at = near(l.at, goal.at)
-      const resting = l.arrive === goal.arrive && l.at === goal.at
+      l.enter = near(l.enter, goal.enter)
+      const resting = l.arrive === goal.arrive && l.at === goal.at && l.enter === goal.enter
       show()
       if (!resting) follow = requestAnimationFrame(chase)
     }
@@ -437,12 +450,15 @@ export function Magazine({
         // Once the reader has turned a page, the scroll leaves the magazine as it is.
         if (l.user) return
         goal.arrive = Math.min(1, p / INTRO_END)
+        // Coming up into view: 0 as its section's top comes up from the foot of the screen, 1 as it reaches the top.
+        goal.enter = clamp01((innerHeight - r.top) / innerHeight)
         goal.at = smooth(clamp01((p - OPEN_FROM) / (OPEN_TO - OPEN_FROM)))
         // (On load, it is simply where the scroll is.)
         if (first) {
           first = false
           l.arrive = goal.arrive
           l.at = goal.at
+          l.enter = goal.enter
           show()
           return
         }
