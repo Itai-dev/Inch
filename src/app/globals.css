@@ -308,14 +308,11 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 /* Sending: the form clears at once, leaving the card (on phones, unfolding from its strip). */
 [data-clearing] .apply-form,
 [data-clearing] .apply-ruler { visibility: hidden; }
-/* Phones: only the card is left, unfolding out of the (now unseen) strip, already the card that
-   then goes into the envelope: its own edge and shadow. */
+/* Phones: the strip clears too (the card, laid out as on a computer, comes out of where it was,
+   CardPost); a card opened under it goes with it, so there is only ever the one card. */
 [data-clearing] .apply-strip { border-color: transparent; background: transparent !important; }
-[data-clearing] .apply-strip > button { visibility: hidden; }
-[data-clearing] [data-strip-card] > * {
-  border: 1px solid #dcdad5 !important;
-  box-shadow: -8px 30px 20px -24px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.06) !important;
-}
+[data-clearing] .apply-strip > button,
+[data-clearing] [data-strip-card] { visibility: hidden; }
 /* First the ruler slides in, right to left, within its own width (as the hero's moves); then the form opens, field after field. (The phone strip is already
    in place: the card turned into it.) */
 [data-apply-phase="writing"] .apply-ruler > * { animation: ruler-slide 0.5s cubic-bezier(0.45, 0, 0.25, 1) both; }

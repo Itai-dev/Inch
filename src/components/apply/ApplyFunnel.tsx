@@ -22,7 +22,7 @@ import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
 import { StepRuler } from './StepRuler'
 import { CardOpening, CardPost, type Place } from './CardMotion'
-import { FOLD_OPEN_MS, PaperFold } from './PaperFold'
+import { PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
 import { HeightTape } from './Tape'
 import { Silhouette, type Pose } from './Silhouette'
@@ -175,9 +175,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
     // The card itself, inside the aside's room for its tilt (scaled with its box to fit the screen).
     const a = asideRef.current?.querySelector<HTMLElement>('[data-card]')
     if (a && a.offsetParent) return { el: a, card: true, zoom: cardScale.current }
-    // Phones, the card unfolded under its strip: from the card itself.
-    const open = stripRef.current?.querySelector<HTMLElement>('[data-strip-card]')
-    if (open) return { el: open, card: true, zoom: 1 }
+    // Phones: from the strip (the card, laid out as on a computer, unfolds out of it).
     return stripRef.current ? { el: stripRef.current, card: false } : null
   }
   // Beside the form, the card is its own layer, fixed on the screen: whatever the form does (a
@@ -441,17 +439,11 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
       go('done')
       return
     }
-    // One movement from the tap: the form clears, leaving the card (on phones it unfolds from its
-    // strip and, as it settles, goes on up), and the card goes into the envelope and the drawer
-    // while the application is sent.
+    // One movement from the tap: the form clears, leaving the card (on phones the card comes out of
+    // its strip as it goes up), and the card goes into the envelope and the drawer while the
+    // application is sent.
     setClearing(true)
     outcome.current = send()
-    const phone = !asideRef.current?.querySelector<HTMLElement>('[data-card]')?.offsetParent
-    if (phone && !stripOpen) {
-      setStripOpen(true)
-      // As it lies open, it goes on up.
-      await new Promise((r) => setTimeout(r, FOLD_OPEN_MS))
-    }
     // The card's copy takes over as soon as it is ready (its photos decoded): then the posting phase.
     setPostAlive(true)
   }
@@ -900,7 +892,8 @@ function ReceivedCheck({ from }: { from: { x: number; y: number } | null }) {
     return () => a.cancel()
   }, [from])
   return (
-    <svg ref={ref} aria-hidden width={44} height={44} viewBox="0 0 44 44" className="shrink-0 overflow-visible">
+    // (Over the drawer it comes out of: the drawer's layer is z-30.)
+    <svg ref={ref} aria-hidden width={44} height={44} viewBox="0 0 44 44" className="relative z-[31] shrink-0 overflow-visible">
       <polyline points="4,22 16,34 40,8" fill="none" stroke="currentColor" strokeWidth={4.5} strokeLinecap="butt" strokeLinejoin="miter" />
     </svg>
   )

@@ -793,7 +793,9 @@ export function CardPost({
       const q = <E extends Element>(sel: string) => [...dr.querySelectorAll<E>(sel)]
       const majors = q<SVGLineElement>('[data-major]')
       const rails = q<SVGLineElement>('[data-rail]')
-      const ticks = q<SVGLineElement>('[data-tick]')
+      // The ticks: one path for each inch of the drawer (its eighteen little lines), so a frame sets
+      // sixteen paths, not hundreds of lines.
+      const ticks = q<SVGPathElement>('[data-ticks]')
       const set = (n: Element, a: Record<string, number | string>) => Object.entries(a).forEach(([k, v]) => n.setAttribute(k, typeof v === 'number' ? v.toFixed(2) : v))
       const yAt = (u: number) => slotY - vp * (1 - fz(u))
       const halfAt = (u: number) => (slotW / 2) * fz(u)
@@ -821,6 +823,7 @@ export function CardPost({
         return { wrap, env, ours, u, pose }
       })
       let raf = 0
+      let drawn = ''
       const draw = () => {
         const ms = Number(post.currentTime ?? 0) / SLOW
         // How far out it is: the ruler slides, its steps keeping their spacing, so a line k steps in sits
@@ -828,9 +831,10 @@ export function CardPost({
         // line is gone too.
         const p = ms < OPEN[1] ? easeInOut(span(ms, ...OPEN)) : 1 - 1.03 * easeIn(span(ms, ...SHUT))
         // The sticker: its top down first, the rest smoothed on after it.
-        if (sticker && stickerLeaf) {
+        // (Worked out only while it goes on and is held: before, it is hidden; after, it is in the drawer.)
+        if (sticker) sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
+        if (sticker && stickerLeaf && ms >= STICK[0] && ms <= LAND + 60) {
           const sp = span(ms, ...STICK)
-          sticker.style.visibility = ms >= STICK[0] ? 'visible' : 'hidden'
           const se = easeOut(sp)
           const press = 70 * (1 - se)
           bendLeaf(stickerLeaf, press, Math.sin(Math.PI * se) * 45)
@@ -852,38 +856,56 @@ export function CardPost({
         if (flapLeaf) flapLeaf.style.visibility = flat ? 'hidden' : ''
         if (flapFlat) flapFlat.style.visibility = flat ? 'inherit' : 'hidden'
         if (flap.current) flap.current.style.zIndex = fa > 90 ? '1' : '4'
-        // Lighter the further away it is.
-        const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
-          set(ln, { x1, x2, y1: yAt(d), y2: yAt(d), 'stroke-opacity': tone / (1 + Math.max(0, d) * 0.12), visibility: d >= 0 ? 'inherit' : 'hidden' })
-        majors.forEach((ln) => {
-          const d = Number(ln.dataset.major) - shift
-          line(ln, d, mid - halfAt(d), mid + halfAt(d))
-        })
-        rails.forEach((ln) => {
-          const side = Number(ln.dataset.rail)
-          const back = DRAWER_UNITS - shift
-          set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: back > 0 ? 'inherit' : 'hidden' })
-        })
-        ticks.forEach((ln) => {
-          const d = Number(ln.dataset.tick) - shift
-          const side = Number(ln.dataset.side)
-          const edge = mid + side * halfAt(d)
-          line(ln, d, edge, edge - side * Number(ln.dataset.len) * DRAWER_TICK * 2 * halfAt(d), 0.85)
-        })
-        // The envelopes ride in it, rising out of the slot line and going back under it.
-        stands.forEach(({ wrap, env, ours, u, pose }) => {
-          const d = u - shift
-          const by = yAt(d)
-          const k = fz(d) / fz(u)
-          wrap.style.visibility = ms >= OPEN[0] && d > -1.5 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
-          wrap.style.clipPath = `inset(0 0 calc(100% - ${Math.min(by, slotY).toFixed(2)}px) 0)`
-          env.style.transform = `translate(${mid}px, ${by}px) scale(${k}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
-        })
+        // The drawer is drawn again only when it has moved (or ours has landed in it): not before it
+        // shows, and not while it stands open or once it is shut.
+        const key = ms < OPEN[0] ? 'closed' : `${shift.toFixed(3)}|${ms >= LAND}`
+        if (key !== drawn) {
+          drawn = key
+          // Lighter the further away it is.
+          const line = (ln: SVGLineElement, d: number, x1: number, x2: number, tone = 1) =>
+            set(ln, { x1, x2, y1: yAt(d), y2: yAt(d), 'stroke-opacity': tone / (1 + Math.max(0, d) * 0.12), visibility: d >= 0 ? 'inherit' : 'hidden' })
+          majors.forEach((ln) => {
+            const d = Number(ln.dataset.major) - shift
+            line(ln, d, mid - halfAt(d), mid + halfAt(d))
+          })
+          rails.forEach((ln) => {
+            const side = Number(ln.dataset.rail)
+            const back = DRAWER_UNITS - shift
+            set(ln, { x1: mid + side * halfAt(0), x2: mid + side * halfAt(back), y1: yAt(0), y2: yAt(back), visibility: back > 0 ? 'inherit' : 'hidden' })
+          })
+          ticks.forEach((path) => {
+            const k = Number(path.dataset.ticks)
+            let dPath = ''
+            for (const [dd, len] of DRAWER_TICKS) {
+              const d = k + dd - shift
+              if (d < 0) continue
+              const y = yAt(d).toFixed(1)
+              for (const side of [-1, 1]) {
+                const edge = mid + side * halfAt(d)
+                dPath += `M${edge.toFixed(1)} ${y}H${(edge - side * len * DRAWER_TICK * 2 * halfAt(d)).toFixed(1)}`
+              }
+            }
+            path.setAttribute('d', dPath)
+            path.setAttribute('stroke-opacity', (0.85 / (1 + Math.max(0, k + 0.5 - shift) * 0.12)).toFixed(3))
+          })
+          // The envelopes ride in it, rising out of the slot line and going back under it.
+          stands.forEach(({ wrap, env, ours, u, pose }) => {
+            const d = u - shift
+            const by = yAt(d)
+            const k = fz(d) / fz(u)
+            wrap.style.visibility = ms >= OPEN[0] && d > -1.5 && (!ours || ms >= LAND) ? 'visible' : 'hidden'
+            // Cut at its line: a window as tall as down to there (cheaper than a clip redrawn each frame).
+            wrap.style.height = `${Math.max(0, Math.min(by, slotY)).toFixed(2)}px`
+            env.style.transform = `translate(${mid}px, ${by}px) scale(${k}) translate(${-mid}px, ${-yAt(u)}px) ${pose}`
+          })
+        }
         raf = requestAnimationFrame(draw)
       }
       raf = requestAnimationFrame(draw)
-      // As the drawer goes in, the thanks' check comes up out of it (drawn back out of the depth).
-      const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), (o(SHUT[0] + 380) * T * SLOW))
+      // Once the drawer is all the way in, the thanks' check comes up out of its slot (drawn back out
+      // of the depth). Not before: the thanks page set up while the drawer still moves would hold it
+      // up for a frame or two.
+      const shutAt = window.setTimeout(() => shut.current({ x: mid, y: slotY }), o(SHUT[1]) * T * SLOW)
       post.onfinish = () => done.current()
       return () => {
         clearTimeout(cutAt)
@@ -922,16 +944,14 @@ export function CardPost({
             <line key={side} data-rail={side} />
           ))}
           {Array.from({ length: DRAWER_UNITS }, (_, k) =>
-            DRAWER_TICKS.flatMap(([d, len]) =>
-              [-1, 1].map((side) => <line key={`${k + d}${side}`} data-tick={k + d} data-side={side} data-len={len} />),
-            ),
+            <path key={k} data-ticks={k} />
           )}
         </g>
       </svg>
       {/* The envelopes in it, the farthest first (ours, at the front, last), each cut at its line. */}
       <div ref={standing} className="absolute inset-0">
         {[...DRAWER_ENVELOPES].reverse().concat([[OURS_U, OURS_SHARE, 1]]).map(([u, ws, hs], i, all) => (
-          <div key={u} data-stand={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} className="absolute inset-0" style={{ visibility: 'hidden' }}>
+          <div key={u} data-stand={i === all.length - 1 ? 'ours' : 'past'} data-u={u} data-ws={ws} data-hs={hs} className="absolute inset-x-0 top-0 overflow-hidden [&>*]:will-change-transform" style={{ visibility: 'hidden', height: 0 }}>
             <ClosedEnvelope division={division} />
           </div>
         ))}
