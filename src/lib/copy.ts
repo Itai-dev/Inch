@@ -26,6 +26,5 @@ export const DEFAULT_STORY = [
 ]
 
 // TODO: final DOT. line from INCH” — placeholder.
-export const DEFAULT_DOT_STATEMENT =
-  'Dot is a boutique model agency: a small board of distinctive men, chosen with a precise eye and managed by hand. The right face for your brand, to the dot.'
+export const DEFAULT_DOT_STATEMENT = 'The men’s board of INCH” — few faces, each one exact'
 
