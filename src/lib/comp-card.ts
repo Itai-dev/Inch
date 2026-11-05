@@ -126,7 +126,7 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
   const gridX = M + coverW + gap
   const cellW = (W - M - gridX - gap) / 2
   const cellH = (areaH - gap) / 2
-  const book = [...(t.portfolio ?? []), ...(t.coversAds ?? [])].filter((i) => i.asset)
+  const book = (t.portfolio ?? []).filter((i) => i.asset)
   const coverSrc = t.cover?.asset ? t.cover : book[0]
   const rest = book.filter((i) => i.asset?._ref !== coverSrc?.asset?._ref).slice(0, 4)
 

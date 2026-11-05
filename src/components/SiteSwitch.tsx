@@ -1,13 +1,13 @@
 'use client'
 
 /**
- * The other site's box. INCH”: DOT.'s, in the bottom-left corner (SiteSwitch). DOT.: INCH”'s, in the
- * header (Header). On phones both are in the menu (MobileMenu).
+ * The other site's box, in the bottom-left corner, the same on both sites: on INCH” DOT.'s, on DOT.
+ * INCH”'s. (Also in the phone menu, MobileMenu.)
  */
 import { usePathname } from 'next/navigation'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { sitePath, type Site } from '@/lib/sites'
-import { DotBox } from './brand/Logo'
+import { DotBox, Logo } from './brand/Logo'
 import { SiteSwitchLink } from './SiteSwitchLink'
 
 /** A label line sized to be exactly as wide as a box: returns refs for the two (refit while `active` changes). */
@@ -31,20 +31,19 @@ export function useFitWidth<L extends HTMLElement, B extends HTMLElement>(active
   return [label, box] as const
 }
 
-/** Only these INCH” pages carry the tab (/logotest is the home page too). */
+/** Only these pages carry the tab, on either site (/logotest is the home page too). */
 const TAB_PAGES = ['/', '/contact', '/logotest']
 
 /**
- * INCH” only, on the home and contact pages: DOT.'s box in the bottom-left corner, "Men division"
- * above it, as wide as the box. On the home page it pops up as soon as the video has opened, standing
- * just above the hero's ruler, and drops to the corner
- * once the ruler fades away. It goes again when the footer arrives. (On DOT. the way back to INCH”
- * is in the header.) White + difference blend like the header, so it inverts against whatever is
- * behind it. On phones too, in the same places at the same moments.
+ * On the home and contact pages of both sites: the other site's box in the bottom-left corner, its
+ * division ("Men division", "Women division") above it, as wide as the box. On the home page it pops
+ * up as soon as the video has opened, standing just above the hero's ruler, and drops to the corner
+ * once the ruler fades away. It goes again when the footer arrives. White + difference blend like the
+ * header, so it inverts against whatever is behind it. On phones too, in the same places at the same moments.
  */
 export function SiteSwitch({ site }: { site: Site }) {
   const box = useRef<HTMLDivElement>(null)
-  const path = usePathname().replace(/^\/inch(?=\/|$)/, '') || '/'
+  const path = usePathname().replace(/^\/(inch|dot)(?=\/|$)/, '') || '/'
   const [label, dot] = useFitWidth<HTMLSpanElement, HTMLSpanElement>(path)
   const onPage = TAB_PAGES.includes(path)
 
@@ -81,15 +80,23 @@ export function SiteSwitch({ site }: { site: Site }) {
     }
   }, [path, onPage])
 
-  if (site === 'dot' || !onPage) return null
+  if (!onPage) return null
+  const toInch = site === 'dot'
   return (
     <div ref={box} className="site-switch-tab text-paper mix-blend-difference">
-      <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="flex flex-col items-start gap-[0.4em]">
+      <SiteSwitchLink href={sitePath(toInch ? 'inch' : 'dot')} toInch={toInch} label={toInch ? 'INCH” — Women' : 'DOT. — Men'} className="flex flex-col items-start gap-[0.4em]">
         <span ref={label} className="whitespace-nowrap font-bold uppercase leading-none" style={{ fontStretch: '80%' }}>
-          Men division
+          {toInch ? 'Women division' : 'Men division'}
         </span>
         <span ref={dot} className="site-switch block origin-bottom-left text-[length:var(--tab)]">
-          <DotBox />
+          {toInch ? (
+            // INCH”'s box: the wordmark cut out of a white block, as tall as DOT.'s.
+            <span className="flex h-[1.097em] items-center bg-current pl-[0.16em] pr-[0.14em]">
+              <Logo division="women" className="text-[1em] text-ink [&_svg]:!h-[0.7em]" />
+            </span>
+          ) : (
+            <DotBox />
+          )}
         </span>
       </SiteSwitchLink>
     </div>

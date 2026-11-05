@@ -12,7 +12,6 @@ import type { Talent } from '@/sanity/lib/types'
 /** Each book has its own URL so bookers can send exactly the right one. */
 const BOOKS = [
   { segment: '', field: 'portfolio', title: 'Modelbook', view: 'book', placeholders: 13, wideAt: 4 },
-  { segment: 'covers', field: 'coversAds', title: 'Covers + Ads', view: 'book', placeholders: 6, wideAt: undefined },
   { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'book', placeholders: 10, wideAt: undefined },
 ] as const
 

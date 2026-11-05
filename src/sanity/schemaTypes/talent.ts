@@ -56,7 +56,8 @@ export const talent = defineType({
     // (Replaced by the dragged order; kept hidden for older documents.)
     defineField({ name: 'order', title: 'Sort order', type: 'number', group: 'main', hidden: true }),
     gallery('portfolio', 'Portfolio'),
-    gallery('coversAds', 'Covers + Ads'),
+    // (No longer a book of its own, on either site: kept hidden so older documents keep their pictures.)
+    { ...gallery('coversAds', 'Covers + Ads'), hidden: true },
     gallery('polaroids', 'Polaroids'),
     defineField({ name: 'measurements', type: 'measurements', group: 'details' }),
     defineField({ name: 'bio', type: 'text', rows: 4, group: 'details' }),

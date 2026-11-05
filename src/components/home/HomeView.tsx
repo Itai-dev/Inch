@@ -1,12 +1,9 @@
-import { DotIndexCarousel } from '@/components/motion/DotIndexCarousel'
-import { DotStatement } from '@/components/motion/DotStatement'
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
 import { StoryMagazine, type Chapter } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
-import { talentSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
 import { HOME_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
@@ -52,24 +49,12 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
   // TODO: DOT.'s own hero videos in the Studio (DOT. › Home page › Hero videos & images).
   if (isDot && !videos.length) videos = heroMedia(await sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', 'inch') }, null, ['homePage']))
 
-  if (isDot) {
-    const slides = talentSlides(featured.length ? featured : talents.slice(0, 12))
-    return (
-      <>
-        {/* As on INCH”: the full-screen video carousel, its own videos (DOT.'s Home page in the Studio). */}
-        <QuoteVideoHero videos={videos} division="men" />
-        <DotStatement text={home?.statement || DEFAULT_DOT_STATEMENT} />
-        {slides.length > 0 && <DotIndexCarousel slides={slides} height="90dvh" />}
-        <Story site={site} home={home} talents={withPlaceholders(talents, division)} />
-      </>
-    )
-  }
-
-  // INCH”: ” opens to full-screen video → statement on scroll → the magazine.
+  // Both sites alike: the mark (INCH”'s ”, DOT.'s ■) opens to the full-screen video → the statement
+  // on scroll → the magazine.
   return (
     <>
-      <QuoteVideoHero videos={videos} opening={hero} />
-      <TextOpen text={home?.statement || DEFAULT_STATEMENT} />
+      <QuoteVideoHero videos={videos} opening={hero} division={division} />
+      <TextOpen text={home?.statement || (isDot ? DEFAULT_DOT_STATEMENT : DEFAULT_STATEMENT)} />
       <Story site={site} home={home} talents={withPlaceholders(models, division)} />
     </>
   )
