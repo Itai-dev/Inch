@@ -2,8 +2,9 @@
 
 /**
  * A chapter told as a magazine, on the page itself, right under the statement. The closed
- * magazine comes up already showing its cover, a little tilted and turned (a sliver of its
- * spine showing), and straightens with the scroll to face you as it settles in the middle of the screen: a
+ * magazine comes up already showing its cover, tilted and turned (a sliver of its spine showing),
+ * and straightens with the scroll as it comes, facing you, straight and still, as it settles in the
+ * middle of the screen, ready to open: a
  * solid box, cover, spine and the pages' edges, shading as it turns, with its shadow under it. Then the reader
  * turns the pages: a click or tap on the right page (or the cover) turns on, on the left page
  * back; also a swipe, or the buttons under it. The cover opens onto the chapter on the first
@@ -138,26 +139,22 @@ function Strip({ k, front, back }: { k: number; front: React.ReactNode; back: Re
 }
 
 /**
- * While the section is pinned, its scroll (0–1) plays the opening, then opens the cover:
- * - until INTRO_END, the opening: the magazine, its cover a little tilted and closer, straightens
- *   and sinks onto the surface from TURN_FROM to TURN_TO of it; then rests;
- * - from OPEN_FROM to OPEN_TO, the cover opens onto the first spread; then it rests open.
- * Once the reader turns a page themselves, the scroll leaves the pages alone. The section is
- * 380vh tall (pinned for 280vh of scroll); on phones 220vh, so it doesn't take a long thumb to get past.
+ * The opening plays as the section comes up into view (its top rising from the foot of the screen
+ * to the top): the magazine, its cover tilted, turned, a little to the side and closer, straightens,
+ * comes to the middle and sinks onto the surface from ENTER_FROM of the way, slowing as it comes, so
+ * it arrives in the middle straight and still. Then, pinned, the scroll (0–1) opens the cover from
+ * OPEN_FROM to OPEN_TO onto the first spread; then it rests open. Once the reader turns a page
+ * themselves, the scroll leaves the pages alone. The section is 260vh tall (pinned for 160vh of
+ * scroll); on phones 180vh, so it doesn't take a long thumb to get past.
  */
-const INTRO_END = 0.55
-const TURN_FROM = 0
-const TURN_TO = 0.82
-const OPEN_FROM = 0.64
-const OPEN_TO = 0.9
+const ENTER_FROM = 0.2
+const OPEN_FROM = 0.12
+const OPEN_TO = 0.62
 /** How much bigger the cover is when it's close (at most; it also stays inside the screen). */
 const CLOSE = 1.12
 /** How far the cover is tilted and turned at first (degrees): enough to show it's a magazine, never the spine alone. */
-const START_DEG = 22
-/** Coming up into view (before it settles in the middle), it is already turning: at most this much
- * more (degrees) as it enters, and drifting in from this share of its width to the side. The turn
- * speeds up as it comes and carries straight on into the opening, without a stop where they meet. */
-const ENTER_DEG = 18
+const START_DEG = 30
+/** Coming up into view it drifts in from this share of its width to the side. */
 const ENTER_SHIFT = 0.1
 /** A page to turn (ms). */
 const TURN_MS = 900
@@ -290,31 +287,27 @@ export function Magazine({
   // The page the reader is on: 0 = closed, k = k leaves turned.
   const [page, setPage] = useState(0)
   /** Where the pages are now (`at`: leaves turned, fractions mid-turn), how far the opening has gone, and the running turn. */
-  const live = useRef({ at: 0, arrive: 0, enter: 1, leave: 0, user: false, page: 0, draw: () => {}, frame: 0 })
+  const live = useRef({ at: 0, arrive: 0, leave: 0, user: false, page: 0, draw: () => {}, frame: 0 })
 
   // Draws the book for the current state, straight on the DOM.
   useEffect(() => {
     const strips = leaves.current.map((leaf) => Array.from(leaf?.querySelectorAll<HTMLElement>('[data-strip]') ?? []))
     live.current.draw = () => {
-      const { at, arrive: a, enter } = live.current
+      const { at, arrive: a } = live.current
       const W = stage.current?.offsetWidth ?? 900
       const coverW = W / 2
       const coverH = W / 1.5
       const T = W * 0.036
       const opened = clamp01(at)
 
-      // The opening: the cover, a little closer, tilted and turned; it straightens to face you and
-      // sinks onto the surface. (Under way as it starts: it was already turning on its way up.)
-      const turn = easeOutQuad(clamp01((a - TURN_FROM) / (TURN_TO - TURN_FROM)))
+      // The opening, as it comes up into view: the cover, a little closer, tilted, turned and to the
+      // side; it straightens to face you, comes to the middle and sinks onto the surface, slowing as
+      // it comes, so it is straight and still as it arrives in the middle.
+      const turn = easeOutQuad(clamp01((a - ENTER_FROM) / (1 - ENTER_FROM)))
       const near = Math.max(1, Math.min(CLOSE, (innerHeight * 0.86) / coverH, (innerWidth * 0.86) / coverW))
-      const scale = lerp(near, 1, easeOut(turn))
-      // Coming up into view: turned further and a little to the side, slowly at first, then ever
-      // faster into the opening (as fast as the opening starts, at most ENTER_DEG).
-      const pre = 1 - enter * enter
-      const pinned = Math.max(1, (section.current?.offsetHeight ?? innerHeight * 3.8) - innerHeight)
-      const enterDeg = Math.min(ENTER_DEG, (START_DEG * innerHeight) / (pinned * INTRO_END * (TURN_TO - TURN_FROM)))
-      const deg = START_DEG * (1 - turn) + enterDeg * pre
-      const dx = coverW * ENTER_SHIFT * pre
+      const scale = lerp(near, 1, turn)
+      const deg = START_DEG * (1 - turn)
+      const dx = coverW * ENTER_SHIFT * (1 - turn)
       const sin = Math.sin((deg * Math.PI) / 180)
       const cos = Math.cos((deg * Math.PI) / 180)
       const bx = box.current
@@ -338,7 +331,7 @@ export function Magazine({
       if (sh) {
         // (Drawn once at the cover's size and blur, then only moved, turned, scaled and faded: no
         // new blur to paint as the page scrolls. Its softness grows with it, held up close.)
-        const lift = 1 - easeOut(turn)
+        const lift = 1 - turn
         const bw = coverW * 0.96
         sh.style.width = `${bw.toFixed(1)}px`
         sh.style.height = `${coverH.toFixed(1)}px`
@@ -411,7 +404,7 @@ export function Magazine({
     let follow = 0
     let last = 0
     let first = true
-    const goal = { arrive: l.arrive, at: l.at, enter: l.enter }
+    const goal = { arrive: l.arrive, at: l.at }
     const show = () => {
       const shown = Math.round(l.at)
       if (shown !== l.page) {
@@ -431,8 +424,7 @@ export function Magazine({
       const near = (x: number, to: number) => (Math.abs(to - x) < 0.001 ? to : x + (to - x) * k)
       l.arrive = near(l.arrive, goal.arrive)
       l.at = near(l.at, goal.at)
-      l.enter = near(l.enter, goal.enter)
-      const resting = l.arrive === goal.arrive && l.at === goal.at && l.enter === goal.enter
+      const resting = l.arrive === goal.arrive && l.at === goal.at
       show()
       if (!resting) follow = requestAnimationFrame(chase)
     }
@@ -449,16 +441,15 @@ export function Magazine({
         }
         // Once the reader has turned a page, the scroll leaves the magazine as it is.
         if (l.user) return
-        goal.arrive = Math.min(1, p / INTRO_END)
-        // Coming up into view: 0 as its section's top comes up from the foot of the screen, 1 as it reaches the top.
-        goal.enter = clamp01((innerHeight - r.top) / innerHeight)
+        // The opening: 0 as its section's top comes up from the foot of the screen, 1 as it reaches the
+        // top (the magazine in the middle, pinned).
+        goal.arrive = clamp01((innerHeight - r.top) / innerHeight)
         goal.at = smooth(clamp01((p - OPEN_FROM) / (OPEN_TO - OPEN_FROM)))
         // (On load, it is simply where the scroll is.)
         if (first) {
           first = false
           l.arrive = goal.arrive
           l.at = goal.at
-          l.enter = goal.enter
           show()
           return
         }
@@ -660,7 +651,7 @@ export function Magazine({
       }}
     >
       {/* The pinned stretch: the opening, the cover opening, then the magazine scrolls away. */}
-      <div ref={section} className="relative h-[220vh] md:h-[380vh] motion-reduce:!h-auto">
+      <div ref={section} className="relative h-[180vh] md:h-[260vh] motion-reduce:!h-auto">
       <div className="sticky top-0 flex h-dvh flex-col items-center justify-center gap-[clamp(20px,3vh,36px)] overflow-x-clip pt-[clamp(40px,7vh,72px)] motion-reduce:static motion-reduce:py-20">
         <div
           ref={stage}
