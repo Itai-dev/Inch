@@ -430,24 +430,26 @@ export function ModelSheet({
   const phoneBar = (
     // (A size smaller than the detail text elsewhere: a phone's screen is short.)
     <div className={`flex flex-col gap-4 px-gutter ${rowCls} text-[14px]!`} style={narrow}>
-      <div className="grid grid-cols-[1fr_auto] items-start gap-x-5 gap-y-3">
-        <nav className="flex flex-wrap gap-x-[18px] gap-y-1" aria-label="Books">
-          {tabs.filter((t) => t !== bioTab).map(tabBtn)}
-          {book && N > 0 && (
-            <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
-              Overview
-            </button>
-          )}
-        </nav>
-        <div className="flex justify-end">{bioTab && tabBtn(bioTab)}</div>
-        <div>
+      {/* Two columns, their lines the same distance apart, so the right one is always in line with the
+          left: the bio by the first line, Instagram by the second (however the books wrap). */}
+      <div className="flex items-start justify-between gap-x-5">
+        <div className="flex flex-col items-start gap-y-3">
+          <nav className="flex flex-wrap gap-x-[18px] gap-y-3" aria-label="Books">
+            {tabs.filter((t) => t !== bioTab).map(tabBtn)}
+            {book && N > 0 && (
+              <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+                Overview
+              </button>
+            )}
+          </nav>
           {compCard && (
             <a href={compCard} className="intro-write ink-line" style={write('Comp card')}>
               Comp card
             </a>
           )}
         </div>
-        <div className="flex justify-end">
+        <div className="flex shrink-0 flex-col items-end gap-y-3">
+          {bioTab && tabBtn(bioTab)}
           {handle && (
             <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
               Instagram
