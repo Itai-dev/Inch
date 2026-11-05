@@ -16,6 +16,7 @@ import { ADULT_AGE, ageFrom, MIN_APPLY_AGE } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet } from '@/lib/units'
+import type { ApplyThanks } from '@/sanity/lib/types'
 import { UnitToggle } from '@/components/Measurements'
 import { CompCard, type CardStat } from './CompCard'
 import { hasSitePageBehind } from '@/components/RouteMemory'
@@ -23,7 +24,6 @@ import { StepRuler } from './StepRuler'
 import { CardOpening, CardPost, type Place } from './CardMotion'
 import { FOLD_OPEN_MS, PaperFold } from './PaperFold'
 import { ColorSelect, EYES, HAIR } from './ColorSelect'
-import { CountrySelect } from './CountrySelect'
 import { HeightTape } from './Tape'
 import { Silhouette, type Pose } from './Silhouette'
 
@@ -31,7 +31,6 @@ type Data = {
   firstName: string
   lastName: string
   birthdate: string
-  country: string
   email: string
   phone: string
   guardianName: string
@@ -44,7 +43,6 @@ type Data = {
   hair: string
   eyes: string
   instagram: string
-  tiktok: string
   experience: string
   consent: boolean
 }
@@ -53,8 +51,8 @@ type Step = 'intro' | 'you' | 'guardian' | 'measure' | 'digitals' | 'send' | 'do
 type Photo = { blob: Blob; url: string }
 
 const initial: Data = {
-  firstName: '', lastName: '', birthdate: '', country: '', email: '', phone: '', guardianName: '', guardianPhone: '', guardianConsent: false,
-  height: null, tshirt: '', pants: '', shoes: '', hair: '', eyes: '', instagram: '', tiktok: '', experience: '', consent: false,
+  firstName: '', lastName: '', birthdate: '', email: '', phone: '', guardianName: '', guardianPhone: '', guardianConsent: false,
+  height: null, tshirt: '', pants: '', shoes: '', hair: '', eyes: '', instagram: '', experience: '', consent: false,
 }
 
 const SLOTS: { pose: Pose; label: string; hint: string }[] = [
@@ -101,10 +99,9 @@ const CARD_W = 820
 const YOU_FIELDS: Record<string, string> = {
   'First name': 'input[autocomplete=given-name]',
   'Last name': 'input[autocomplete=family-name]',
-  'Date of birth': 'input[type=date]',
-  Country: 'select[data-country]',
   Email: 'input[type=email]',
   Phone: 'input[type=tel]',
+  'Date of birth': 'input[type=date]',
 }
 /** All four photos together must stay well under the ~4.5 MB a request to the site can carry. */
 const PHOTOS_BUDGET = 3.6 * 1024 * 1024
@@ -151,10 +148,10 @@ function InfoTip({ label, children }: { label: string; children: React.ReactNode
 }
 
 /** A handle without its @ (or the profile link round it). */
-const handleOf = (v: string) => v.trim().replace(/^https?:\/\/(www\.)?(instagram\.com|tiktok\.com)\/@?/i, '').replace(/^@+/, '').replace(/[/?#].*$/, '')
+const handleOf = (v: string) => v.trim().replace(/^https?:\/\/(www\.)?instagram\.com\/@?/i, '').replace(/^@+/, '').replace(/[/?#].*$/, '')
 const half = (v: string | number) => String(v).replace('.5', '½')
 
-export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: string; scoutingEmail?: string }) {
+export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image?: string; scoutingEmail?: string; thanks?: ApplyThanks }) {
   const { brand, division } = SITES[site]
   const reduced = useReducedMotion()
   const [step, setStep] = useState<Step>('you')
@@ -479,10 +476,9 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
     [
       ['First name', !d.firstName.trim()],
       ['Last name', !d.lastName.trim()],
-      ['Date of birth', !d.birthdate || badDate || underage],
-      ['Country', !d.country],
       ['Email', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())],
       ['Phone', d.phone.replace(/\D/g, '').length < 6],
+      ['Date of birth', !d.birthdate || badDate || underage],
     ] as const
   ).filter(([, bad]) => bad).map(([k]) => k)
   const youNote = [
@@ -499,7 +495,6 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
   const stats: CardStat[] = [
     ['Age', Number.isFinite(age) && age > 0 ? age : undefined],
-    ['Country', d.country],
     ['Height', d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : undefined],
     ['T-shirt', d.tshirt],
     ['Pants', d.pants && `${d.pants} EU`],
@@ -545,7 +540,7 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="wordmark truncate text-[18px] uppercase">{fullName || 'Your comp card'}</span>
         <span className="truncate text-[11px] uppercase text-muted">
-          {[Number.isFinite(age) && age > 0 ? age : null, d.country, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
+          {[Number.isFinite(age) && age > 0 ? age : null, d.height ? (unit === 'in' ? cmToFeet(d.height) : `${d.height} cm`) : null].filter(Boolean).join(' · ') || 'Fills in as you go'}
         </span>
       </span>
       <span className="ml-auto text-[11px] font-bold uppercase" style={narrow}>Card</span>
@@ -565,16 +560,21 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
   // The thanks, in the middle of the screen once the card has gone through the slot.
   // The words follow the check, once it is written.
   const lag = CHECK_MS
+  // The words, as written in the Studio (Site settings → Application received), else these.
+  const thanksLabel = thanks?.label?.trim() || 'Application received'
+  const who = d.firstName.trim()
+  const thanksTitle = (thanks?.title?.trim() || 'Thank you, {name}.').replace(who ? /\{name\}/g : /\s*,?\s*\{name\}/g, who)
+  const thanksText = thanks?.text?.trim() || 'It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you.'
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
         <ReceivedCheck from={checkFrom} />
-        <p className="label text-muted"><TypeText text="Application received" at={lag} ms={12} /></p>
+        <p className="label text-muted"><TypeText text={thanksLabel} at={lag} ms={12} /></p>
         <h1 className="wordmark text-[clamp(48px,6vw,84px)] uppercase leading-[0.95]">
-          <TypeText text={`Thank you${d.firstName ? `, ${d.firstName}` : ''}.`} at={lag + 220} ms={28} />
+          <TypeText text={thanksTitle} at={lag + 220} ms={28} />
         </h1>
-        <p className="text-[17px] leading-snug">
-          <TypeText text="It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you." at={lag + 620} ms={5} />
+        <p className="whitespace-pre-line text-[17px] leading-snug">
+          <TypeText text={thanksText} at={lag + 620} ms={5} />
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
@@ -661,12 +661,11 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
               </span>
               <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
               <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
+              <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
+              <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
               <Field label="Date of birth" hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              <CountrySelect label="Country" value={d.country} onChange={(v) => set('country', v)} />
-              <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
-              <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
               {underage ? (
                 <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug">
                   Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
@@ -810,12 +809,6 @@ export function ApplyFunnel({ site, scoutingEmail }: { site: Site; image?: strin
                 <span className={handleRow}>
                   <span aria-hidden className="pr-0.5">@</span>
                   <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-muted/40" placeholder="handle" autoCapitalize="none" autoCorrect="off" value={d.instagram} onChange={(e) => set('instagram', handleOf(e.target.value))} />
-                </span>
-              </Field>
-              <Field label="TikTok">
-                <span className={handleRow}>
-                  <span aria-hidden className="pr-0.5">@</span>
-                  <input className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-muted/40" placeholder="handle" autoCapitalize="none" autoCorrect="off" value={d.tiktok} onChange={(e) => set('tiktok', handleOf(e.target.value))} />
                 </span>
               </Field>
               <Field label="Anything we should know? (optional)" className="sm:col-span-2">

@@ -25,8 +25,8 @@ export const application = defineType({
     defineField({ name: 'name', type: 'string' }),
     defineField({ name: 'birthdate', title: 'Date of birth', type: 'date' }),
     defineField({ name: 'age', title: 'Age when applying', type: 'number' }),
-    defineField({ name: 'country', type: 'string' }),
-    // Applications sent before the form asked for a country.
+    // Asked by earlier versions of the form: shown only on the applications that have them.
+    defineField({ name: 'country', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'city', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'email', type: 'string' }),
     defineField({ name: 'phone', type: 'string' }),
@@ -56,7 +56,7 @@ export const application = defineType({
       of: [defineArrayMember({ type: 'image' })],
     }),
     defineField({ name: 'instagram', type: 'string' }),
-    defineField({ name: 'tiktok', title: 'TikTok', type: 'string' }),
+    defineField({ name: 'tiktok', title: 'TikTok', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'experience', type: 'text', rows: 3 }),
     defineField({
       name: 'outsideCriteria',

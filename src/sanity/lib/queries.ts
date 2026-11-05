@@ -10,6 +10,8 @@ export const HOME_QUERY = defineQuery(`*[_id == $id][0]{
 
 export const SITE_SETTINGS_QUERY = defineQuery(`*[_id == $id][0]{ email, phone, address, instagram }`)
 
+export const APPLY_SETTINGS_QUERY = defineQuery(`*[_id == $id][0]{ email, thanks }`)
+
 export const CATEGORIES_BY_DIVISION_QUERY = defineQuery(
   `*[_type == "category" && division == $division] | order(order asc){ _id, title, "slug": slug.current, division }`,
 )

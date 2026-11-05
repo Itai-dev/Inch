@@ -7,7 +7,7 @@
  * nothing beside it (the neighbours only show while sliding); books and
  * actions run along the bottom over the INCH” ruler from the home hero, which drives the
  * book (click a number, arrow keys, wheel, swipe or either half of the spread).
- * Phones get one page at a time.
+ * Phones get the same pairs, smaller, with every book and action on the page under them.
  *
  * Books switch in place (the URL follows with replaceState, so every book keeps its own
  * link without a page load). Close steps back to the page you came from, or the board.
@@ -136,10 +136,10 @@ export function ModelSheet({
   }, [showBook])
   const per = stage.w < 640 ? 1 : 2
   const polaroids = book?.segment === 'polaroids'
-  // Pages side by side: two portraits (three polaroids); phones one.
-  const cols = per === 2 ? (polaroids ? 3 : 2) : 1
+  // Pages side by side: two portraits (three polaroids); phones two of either.
+  const cols = per === 2 && polaroids ? 3 : 2
   // Spreads: portrait pages side by side, or one horizontal image filling the same frame.
-  // A portrait with too few portrait partners (before a horizontal one, or at the end) sits with fewer. Phones: one image each.
+  // A portrait with too few portrait partners (before a horizontal one, or at the end) sits with fewer.
   const spreads: number[][] = []
   for (let i = 0; i < N; ) {
     let k = 1
@@ -403,68 +403,42 @@ export function ModelSheet({
     if (seg === segment && view === 'thumbnails' && book?.view === 'book') setView('book')
     else open(seg)
   }
-  // Phones: the books and actions fold into Menu (what is open shown beside it); the sizes stay out.
-  const [menu, setMenu] = useState(false)
-  const current = `${tabs.find((t) => t.segment === segment)?.title ?? ''}${book?.view === 'book' && view === 'thumbnails' ? ' · Overview' : ''}`
-  const phoneRow = (
-    <div className={`flex items-center justify-between gap-4 px-gutter ${rowCls}`} style={narrow}>
-      <span className="intro-write truncate" style={write(current)}>
-        {current}
-      </span>
-      <button type="button" aria-expanded={menu} aria-haspopup="dialog" onClick={() => setMenu(true)} className="intro-write flex shrink-0 items-center gap-2 uppercase" style={write('Menu')}>
-        Menu
-        <svg viewBox="0 0 18 12" aria-hidden className="w-[1.05em]">
-          <path d="M0 1.5h18M0 10.5h18" stroke="currentColor" strokeWidth="2.2" />
-        </svg>
-      </button>
-    </div>
-  )
-  const done = (fn: () => void) => () => {
-    fn()
-    setMenu(false)
-  }
-  const phoneMenu = (
-    // Slides up from the foot over the book; a tap above it (or Close) puts it away.
-    <div inert={!menu} aria-hidden={!menu || undefined} className={`fixed inset-0 z-40 ${menu ? '' : 'pointer-events-none'}`} onClick={() => setMenu(false)}>
-      <div
-        role="dialog"
-        aria-label="Menu"
-        onClick={(e) => e.stopPropagation()}
-        className={`absolute inset-x-0 bottom-0 flex flex-col gap-6 bg-bg px-gutter pb-[max(22px,env(safe-area-inset-bottom))] pt-5 shadow-[0_-24px_48px_-24px_rgb(0_0_0/0.35)] transition-transform duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${menu ? 'translate-y-0' : 'translate-y-[105%]'}`}
-      >
-        <div className={`flex items-center justify-between ${rowCls}`} style={narrow}>
-          <span className="text-muted">{name}</span>
-          <button type="button" onClick={() => setMenu(false)} className="uppercase">
-            Close
+  // Phones: every book and action on the page, as on a computer: the books and the overview in a
+  // row, then the comp card, Instagram and the selection button under them (the sizes stay above).
+  const phoneBar = (
+    <div className={`flex flex-col gap-3 px-gutter ${rowCls}`} style={narrow}>
+      <nav className="flex flex-wrap justify-between gap-x-4 gap-y-1" aria-label="Books">
+        {tabs.map((t) => (
+          <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
+            {t.title}
           </button>
-        </div>
-        <nav className="flex flex-col items-start gap-1" aria-label="Books">
-          {tabs.map((t) => (
-            <button key={t.segment} type="button" onClick={done(() => tab(t.segment))} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`wordmark text-[clamp(34px,10.5vw,48px)] uppercase leading-[1.02] ${t.segment === segment && !overview ? '' : 'text-muted'}`}>
-              {t.title}
-            </button>
-          ))}
-          {book && N > 0 && (
-            <button type="button" onClick={done(() => setView('thumbnails'))} aria-current={overview ? 'page' : undefined} className={`wordmark text-[clamp(34px,10.5vw,48px)] uppercase leading-[1.02] ${overview ? '' : 'text-muted'}`}>
-              Overview
-            </button>
+        ))}
+        {book && N > 0 && (
+          <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+            Overview
+          </button>
+        )}
+      </nav>
+      <div className="flex items-center justify-between gap-4">
+        <span className="flex gap-5">
+          {compCard && (
+            <a href={compCard} className="intro-write" style={write('Comp card')}>
+              Comp card
+            </a>
           )}
-        </nav>
-        <div className={`flex flex-wrap gap-x-6 gap-y-2 ${rowCls}`} style={narrow}>
-          {compCard && <a href={compCard}>Comp card</a>}
           {handle && (
-            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer">
+            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="intro-write" style={write('Instagram')}>
               Instagram
             </a>
           )}
-        </div>
+        </span>
         {talent && (
           <button
             type="button"
-            onClick={done(() => select_(talent))}
+            onClick={() => select_(talent)}
             aria-pressed={selected}
-            className={`flex h-12 items-center justify-center border border-fg ${rowCls} ${selected ? '' : 'bg-fg text-bg'}`}
-            style={narrow}
+            className={`intro-write shrink-0 border border-fg px-3.5 py-2 uppercase ${selected ? '' : 'bg-fg text-bg'}`}
+            style={write('+ Selection')}
           >
             {selected ? 'Selected ✓' : '+ Selection'}
           </button>
@@ -572,8 +546,8 @@ export function ModelSheet({
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
-            // A horizontal image fills the whole frame (on phones it fits inside the page).
-            const wide = per === 2 && idx.length === 1 && !!slides[idx[0]]?.landscape
+            // A horizontal image fills the whole frame.
+            const wide = idx.length === 1 && !!slides[idx[0]]?.landscape
             const w = wide ? frameW : pageW
             return (
               <div
@@ -681,8 +655,6 @@ export function ModelSheet({
         </section>
       )}
 
-      {!wide && per === 1 && phoneMenu}
-
       {/* The polaroid enlarged, in the middle of the screen; a click anywhere lays it back. */}
       {zoomed !== null && (
         <button type="button" onClick={unzoom} className="fixed inset-0 z-30 grid cursor-zoom-out place-items-center" aria-label="Back to the polaroids">
@@ -732,7 +704,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        {!underSpread && !wide && (per === 1 ? phoneRow : actionsRow('px-gutter'))}
+        {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
 
         {showBook && S > 1 && (
           <>

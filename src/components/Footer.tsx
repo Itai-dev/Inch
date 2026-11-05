@@ -30,7 +30,8 @@ export async function Footer({ site }: { site: Site }) {
 
   // Each entry types itself in; `sel` is the selection button, cut in whole.
   type Item = { text: string; href?: string; external?: boolean; pre?: boolean } | 'sel'
-  const columns: { title: string; items: Item[] }[] = [
+  // Phones: the studio across the whole width, each detail on one line (the address too).
+  const columns: { title: string; items: Item[]; full?: boolean }[] = [
     {
       title: 'The board',
       items: [{ text: 'All models', href: sitePath(site, '/models') }, ...categories.map((c) => ({ text: c.title, href: sitePath(site, `/models/${c.slug}`) })), 'sel'],
@@ -44,6 +45,7 @@ export async function Footer({ site }: { site: Site }) {
     },
     {
       title: 'Studio',
+      full: true,
       items: [
         { text: address, pre: true },
         { text: phone, href: `tel:${phone.replace(/\s/g, '')}`, external: true },
@@ -92,7 +94,7 @@ export async function Footer({ site }: { site: Site }) {
           </div>
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 md:col-span-7 md:gap-y-10">
             {columns.map((c, ci) => (
-              <div key={c.title} className="flex flex-col gap-3">
+              <div key={c.title} className={`flex flex-col gap-3 ${c.full ? 'col-span-2 sm:col-span-1' : ''}`}>
                 <p className="label text-[#8a8a8a]"><TypeText text={c.title} at={colAt(ci)} /></p>
                 <ul className="flex flex-col gap-3 text-[17px] leading-snug md:gap-2 md:text-[18px]">
                   {c.items.map((it, i) => {
@@ -103,9 +105,16 @@ export async function Footer({ site }: { site: Site }) {
                           <SelectionCount />
                         </li>
                       )
-                    const t = <TypeText text={it.text} at={at} ms={12} />
+                    const t = it.pre ? (
+                      <>
+                        <span className="sm:hidden"><TypeText text={it.text.replace(/\s*\n\s*/g, ', ')} at={at} ms={12} /></span>
+                        <span className="hidden whitespace-pre-line sm:inline"><TypeText text={it.text} at={at} ms={12} /></span>
+                      </>
+                    ) : (
+                      <TypeText text={it.text} at={at} ms={12} />
+                    )
                     return (
-                      <li key={i} className={it.pre ? 'whitespace-pre-line' : undefined}>
+                      <li key={i} className={c.full ? 'max-sm:whitespace-nowrap' : undefined}>
                         {!it.href ? t : it.external ? (
                           <a href={it.href} target={it.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="ink-line inline-block">{t}</a>
                         ) : (

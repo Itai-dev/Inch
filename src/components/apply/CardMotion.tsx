@@ -26,6 +26,11 @@ export type Place = { el: HTMLElement; card: boolean; zoom?: number } | null
 /** The card's width over the page: the real card's (before its zoom) or the strip's, else a phone's comfortable width. */
 const cardWidth = (r: DOMRect | null, zoom = 1) => (r ? r.width / zoom : Math.min(innerWidth * 0.86, 380))
 
+/** The comp card's width on a computer (ApplyFunnel's CARD_W): phones post it at this layout too. */
+const POST_CARD_W = 820
+/** How long the copy takes to fade in over a card laid out otherwise (phones). */
+const RELAY_MS = 260
+
 /** The envelope round a card of w × h: a little wider and taller; its flap reaches just past the middle. */
 const envSize = (w: number, h: number) => {
   const pad = Math.round(w * 0.045)
@@ -611,8 +616,9 @@ export function CardPost({
       const r = f?.el.getBoundingClientRect() ?? null
       const desk = !!f?.card
       const zoom = f?.zoom ?? 1
-      // The same comp card on every screen: beside the form on a computer, unfolding out of its strip on a phone.
-      const w = desk ? cardWidth(r, zoom) : Math.min(innerWidth - 40, 420)
+      // The same comp card on every screen, laid out as on a computer (so the envelope is the same
+      // shape everywhere): beside the form there, unfolding out of its strip on a phone (scaled down).
+      const w = POST_CARD_W
       el.style.width = `${w}px`
       const h = el.offsetHeight
       const { pad, ew, eh, fh } = envSize(w, h)
@@ -639,7 +645,12 @@ export function CardPost({
       const slotY = Math.round(Math.min(vh - 28, ey + eh * sc + rise0 * DRAWER_FRONT + 14))
       const baseY = slotY - vp * (1 - fz(OURS_U))
       // Where it comes from: the card beside the form, or (phones) the strip, the card folded under it.
-      const [sx, sy, ss] = r ? [r.left, r.top, desk ? zoom : r.width / w] : [(innerWidth - w) / 2, vh + 20, 1]
+      const [sx, sy, ss] = r ? [r.left, r.top, r.width / w] : [(innerWidth - w) / 2, vh + 20, 1]
+      // Phones lay the card out narrower: the copy (laid out as on a computer) fades in over it as it lifts.
+      if (r && Math.abs(r.width / zoom - w) > 2) {
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: RELAY_MS, easing: 'ease-out' })
+        handoff = RELAY_MS
+      }
       const folded = !desk && r ? Math.max(0, h - r.height / (r.width / w)) : 0
       // The card as it was beside the form: turned toward the pointer (its own tilt), from there.
       const tilt = (f?.el.firstElementChild as HTMLElement | null)?.style.transform ?? ''
@@ -883,14 +894,17 @@ export function CardPost({
     }
     let live = true
     let stop: (() => void) | undefined
+    let handoff = 0
+    let started = 0
     const imgs = [...el.querySelectorAll('img')]
     Promise.all(imgs.map((i) => i.decode().catch(() => undefined))).then(() => {
       if (!live) return
       stop = run()
-      start.current()
+      started = window.setTimeout(() => start.current(), handoff)
     })
     return () => {
       live = false
+      clearTimeout(started)
       stop?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
