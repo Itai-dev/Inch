@@ -170,10 +170,11 @@ body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nt
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(2) { animation-delay: 0.56s; }
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(3) { animation-delay: 0.64s; }
 body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(4) { animation-delay: 0.72s; }
-/* Phones: MENU types in letter by letter once the giant logo has landed. */
+/* Phones: MENU types in letter by letter as the giant logo comes to rest, the two finishing
+   together (the logo lands about 1.15s in: see LOGO_IN_MS in QuoteVideoHero). */
 @media (max-width: 767px) {
   body:has([data-hero="over"]:not([data-intro-done])) [data-site-header] nav > :nth-child(n) {
-    animation: hero-type 0.48s steps(4) 1.2s both;
+    animation: hero-type 0.48s steps(4) 0.66s both;
   }
 }
 
@@ -495,15 +496,6 @@ input:-webkit-autofill:focus {
 html { -webkit-tap-highlight-color: transparent; }
 
 
-/* Phones, DOT.: the INCH” box in the header waits until the video has scrolled away (it shows on
-   the page itself, not over the video and the giant logo). */
-@media (max-width: 767px) {
-  [data-site-header] .site-switch { transition: transform 0.35s var(--ease-out), opacity 0.35s var(--ease-out); }
-  body:has([data-hero="intro"], [data-hero="open"], [data-hero="over"]) [data-site-header] .site-switch {
-    opacity: 0;
-    pointer-events: none;
-  }
-}
 
 /* The thanks' check, written in one stroke. Reduced motion: simply there. */
 .check-write {

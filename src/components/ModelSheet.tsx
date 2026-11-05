@@ -370,31 +370,30 @@ export function ModelSheet({
   // Books | actions: under the spread, edge to edge with it, when the book shows two pages; else across the foot.
   // The books, and the actions: in a row across the foot (or under the spread), or stacked beside a
   // wide spread, each column level with its bottom and in line with the name (left) and close (right).
+  // Two groups, as on phones: the ways to see the pictures and take them (the books, the overview,
+  // the comp card), then the model herself (the bio, over Instagram) and the selection button.
   const bookTabs = (stacked = false) => (
     <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
-      {tabs.map((t) => (
-        <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
-          {t.title}
-        </button>
-      ))}
-      {handle && (
-        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('IG')}>
-          IG
-        </a>
-      )}
-    </nav>
-  )
-  const bookActions = (stacked = false) => (
-    <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
+      {tabs.filter((t) => t !== bioTab).map(tabBtn)}
       {book && N > 0 && (
-        // The book's overview, as a tab of its own: marked while it is open; the book's tab goes back.
+        // The overview, as a tab of its own: marked while it is open; a book's tab goes back.
         <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
           Overview
         </button>
       )}
       {compCard && (
-        <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
+        <a href={compCard} className={`intro-write ${tabCls()}`} style={write('Comp card')}>
           Comp card
+        </a>
+      )}
+    </nav>
+  )
+  const bookActions = (stacked = false) => (
+    <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap items-center gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
+      {bioTab && tabBtn(bioTab)}
+      {handle && (
+        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
+          Instagram
         </a>
       )}
       {talent && (
@@ -403,7 +402,7 @@ export function ModelSheet({
           type="button"
           onClick={() => select_(talent)}
           aria-pressed={selected}
-          className={`intro-write mt-1 border border-fg px-3.5 py-2 uppercase ${selected ? 'hover:bg-fg hover:text-bg' : 'bg-fg text-bg hover:opacity-85'}`}
+          className={`intro-write border border-fg px-3.5 py-2 uppercase ${stacked ? 'mt-4' : ''} ${selected ? 'hover:bg-fg hover:text-bg' : 'bg-fg text-bg hover:opacity-85'}`}
           style={write('+ Selection')}
         >
           {selected ? 'Selected ✓' : '+ Selection'}

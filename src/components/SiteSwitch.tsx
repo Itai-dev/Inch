@@ -40,7 +40,7 @@ const TAB_PAGES = ['/', '/contact', '/logotest']
  * just above the hero's ruler, and drops to the corner
  * once the ruler fades away. It goes again when the footer arrives. (On DOT. the way back to INCH”
  * is in the header.) White + difference blend like the header, so it inverts against whatever is
- * behind it. Not on phones, where it is in the menu.
+ * behind it. On phones too, in the same places at the same moments.
  */
 export function SiteSwitch({ site }: { site: Site }) {
   const box = useRef<HTMLDivElement>(null)
@@ -83,7 +83,7 @@ export function SiteSwitch({ site }: { site: Site }) {
 
   if (site === 'dot' || !onPage) return null
   return (
-    <div ref={box} className="site-switch-tab hidden text-paper mix-blend-difference md:block">
+    <div ref={box} className="site-switch-tab text-paper mix-blend-difference">
       <SiteSwitchLink href={sitePath('dot')} toInch={false} label="DOT. — Men" className="flex flex-col items-start gap-[0.4em]">
         <span ref={label} className="whitespace-nowrap font-bold uppercase leading-none" style={{ fontStretch: '80%' }}>
           Men division
