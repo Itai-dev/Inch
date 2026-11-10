@@ -7,11 +7,9 @@ import { RouteMemory } from '@/components/RouteMemory'
 import { SelectionProvider } from '@/components/selection/SelectionProvider'
 import { SelectionTray } from '@/components/selection/SelectionTray'
 import { SiteSwitch } from '@/components/SiteSwitch'
-import { DEMO_CONTACT } from '@/lib/copy'
-import { isSite, singletonId, SITE_KEYS, SITES } from '@/lib/sites'
-import { sanityFetch } from '@/sanity/lib/client'
-import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
-import type { SiteSettings } from '@/sanity/lib/types'
+import { isSite, SITE_KEYS, SITES } from '@/lib/sites'
+import { urlFor } from '@/sanity/lib/image'
+import { getSettings } from '@/sanity/lib/settings'
 import { siteUrl } from '@/sanity/env'
 import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/mrs-saint-delafield/400.css'
@@ -24,11 +22,13 @@ export async function generateMetadata({ params }: LayoutProps<'/[site]'>): Prom
   const { site } = await params
   if (!isSite(site)) return {}
   const s = SITES[site]
+  // The Studio's own (Contact & settings › Google & sharing), else the site's.
+  const { title, description, ogImage } = await getSettings(site)
   return {
     metadataBase: new URL(siteUrl),
-    title: { default: `${s.brand} — Model Management`, template: `%s — ${s.brand}` },
-    description: s.description,
-    openGraph: { type: 'website', siteName: s.brand },
+    title: { default: title || `${s.brand} — Model Management`, template: `%s — ${s.brand}` },
+    description: description || s.description,
+    openGraph: { type: 'website', siteName: s.brand, images: ogImage ? [{ url: urlFor(ogImage).width(1200).height(630).fit('crop').url(), width: 1200, height: 630 }] : undefined },
   }
 }
 
@@ -41,7 +41,7 @@ export async function generateViewport({ params }: LayoutProps<'/[site]'>): Prom
 export default async function SiteLayout({ children, params }: LayoutProps<'/[site]'>) {
   const { site } = await params
   if (!isSite(site)) notFound()
-  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
+  const { contact } = await getSettings(site)
 
   return (
     <html lang="en" data-theme={site === 'dot' ? 'dot' : undefined}>
@@ -51,7 +51,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<'/[si
           <main className="min-h-dvh">{children}</main>
           <Footer site={site} />
           <SiteSwitch site={site} />
-          <SelectionTray site={site} email={settings?.email || DEMO_CONTACT.email} />
+          <SelectionTray site={site} email={contact.email} />
           <RouteMemory />
         </SelectionProvider>
         <Cursor />

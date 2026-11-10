@@ -1,6 +1,6 @@
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { StoryMagazine, type Chapter } from './HomeSections'
+import { HomeMagazine, type MagazineContent } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
@@ -14,10 +14,7 @@ type Home = {
   heroVideo?: string
   heroPoster?: SanityImage
   statement?: string
-  intro?: string
-  introImages?: SanityImage[]
-  story?: Chapter[] | null
-  featured?: TalentCard[]
+  magazine?: MagazineContent
 } | null
 
 /**
@@ -30,8 +27,6 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
     sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', site) }, null, ['homePage']),
     sanityFetch<TalentCard[]>(TALENTS_BY_DIVISION_QUERY, { division }, [], ['talent']),
   ])
-  const featured = home?.featured?.filter((t) => t?.division === division) ?? []
-  const models = featured.length ? featured : talents
   const isDot = site === 'dot'
 
   const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
@@ -55,16 +50,7 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
     <>
       <QuoteVideoHero videos={videos} opening={hero} division={division} />
       <TextOpen text={home?.statement || (isDot ? DEFAULT_DOT_STATEMENT : DEFAULT_STATEMENT)} />
-      <Story site={site} home={home} talents={withPlaceholders(models, division)} />
-    </>
-  )
-}
-
-/** Below the opening, on both sites: the magazine. */
-function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
-  return (
-    <>
-      <StoryMagazine site={site} chapters={home?.story} talents={talents} />
+      <HomeMagazine site={site} magazine={home?.magazine} talents={withPlaceholders(talents, division)} />
     </>
   )
 }

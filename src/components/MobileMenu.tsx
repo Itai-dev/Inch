@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { instagramHandle } from '@/lib/copy'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { DotBox, Logo } from './brand/Logo'
 import { NavLabel } from './NavLabel'
@@ -19,7 +20,7 @@ import { SiteSwitchLink } from './SiteSwitchLink'
 
 const narrow = { fontStretch: '80%' } as const
 
-export function MobileMenu({ site, email, instagram }: { site: Site; email: string; instagram: string }) {
+export function MobileMenu({ site, email, instagram }: { site: Site; email: string; instagram?: string }) {
   const [open, setOpen] = useState(false)
   const [forLabel, forBox] = useFitWidth<HTMLSpanElement, HTMLSpanElement>(open)
   const { items, setOpen: openSelection } = useSelection()
@@ -142,9 +143,11 @@ export function MobileMenu({ site, email, instagram }: { site: Site; email: stri
               )}
               <div className="flex flex-col gap-1 text-[16px]">
                 <a href={`mailto:${email}`} className="font-bold">{email}</a>
-                <a href={instagram} target="_blank" rel="noreferrer" className="text-paper/60">
-                  {instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')}
-                </a>
+                {instagram && (
+                  <a href={instagram} target="_blank" rel="noreferrer" className="text-paper/60">
+                    {instagramHandle(instagram)}
+                  </a>
+                )}
               </div>
             </div>
           </div>,

@@ -1,8 +1,5 @@
-import { DEMO_CONTACT } from '@/lib/copy'
-import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
-import { sanityFetch } from '@/sanity/lib/client'
-import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
-import type { SiteSettings } from '@/sanity/lib/types'
+import { sitePath, SITES, type Site } from '@/lib/sites'
+import { getSettings } from '@/sanity/lib/settings'
 import { Logo } from './brand/Logo'
 import { HomeLink } from './HomeLink'
 import { MobileMenu } from './MobileMenu'
@@ -19,7 +16,7 @@ import { NavLink } from './NavLink'
  */
 export async function Header({ site }: { site: Site }) {
   const s = SITES[site]
-  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
+  const { contact } = await getSettings(site)
   return (
     <header
       data-site-header
@@ -36,7 +33,7 @@ export async function Header({ site }: { site: Site }) {
         <NavLink href={sitePath(site, '/apply')} className="hidden md:inline">Apply</NavLink>
         <NavLink href={sitePath(site, '/contact')} className="hidden md:inline">Contact</NavLink>
         <SelectionCount className="hidden md:inline" />
-        <MobileMenu site={site} email={settings?.email || DEMO_CONTACT.email} instagram={settings?.instagram || DEMO_CONTACT.instagram} />
+        <MobileMenu site={site} email={contact.email} instagram={contact.instagram} />
       </nav>
     </header>
   )

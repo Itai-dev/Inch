@@ -1,11 +1,11 @@
 import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
-import { DEMO_CONTACT } from '@/lib/copy'
+import { instagramHandle } from '@/lib/copy'
 import { POLAROID_PLACEHOLDERS } from '@/lib/placeholders'
 import { SITES, talentPath, type Site } from '@/lib/sites'
 import { cmToFeet, cmToInches } from '@/lib/units'
 import { urlFor } from '@/sanity/lib/image'
-import type { SanityImage, SiteSettings, Talent } from '@/sanity/lib/types'
+import type { Contact, SanityImage, Talent } from '@/sanity/lib/types'
 
 /**
  * Comp cards as a PDF: A4 landscape, a page a model. Cover on the left, four book images on the
@@ -31,13 +31,13 @@ export type CardsMode = 'cards' | 'with-polaroids' | 'polaroids'
 export const polaroidsOf = (t: Talent) => (t.polaroids ?? []).filter((i) => i.asset)
 
 /** One PDF with a comp card (and/or polaroids) for each model, in order. `origin` makes the links absolute. */
-export async function compCardsPdf(talents: Talent[], site: Site, settings: SiteSettings | null, origin: string, mode: CardsMode = 'cards') {
+export async function compCardsPdf(talents: Talent[], site: Site, contact: Contact, origin: string, mode: CardsMode = 'cards') {
   const pdf = await PDFDocument.create()
   const what = mode === 'polaroids' ? 'polaroids' : talents.length === 1 ? 'comp card' : 'comp cards'
   pdf.setTitle(talents.length === 1 ? `${talents[0].name} — ${what}` : `${SITES[site].brand} — ${what}`)
   const fonts = { bold: await pdf.embedFont(StandardFonts.HelveticaBold), regular: await pdf.embedFont(StandardFonts.Helvetica) }
   for (const t of talents) {
-    if (mode !== 'polaroids') await drawCard(pdf, fonts, t, site, settings, origin)
+    if (mode !== 'polaroids') await drawCard(pdf, fonts, t, site, contact, origin)
     if (mode !== 'cards') await drawPolaroids(pdf, fonts, t, site, origin)
   }
   return pdf.save()
@@ -116,7 +116,7 @@ function drawMark(page: PDFPage, site: Site) {
   }
 }
 
-async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, settings: SiteSettings | null, origin: string) {
+async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, contact: Contact, origin: string) {
   const page = pdf.addPage([W, H])
 
   // Images: cover left (3:4), 2×2 grid right.
@@ -183,9 +183,8 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
   // The way back to her page, then the agency's contact.
   const viewW = right(`VIEW ONLINE  ${url.replace(/^https?:\/\//, '')}`, FOOT - 58, 8, bold)
   link(pdf, page, [W - M - viewW, FOOT - 61, W - M, FOOT - 50], url)
-  // As on the site: the Studio's details, else the demo ones until they're set.
-  const contact = [settings?.email || DEMO_CONTACT.email, settings?.phone || DEMO_CONTACT.phone, (settings?.instagram || DEMO_CONTACT.instagram).replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')]
-  right(contact.filter(Boolean).join('   '), FOOT - 72, 8, regular, MUTED)
+  // As on the site: the Studio's details (Contact & settings).
+  right([contact.email, contact.phone, contact.instagram && instagramHandle(contact.instagram)].filter(Boolean).join('   '), FOOT - 72, 8, regular, MUTED)
 }
 
 /** A clickable area on the page, opening `url`. */

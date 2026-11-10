@@ -1,8 +1,9 @@
 import { compCardsPdf, type CardsMode } from '@/lib/comp-card'
-import { singletonId, siteForDivision, type Site } from '@/lib/sites'
+import { siteForDivision, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
-import { SITE_SETTINGS_QUERY, TALENTS_FULL_BY_IDS_QUERY } from '@/sanity/lib/queries'
-import type { SiteSettings, Talent } from '@/sanity/lib/types'
+import { TALENTS_FULL_BY_IDS_QUERY } from '@/sanity/lib/queries'
+import { getSettings } from '@/sanity/lib/settings'
+import type { Talent } from '@/sanity/lib/types'
 
 /**
  * The selection as one PDF: a comp card a model, in the order chosen (`?ids=a,b,c`). Each card
@@ -21,9 +22,9 @@ export async function GET(req: Request, { params }: RouteContext<'/[site]/comp-c
     .map((id) => found.find((t) => t._id === id))
     .filter((t): t is Talent => !!t && siteForDivision(t.division) === site)
   if (!talents.length) return new Response(mode === 'polaroids' ? 'No polaroids for this selection yet.' : 'No comp cards for this selection yet.', { status: 404 })
-  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
+  const { contact } = await getSettings(site)
 
-  const bytes = await compCardsPdf(talents, site, settings, url.origin, mode)
+  const bytes = await compCardsPdf(talents, site, contact, url.origin, mode)
   const name = `${talents.length === 1 ? talents[0].slug : `${site}-selection`}-${mode === 'polaroids' ? 'polaroids' : mode === 'with-polaroids' ? 'comp-cards-polaroids' : 'comp-cards'}`
   return new Response(new Uint8Array(bytes), {
     headers: {

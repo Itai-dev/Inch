@@ -1,10 +1,11 @@
 import Link from 'next/link'
-import { DEMO_CONTACT, HOURS, instagramHandle } from '@/lib/copy'
+import { instagramHandle, telHref } from '@/lib/copy'
 import { enquiryMailto } from '@/lib/enquiry'
-import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
+import { sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
-import { CATEGORIES_BY_DIVISION_QUERY, SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
-import type { Category, SiteSettings } from '@/sanity/lib/types'
+import { CATEGORIES_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
+import { getSettings } from '@/sanity/lib/settings'
+import type { Category } from '@/sanity/lib/types'
 import { Logo } from './brand/Logo'
 import { FooterMark } from './FooterMark'
 import { TypeOnView } from './motion/TypeOnView'
@@ -20,18 +21,15 @@ export async function Footer({ site }: { site: Site }) {
   const s = SITES[site]
   const other: Site = site === 'dot' ? 'inch' : 'dot'
   const [settings, categories] = await Promise.all([
-    sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings']),
+    getSettings(site),
     sanityFetch<Category[]>(CATEGORIES_BY_DIVISION_QUERY, { division: s.division }, [], ['category']),
   ])
-  const email = settings?.email || DEMO_CONTACT.email
-  const phone = settings?.phone || DEMO_CONTACT.phone
-  const address = settings?.address || DEMO_CONTACT.address
-  const instagram = settings?.instagram || DEMO_CONTACT.instagram
+  const { email, phone, address, instagram, hours } = settings.contact
 
   // Each entry types itself in; `sel` is the selection button, cut in whole.
   type Item = { text: string; href?: string; external?: boolean; pre?: boolean } | 'sel'
   // Phones: the studio across the whole width, each detail on one line (the address too).
-  const columns: { title: string; items: Item[]; full?: boolean }[] = [
+  const allColumns: { title: string; items: Item[]; full?: boolean }[] = [
     {
       title: 'The board',
       items: [{ text: 'All models', href: sitePath(site, '/models') }, ...categories.map((c) => ({ text: c.title, href: sitePath(site, `/models/${c.slug}`) })), 'sel'],
@@ -48,10 +46,11 @@ export async function Footer({ site }: { site: Site }) {
       title: 'Studio',
       full: true,
       items: [
-        { text: address, pre: true },
-        { text: phone, href: `tel:${phone.replace(/\s/g, '')}`, external: true },
-        { text: HOURS },
-        { text: `Instagram ${instagramHandle(instagram)}`, href: instagram, external: true },
+        // (From the Studio's Contact & settings: a detail left empty there is left out.)
+        ...(address ? [{ text: address, pre: true }] : []),
+        ...(phone ? [{ text: phone, href: telHref(phone), external: true }] : []),
+        ...(hours ? [{ text: hours }] : []),
+        ...(instagram ? [{ text: `Instagram ${instagramHandle(instagram)}`, href: instagram, external: true }] : []),
       ],
     },
     {
@@ -62,6 +61,7 @@ export async function Footer({ site }: { site: Site }) {
       ],
     },
   ]
+  const columns = allColumns.filter((c) => c.items.length)
   // When each piece starts typing (ms after the footer comes into view).
   const emailAt = 160
   const enquiry = enquiryMailto(email, { brand: s.brand })

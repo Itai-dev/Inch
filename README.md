@@ -67,6 +67,12 @@ The Studio has two workspaces (switcher top-left): **INCH”** at `/studio/inch`
 
 talent · category · application · selection (filtered by `division`) · homePage + siteSettings (one each per site: `homePage-inch`, `homePage-dot`, `siteSettings-inch`, `siteSettings-dot`).
 
+What the client edits, per site:
+
+- **Home page** — hero videos & images, the statement, the magazine (title, first-page text, cover, pages: a model or any picture with a caption).
+- **Contact & settings** (`siteSettings`) — email, phone, address, Instagram, opening hours; the contact page's pile of pictures; the "application received" text; site title, description and share image. The contact details are read in one place (`src/sanity/lib/settings.ts` → `getSettings`) and show in the footer, contact page, phone menu, booking emails, apply page and comp cards. DOT. uses INCH”'s for any detail left empty; demo details show only while nothing at all is entered.
+- **Models** / **Categories** — everything on a model's page (name, cover, books, polaroids, measurements, bio, Instagram).
+
 ## Open items
 
 - [ ] Apply criteria (age/height ranges per division) — agree with INCH”
