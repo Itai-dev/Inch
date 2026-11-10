@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 import { PrintPile, type Print } from '@/components/contact/PrintPile'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
-import { DEMO_CONTACT as DEMO, HOURS, instagramHandle } from '@/lib/copy'
+import { instagramHandle, telHref } from '@/lib/copy'
 import { enquiryMailto } from '@/lib/enquiry'
 import { isPlaceholder } from '@/lib/placeholders'
-import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
+import { sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
-import { SITE_SETTINGS_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
-import type { SanityImage, SiteSettings, TalentCard } from '@/sanity/lib/types'
+import { TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
+import { getSettings } from '@/sanity/lib/settings'
+import type { SanityImage, TalentCard } from '@/sanity/lib/types'
 
 export async function generateMetadata({ params }: PageProps<'/[site]/contact'>): Promise<Metadata> {
   const site = (await params).site as Site
@@ -54,19 +55,19 @@ function Details({ rows, at, align = 'left' }: { rows: Row[]; at: number; align?
 export default async function ContactPage({ params }: PageProps<'/[site]/contact'>) {
   const site = (await params).site as Site
   const { division, brand } = SITES[site]
-  const [s, talents] = await Promise.all([
-    sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings']),
+  const [settings, talents] = await Promise.all([
+    getSettings(site),
     sanityFetch<TalentCard[]>(TALENTS_BY_DIVISION_QUERY, { division }, [], ['talent']),
   ])
-  const email = s?.email || DEMO.email
-  const phone = s?.phone || DEMO.phone
-  const address = s?.address || DEMO.address
-  const instagram = s?.instagram || DEMO.instagram
+  // The details: the Studio's (Contact & settings), the same ones as everywhere else on the site.
+  const { email, phone, address, instagram, hours } = settings.contact
 
-  // The prints: the real models' pictures (cover and book, a model at a time), else the placeholder looks.
+  // The prints: the Studio's own (Contact & settings › Contact page), else the real models' pictures
+  // (cover and book, a model at a time), else the placeholder looks.
   const real = talents.filter((t) => !isPlaceholder(t))
   const own = real.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
-  const interleaved = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l, m) => (l[i] ? [{ img: l[i], name: real[m].name }] : []))).flat()
+  const fromBoard = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l, m) => (l[i] ? [{ img: l[i], name: real[m].name }] : []))).flat()
+  const interleaved = settings.contactImages.length ? settings.contactImages.map((img) => ({ img, name: '' })) : fromBoard
   // Eight prints: the real pictures, round again if there are fewer (a different crop each time round).
   const PRINTS = 8
   const prints: Print[] = interleaved.length
@@ -82,12 +83,12 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
     // Bookings: an email with the brief laid out, so the client only fills it in.
     { label: 'Bookings', text: email, href: enquiryMailto(email, { brand }) },
     { label: 'New faces', text: 'Apply online →', href: sitePath(site, '/apply') },
-    { label: 'Phone', text: phone, href: `tel:${phone.replace(/\s/g, '')}` },
+    ...(phone ? [{ label: 'Phone', text: phone, href: telHref(phone) }] : []),
   ]
   const right: Row[] = [
-    { label: 'Studio', text: address },
-    { label: 'Instagram', text: instagramHandle(instagram), href: instagram, external: true },
-    { label: 'Hours', text: HOURS },
+    ...(address ? [{ label: 'Studio', text: address }] : []),
+    ...(instagram ? [{ label: 'Instagram', text: instagramHandle(instagram), href: instagram, external: true }] : []),
+    ...(hours ? [{ label: 'Hours', text: hours }] : []),
   ]
 
   const BRIEF = 'Send us the brief: dates, location and usage. We come back with a shortlist from the board.'

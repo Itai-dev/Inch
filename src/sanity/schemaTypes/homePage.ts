@@ -1,6 +1,5 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { divisionOfSingleton } from './division'
-import { creditedImage } from './objects/creditedImage'
 
 /** One per site: documents `homePage-inch` and `homePage-dot`. Sections in page order. */
 export const homePage = defineType({
@@ -47,47 +46,51 @@ export const homePage = defineType({
     }),
     defineField({
       name: 'statement',
-      title: 'Statement (home scroll reveal)',
-      description: 'On DOT. the final ■ becomes the full stop.',
+      title: 'Statement',
+      description: 'The large paragraph that writes itself under the videos. Line breaks typed here are kept (from tablets up). On DOT. the final ■ becomes the full stop.',
       type: 'text',
-      rows: 3,
-    }),
-    defineField({ name: 'intro', title: 'Paragraph', description: 'Below the statement.', type: 'text', rows: 5 }),
-    defineField({
-      name: 'introImages',
-      title: 'Paragraph images',
-      type: 'array',
-      options: { layout: 'grid' },
-      of: [creditedImage()],
+      rows: 4,
     }),
     defineField({
-      name: 'story',
-      title: 'Story',
-      description: 'The story of the agency, in short chapters, each with a heading, a paragraph and up to three images (shown as black and white prints). Empty = the placeholder story.',
-      type: 'array',
-      of: [
-        defineArrayMember({
-          type: 'object',
-          name: 'chapter',
-          fields: [
-            defineField({ name: 'heading', type: 'string', validation: (r) => r.required().max(40) }),
-            defineField({ name: 'text', type: 'text', rows: 4, validation: (r) => r.required() }),
-            defineField({ name: 'images', type: 'array', of: [creditedImage()], validation: (r) => r.max(3) }),
-          ],
-          preview: { select: { title: 'heading', subtitle: 'text', media: 'images.0' } },
+      name: 'magazine',
+      title: 'Magazine',
+      description: 'The magazine under the statement: a cover, a first page of text, then a picture on every right page with a name on the page facing it. Pictures are printed in black and white.',
+      type: 'object',
+      options: { collapsible: true, collapsed: false },
+      fields: [
+        defineField({
+          name: 'heading',
+          title: 'Title',
+          description: 'On the cover (bottom right) and large on the first page.',
+          type: 'string',
+          placeholder: 'The measure',
+          validation: (r) => r.max(40),
         }),
-      ],
-    }),
-    defineField({
-      name: 'featured',
-      title: 'Featured models',
-      description: 'Models section. Empty = all models.',
-      type: 'array',
-      of: [
-        defineArrayMember({
-          type: 'reference',
-          to: [{ type: 'talent' }],
-          options: { filter: ({ document }) => ({ filter: 'division == $division', params: { division: divisionOfSingleton(document._id) } }) },
+        defineField({ name: 'text', title: 'Text', description: 'The paragraph on the first page. Keep it short: about 40 words fit.', type: 'text', rows: 4 }),
+        defineField({ name: 'cover', title: 'Cover picture', description: 'Portrait. Empty = the first page’s picture.', type: 'image', options: { hotspot: true } }),
+        defineField({
+          name: 'pages',
+          title: 'Pages',
+          description: 'One per spread, in order: choose a model (her cover picture and name) or add any picture with its own caption. At least two; empty = the first five models on the board.',
+          type: 'array',
+          of: [
+            defineArrayMember({
+              type: 'reference',
+              title: 'Model',
+              to: [{ type: 'talent' }],
+              options: { filter: ({ document }) => ({ filter: 'division == $division', params: { division: divisionOfSingleton(document._id) } }) },
+            }),
+            defineArrayMember({
+              type: 'object',
+              name: 'picture',
+              title: 'Picture',
+              fields: [
+                defineField({ name: 'image', title: 'Picture', type: 'image', options: { hotspot: true }, validation: (r) => r.required() }),
+                defineField({ name: 'name', title: 'Caption', description: 'On the facing page: a name or a few words.', type: 'string', validation: (r) => r.max(40) }),
+              ],
+              preview: { select: { title: 'name', media: 'image' }, prepare: ({ title, media }) => ({ title: title || 'Picture', media }) },
+            }),
+          ],
         }),
       ],
     }),

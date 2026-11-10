@@ -53,6 +53,6 @@ export const structureFor =
         list('selection', 'Shared selections'),
         S.divider(),
         singleton('homePage', 'Home page'),
-        singleton('siteSettings', 'Site settings'),
+        singleton('siteSettings', 'Contact & settings'),
       ])
   }

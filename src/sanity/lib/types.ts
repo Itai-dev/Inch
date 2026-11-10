@@ -44,6 +44,7 @@ export type Talent = TalentCard & {
 
 export type Category = { _id: string; title: string; slug: string; division: Division }
 
-export type SiteSettings = { email?: string; phone?: string; address?: string; instagram?: string }
+/** The agency's contact details as shown everywhere (see `getSettings`). Only the email is always there. */
+export type Contact = { email: string; phone?: string; address?: string; instagram?: string; hours?: string }
 /** The page an applicant sees once the application is sent (each line falls back to the site's own). */
 export type ApplyThanks = { label?: string; title?: string; text?: string }

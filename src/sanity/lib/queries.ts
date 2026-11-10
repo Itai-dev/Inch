@@ -4,13 +4,21 @@ const cardFields = `_id, name, "slug": slug.current, division, cover`
 
 export const HOME_QUERY = defineQuery(`*[_id == $id][0]{
   "heroVideos": heroVideos[]{ _type, "src": video.asset->url, poster, asset, hotspot, crop },
-  "heroVideo": heroVideo.asset->url, heroPoster, statement, intro, introImages, story[]{ _key, heading, text, images },
-  "featured": featured[]->{ ${cardFields}, "pics": portfolio[0...6] }
+  "heroVideo": heroVideo.asset->url, heroPoster, statement,
+  "magazine": magazine{
+    heading, text, cover,
+    // A page is a model (her cover and name) or a picture with its own caption.
+    "pages": pages[]{ _key, ...select(_type == "reference" => @->{ name, "image": cover }, { name, image }) }
+  }
 }`)
 
-export const SITE_SETTINGS_QUERY = defineQuery(`*[_id == $id][0]{ email, phone, address, instagram }`)
+const contactFields = `email, phone, address, instagram, hours`
 
-export const APPLY_SETTINGS_QUERY = defineQuery(`*[_id == $id][0]{ email, thanks }`)
+/** A site's settings, with INCH”'s contact details beside them (DOT. uses those where its own are empty). */
+export const SITE_SETTINGS_QUERY = defineQuery(`{
+  "own": *[_id == $id][0]{ ${contactFields}, title, description, ogImage, contactImages, thanks },
+  "main": *[_id == $main][0]{ ${contactFields} }
+}`)
 
 export const CATEGORIES_BY_DIVISION_QUERY = defineQuery(
   `*[_type == "category" && division == $division] | order(order asc){ _id, title, "slug": slug.current, division }`,
