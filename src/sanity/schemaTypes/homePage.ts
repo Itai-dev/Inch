@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { divisionOfSingleton } from './division'
 import { creditedImage } from './objects/creditedImage'
+import { MagazinePagesInput } from '../drive/DriveArrayInput'
 
 /** One per site: documents `homePage-inch` and `homePage-dot`. Sections in page order: the hero, the statement, the magazine. */
 export const homePage = defineType({
@@ -68,6 +69,8 @@ export const homePage = defineType({
           description:
             'The pages after the first one, in order: right, left, right, left… Page = a photo, or a name on a white page. Spread = one photo across both pages of an opening (it always starts on a left page; a blank page is added before it when needed). Drag to reorder.',
           type: 'array',
+          // "Upload photos": several pages at once, each a photo.
+          components: { input: MagazinePagesInput },
           of: [
             defineArrayMember({
               type: 'object',

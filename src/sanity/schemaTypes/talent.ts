@@ -1,6 +1,7 @@
 import { orderRankField, orderRankOrdering } from '@sanity/orderable-document-list'
 import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { NumberedPreview } from '../components/NumberedPreview'
+import { DriveArrayInput } from '../drive/DriveArrayInput'
 import { divisionField } from './division'
 import { creditedImage } from './objects/creditedImage'
 
@@ -11,6 +12,8 @@ const gallery = (name: string, title: string) =>
     type: 'array',
     group: 'media',
     options: { layout: 'grid' },
+    // "Add from Google Drive" under the grid (once the agency's Google keys are set).
+    components: { input: DriveArrayInput },
     of: [
       // Credits show below each image.
       creditedImage(),

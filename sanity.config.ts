@@ -8,6 +8,8 @@ import { apiVersion, dataset, projectId } from './src/sanity/env'
 import { schemaTypes } from './src/sanity/schemaTypes'
 import { structureFor } from './src/sanity/structure'
 import { DotIcon, InchIcon } from './src/sanity/components/WorkspaceIcon'
+import { driveAssetSource } from './src/sanity/drive/DriveAssetSource'
+import { driveEnabled } from './src/sanity/drive/google'
 
 const DIVIDED_TYPES = ['talent', 'category', 'application', 'selection']
 const TEMPLATE_TITLES: Record<string, string> = { talent: 'Model', category: 'Category', application: 'Application', selection: 'Shared selection' }
@@ -35,6 +37,8 @@ const workspace = (site: Site): WorkspaceOptions => {
       // Applications and selections come from the website; editors create models and categories.
       newDocumentOptions: (prev) => prev.filter((t) => t.templateId === `talent-${site}` || t.templateId === `category-${site}`),
     },
+    // Every image field's Select menu: Google Drive too (once the agency's Google keys are set).
+    form: { image: { assetSources: (prev) => (driveEnabled ? [...prev, driveAssetSource] : prev) } },
     plugins: [structureTool({ structure: structureFor(site) }), visionTool({ defaultApiVersion: apiVersion })],
   }
 }
