@@ -5,6 +5,7 @@ import { Button, Card, Flex, Stack, Text } from '@sanity/ui'
 import { PatchEvent, set, setIfMissing, useClient, type InputProps, type SchemaType } from 'sanity'
 import { apiVersion } from '../env'
 import { downloadFromDrive, driveEnabled, pickFromDrive } from './google'
+import { useDriveFolder } from './folder'
 import { DriveIcon } from './DriveIcon'
 
 const isImage = (t?: SchemaType): boolean => !!t && (t.name === 'image' || isImage(t.type))
@@ -12,6 +13,7 @@ const isImage = (t?: SchemaType): boolean => !!t && (t.name === 'image' || isIma
 /** An image field with "From Google Drive" under it: one photo picked in the Drive, uploaded and set as the field's image. */
 function ImageWithDrive(props: InputProps) {
   const client = useClient({ apiVersion })
+  const folder = useDriveFolder()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,8 +21,9 @@ function ImageWithDrive(props: InputProps) {
     setError(null)
     try {
       setBusy('Choose a photo in the Google Drive window…')
-      const { files, token } = await pickFromDrive({ multiple: false })
+      const { files, token } = await pickFromDrive({ multiple: false, folderId: folder.start() })
       if (!files.length) return
+      folder.remember(files[0].parentId)
       setBusy(`Uploading ${files[0].name}`)
       const file = await downloadFromDrive(files[0], token)
       const asset = await client.assets.upload('image', file, { filename: file.name, source: { name: 'google-drive', id: files[0].id } })
