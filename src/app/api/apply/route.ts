@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { ADULT_AGE, ageFrom, MIN_APPLY_AGE, meetsCriteria } from '@/lib/apply-criteria'
+import { ADULT_AGE, ageFrom, MIN_APPLY_AGE, meetsCriteria, tooShort, tooShortMessage } from '@/lib/apply-criteria'
 import { applicationEmail } from '@/lib/application-email'
 import { getWriteClient } from '@/sanity/lib/client'
 
@@ -67,6 +67,7 @@ export async function POST(req: Request) {
 
   const age = ageFrom(d.birthdate)
   if (!(age >= 0 && age <= 80)) return NextResponse.json({ error: Number.isFinite(age) ? `date of birth: that would make you ${age}` : 'date of birth' }, { status: 400 })
+  if (tooShort(d.division, d.height)) return NextResponse.json({ error: 'height', message: tooShortMessage(d.division) }, { status: 400 })
   if (age < MIN_APPLY_AGE) return NextResponse.json({ error: `applicants must be at least ${MIN_APPLY_AGE}` }, { status: 400 })
   // Under ADULT_AGE, a parent or guardian consents.
   const minor = age < ADULT_AGE
