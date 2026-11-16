@@ -37,7 +37,16 @@ export const siteForDivision = (d: Division): Site => (d === 'men' ? 'dot' : 'in
 /** Public URL path for a page on a site, e.g. sitePath('dot', '/apply') → '/dot/apply'. */
 export const sitePath = (site: Site, path = '/') => SITES[site].base + (path === '/' && SITES[site].base ? '' : path)
 
-export const talentPath = (t: { division: Division; slug: string }) => sitePath(siteForDivision(t.division), `/talent/${t.slug}`)
+export const talentPath = (t: { division: Division; slug: string }) => sitePath(siteForDivision(t.division), `/talent/${encodeURIComponent(t.slug)}`)
+
+/** A `[slug]` route param as stored in Sanity: Next hands params over still URL-encoded ("SUN%20MIZRAHI"). */
+export const decodeSlug = (param: string) => {
+  try {
+    return decodeURIComponent(param)
+  } catch {
+    return param
+  }
+}
 
 /** Sanity singleton IDs are per site: `homePage-inch`, `siteSettings-dot`, … */
 export const singletonId = (type: 'homePage' | 'contactPage' | 'siteSettings', site: Site) => `${type}-${site}`
