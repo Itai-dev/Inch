@@ -14,7 +14,7 @@ export const tooShort = (division: Division, height: number) => height < APPLY_C
 
 /** What a too-short applicant is told. */
 export const tooShortMessage = (division: Division) =>
-  `Unfortunately, your application isn’t relevant: we’re looking for ${division === 'men' ? 'male' : 'female'} models ${APPLY_CRITERIA[division].minHeight} cm and taller.`
+  `Unfortunately, your application isn’t relevant: we’re looking for models ${APPLY_CRITERIA[division].minHeight} cm and taller.`
 
 /** Applicants younger than this need a parent or guardian's consent. */
 export const ADULT_AGE = 18
