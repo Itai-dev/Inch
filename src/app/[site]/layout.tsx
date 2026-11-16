@@ -29,6 +29,8 @@ export async function generateMetadata({ params }: LayoutProps<'/[site]'>): Prom
     title: { default: `${s.brand} — Model Management`, template: `%s — ${s.brand}` },
     description: s.description,
     openGraph: { type: 'website', siteName: s.brand },
+    // The tab and home-screen icon: INCH”'s ” or DOT.'s box.
+    icons: { icon: [{ url: `/icons/${site}.svg`, type: 'image/svg+xml' }, { url: `/icons/${site}-32.png`, sizes: '32x32' }], apple: `/icons/${site}-180.png` },
   }
 }
 
