@@ -62,13 +62,17 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   const phone = s?.phone || DEMO.phone
   const address = s?.address || DEMO.address
   const instagram = s?.instagram || DEMO.instagram
+  const hours = s?.hours || HOURS
 
   // The prints: the real models' pictures (cover and book, a model at a time), else the placeholder looks.
   const real = talents.filter((t) => !isPlaceholder(t))
   const own = real.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
-  const interleaved = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l, m) => (l[i] ? [{ img: l[i], name: real[m].name }] : []))).flat()
+  // The Contact page's own photos (Studio › Contact page › Photos), in their order; else the board's.
+  const chosen = (s?.prints ?? []).filter((i) => i?.asset).map((img) => ({ img, name: img.alt || brand }))
+  const fromBoard = Array.from({ length: Math.max(0, ...own.map((l) => l.length)) }, (_, i) => own.flatMap((l, m) => (l[i] ? [{ img: l[i], name: real[m].name }] : []))).flat()
   // Eight prints: the real pictures, round again if there are fewer (a different crop each time round).
   const PRINTS = 8
+  const interleaved = chosen.length ? chosen : fromBoard
   const prints: Print[] = interleaved.length
     ? Array.from({ length: Math.max(interleaved.length, PRINTS) }, (_, i) => {
         const { img, name } = interleaved[i % interleaved.length]
@@ -87,7 +91,7 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   const right: Row[] = [
     { label: 'Studio', text: address },
     { label: 'Instagram', text: instagramHandle(instagram), href: instagram, external: true },
-    { label: 'Hours', text: HOURS },
+    { label: 'Hours', text: hours },
   ]
 
   const BRIEF = 'Send us the brief: dates, location and usage. We come back with a shortlist from the board.'

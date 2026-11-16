@@ -20,7 +20,7 @@ export const structureFor =
             .params({ type, division })
             .initialValueTemplates([S.initialValueTemplateItem(`${type}-${site}`)]),
         )
-    const singleton = (type: 'homePage' | 'siteSettings', title: string) =>
+    const singleton = (type: 'homePage' | 'contactPage' | 'siteSettings', title: string) =>
       S.listItem().title(title).id(type).child(S.document().schemaType(type).documentId(singletonId(type, site)).title(title))
 
     // The models in their order on the board, numbered, dragged into place; new ones are made in
@@ -53,6 +53,7 @@ export const structureFor =
         list('selection', 'Shared selections'),
         S.divider(),
         singleton('homePage', 'Home page'),
+        singleton('contactPage', 'Contact page'),
         singleton('siteSettings', 'Site settings'),
       ])
   }

@@ -27,6 +27,7 @@ export async function Footer({ site }: { site: Site }) {
   const phone = settings?.phone || DEMO_CONTACT.phone
   const address = settings?.address || DEMO_CONTACT.address
   const instagram = settings?.instagram || DEMO_CONTACT.instagram
+  const hours = settings?.hours || HOURS
 
   // Each entry types itself in; `sel` is the selection button, cut in whole.
   type Item = { text: string; href?: string; external?: boolean; pre?: boolean } | 'sel'
@@ -50,7 +51,7 @@ export async function Footer({ site }: { site: Site }) {
       items: [
         { text: address, pre: true },
         { text: phone, href: `tel:${phone.replace(/\s/g, '')}`, external: true },
-        { text: HOURS },
+        { text: hours },
         { text: `Instagram ${instagramHandle(instagram)}`, href: instagram, external: true },
       ],
     },

@@ -44,6 +44,6 @@ export type Talent = TalentCard & {
 
 export type Category = { _id: string; title: string; slug: string; division: Division }
 
-export type SiteSettings = { email?: string; phone?: string; address?: string; instagram?: string }
+export type SiteSettings = { email?: string; phone?: string; address?: string; instagram?: string; hours?: string; prints?: SanityImage[] | null }
 /** The page an applicant sees once the application is sent (each line falls back to the site's own). */
 export type ApplyThanks = { label?: string; title?: string; text?: string }

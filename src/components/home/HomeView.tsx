@@ -1,6 +1,6 @@
 import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHero'
 import { TextOpen } from '@/components/motion/TextOpen'
-import { StoryMagazine, type Chapter } from './HomeSections'
+import { StoryMagazine, type Chapter, type MagazineDoc } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
@@ -17,6 +17,7 @@ type Home = {
   intro?: string
   introImages?: SanityImage[]
   story?: Chapter[] | null
+  magazine?: MagazineDoc
   featured?: TalentCard[]
 } | null
 
@@ -64,7 +65,7 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
 function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
   return (
     <>
-      <StoryMagazine site={site} chapters={home?.story} talents={talents} />
+      <StoryMagazine site={site} chapters={home?.story} magazine={home?.magazine} talents={talents} />
     </>
   )
 }

@@ -2,7 +2,7 @@ import { defineArrayMember, defineField, defineType } from 'sanity'
 import { divisionOfSingleton } from './division'
 import { creditedImage } from './objects/creditedImage'
 
-/** One per site: documents `homePage-inch` and `homePage-dot`. Sections in page order. */
+/** One per site: documents `homePage-inch` and `homePage-dot`. Sections in page order: the hero, the statement, the magazine. */
 export const homePage = defineType({
   name: 'homePage',
   title: 'Home page',
@@ -52,18 +52,63 @@ export const homePage = defineType({
       type: 'text',
       rows: 3,
     }),
-    defineField({ name: 'intro', title: 'Paragraph', description: 'Below the statement.', type: 'text', rows: 5 }),
+    defineField({
+      name: 'magazine',
+      title: 'Magazine',
+      description: 'The magazine under the statement, page by page. No pages = a magazine of the board’s models.',
+      type: 'object',
+      options: { collapsible: true, collapsed: false },
+      fields: [
+        defineField({ name: 'cover', title: 'Cover', description: 'The front of the magazine, under the logo.', type: 'image', options: { hotspot: true } }),
+        defineField({ name: 'heading', title: 'Title', description: 'On the cover and on the first page inside.', type: 'string', validation: (r) => r.max(40) }),
+        defineField({ name: 'text', title: 'First page text', description: 'The first page inside (on the left), under the title.', type: 'text', rows: 4 }),
+        defineField({
+          name: 'pages',
+          title: 'Pages',
+          description:
+            'The pages after the first one, in order: right, left, right, left… Page = a photo, or a name on a white page. Spread = one photo across both pages of an opening (it always starts on a left page; a blank page is added before it when needed). Drag to reorder.',
+          type: 'array',
+          of: [
+            defineArrayMember({
+              type: 'object',
+              name: 'page',
+              title: 'Page',
+              fields: [
+                defineField({ name: 'image', title: 'Photo', type: 'image', options: { hotspot: true } }),
+                defineField({ name: 'name', title: 'Name', description: 'With no photo: printed on a white page (as a model’s name facing her photo).', type: 'string' }),
+              ],
+              validation: (r) => r.custom((v: { image?: { asset?: unknown }; name?: string } | undefined) => (v?.image?.asset || v?.name ? true : 'Add a photo or a name')),
+              preview: {
+                select: { name: 'name', media: 'image' },
+                prepare: ({ name, media }) => ({ title: media ? 'Photo' : name || 'Empty page', subtitle: media ? 'Page' : 'Page · name', media }),
+              },
+            }),
+            defineArrayMember({
+              type: 'object',
+              name: 'spread',
+              title: 'Spread (both pages)',
+              fields: [defineField({ name: 'image', title: 'Photo', type: 'image', options: { hotspot: true }, validation: (r) => r.required() })],
+              preview: { select: { media: 'image' }, prepare: ({ media }) => ({ title: 'Spread', subtitle: 'Both pages', media }) },
+            }),
+          ],
+        }),
+      ],
+    }),
+    // Older sections, not on the home page any more: shown only while they still hold something.
+    defineField({ name: 'intro', title: 'Paragraph (old — not on the site)', type: 'text', rows: 5, hidden: ({ value }) => !value }),
     defineField({
       name: 'introImages',
-      title: 'Paragraph images',
+      title: 'Paragraph images (old — not on the site)',
       type: 'array',
       options: { layout: 'grid' },
       of: [creditedImage()],
+      hidden: ({ value }) => !value?.length,
     }),
     defineField({
       name: 'story',
-      title: 'Story',
-      description: 'The story of the agency, in short chapters, each with a heading, a paragraph and up to three images (shown as black and white prints). Empty = the placeholder story.',
+      title: 'Story (old — use Magazine)',
+      description: 'Used for the magazine only while Magazine above has no pages: the first chapter.',
+      hidden: ({ value }) => !value?.length,
       type: 'array',
       of: [
         defineArrayMember({
@@ -80,9 +125,10 @@ export const homePage = defineType({
     }),
     defineField({
       name: 'featured',
-      title: 'Featured models',
-      description: 'Models section. Empty = all models.',
+      title: 'Featured models (old — not on the site)',
+      description: 'The magazine’s fallback pages when it has none of its own. Empty = all models.',
       type: 'array',
+      hidden: ({ value }) => !value?.length,
       of: [
         defineArrayMember({
           type: 'reference',
@@ -92,4 +138,5 @@ export const homePage = defineType({
       ],
     }),
   ],
+  preview: { prepare: () => ({ title: 'Home page' }) },
 })
