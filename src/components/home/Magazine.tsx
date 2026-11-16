@@ -21,6 +21,8 @@ import type { Division } from '@/sanity/lib/types'
 export type Pic = { src: string; alt: string; credit?: string }
 
 export type Spread = { name: string; pic: Pic }
+/** One page of the magazine after the first page inside: a photo, a name on white, half of a photo laid across both pages, or blank paper. */
+export type Face = { kind: 'photo'; pic: Pic } | { kind: 'name'; name: string } | { kind: 'half'; pic: Pic; side: 'left' | 'right' } | { kind: 'blank' }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const smooth = (p: number) => p * p * (3 - 2 * p)
@@ -51,6 +53,30 @@ function Gloss({ strength = 0.16 }: { strength?: number }) {
         backgroundImage: `linear-gradient(112deg, transparent calc(var(--gx, 38%) - 26%), rgb(255 255 255 / ${strength}) var(--gx, 38%), transparent calc(var(--gx, 38%) + 22%)), linear-gradient(to bottom, rgb(255 255 255 / ${strength * 0.45}), transparent 35%)`,
       }}
     />
+  )
+}
+
+/** Half of a photo that runs across both pages of an opening (the left or the right half). */
+function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
+  return (
+    <div className="relative h-full overflow-hidden bg-line">
+      <div className="absolute inset-y-0 w-[200%]" style={{ left: side === 'left' ? 0 : '-100%' }}>
+        <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.06]" />
+      </div>
+      <Gloss strength={0.045} />
+    </div>
+  )
+}
+
+/** A page of the magazine; `i` is its place in the book (0 = the cover), for the folio. */
+function FacePage({ face, i }: { face: Face; i: number }) {
+  if (face.kind === 'photo') return <PhotoPage pic={face.pic} />
+  if (face.kind === 'half') return <HalfPage pic={face.pic} side={face.side} />
+  if (face.kind === 'name') return <NamePage name={face.name} n={i + 1} />
+  return (
+    <div className="relative h-full bg-[#fbfbfa]">
+      <Folio n={i + 1} side={i % 2 ? 'left' : 'right'} />
+    </div>
   )
 }
 
@@ -259,7 +285,7 @@ export function Magazine({
   brand,
   division,
   cover,
-  spreads,
+  pages,
 }: {
   number: number
   heading: string
@@ -267,7 +293,8 @@ export function Magazine({
   brand: string
   division: Division
   cover: Pic
-  spreads: Spread[]
+  /** The pages after the first page inside, from the first right page on. */
+  pages: Face[]
 }) {
   const section = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -282,8 +309,12 @@ export function Magazine({
   const tail = useRef<HTMLDivElement>(null)
   const stackL = useRef<HTMLSpanElement>(null)
   const stackR = useRef<HTMLSpanElement>(null)
-  // The cover is the first leaf; then one leaf per spread but the last.
-  const turns = spreads.length
+  // The book: the cover, the first page inside (the chapter), then the pages; it ends on a right
+  // page (a blank one is added if needed). Each leaf carries a right page on its front and the next
+  // left page on its back; the last right page lies under all the leaves.
+  const book_: Face[] = [...pages]
+  if (book_.length % 2 === 0) book_.push({ kind: 'blank' })
+  const turns = (book_.length + 1) / 2
   // The page the reader is on: 0 = closed, k = k leaves turned.
   const [page, setPage] = useState(0)
   /** Where the pages are now (`at`: leaves turned, fractions mid-turn), how far the opening has gone, and the running turn. */
@@ -617,8 +648,8 @@ export function Magazine({
     ease(d.e0 === 0 ? (e1 > 0.33 ? d.k + 1 : d.k) : e1 < 0.67 ? d.k : d.k + 1, true)
   }
 
-  if (!spreads.length) return null
-  // Each leaf's two faces: the cover over the chapter, then a model over the next one's name.
+  if (!pages.length) return null
+  // Each leaf's two faces: the cover over the chapter, then each right page over the next left one.
   const faces: { front: React.ReactNode; back: React.ReactNode }[] = [
     {
       front: <CoverPage pic={cover} division={division} number={number} heading={heading} />,
@@ -633,9 +664,9 @@ export function Magazine({
         </div>
       ),
     },
-    ...spreads.slice(0, -1).map((s, k) => ({
-      front: <PhotoPage pic={s.pic} />,
-      back: <NamePage name={spreads[k + 1].name} n={4 + k * 2} />,
+    ...Array.from({ length: turns - 1 }, (_, k) => ({
+      front: <FacePage face={book_[2 * k]} i={2 + 2 * k} />,
+      back: <FacePage face={book_[2 * k + 1]} i={3 + 2 * k} />,
     })),
   ]
   return (
@@ -688,7 +719,7 @@ export function Magazine({
 
             {/* Last right page: the last model, under all the leaves. */}
             <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden" style={{ borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
-              <PhotoPage pic={spreads[spreads.length - 1].pic} />
+              <FacePage face={book_[book_.length - 1]} i={book_.length + 1} />
               <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: fold('right') }} />
             </div>
 

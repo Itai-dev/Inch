@@ -40,4 +40,4 @@ export const sitePath = (site: Site, path = '/') => SITES[site].base + (path ===
 export const talentPath = (t: { division: Division; slug: string }) => sitePath(siteForDivision(t.division), `/talent/${t.slug}`)
 
 /** Sanity singleton IDs are per site: `homePage-inch`, `siteSettings-dot`, … */
-export const singletonId = (type: 'homePage' | 'siteSettings', site: Site) => `${type}-${site}`
+export const singletonId = (type: 'homePage' | 'contactPage' | 'siteSettings', site: Site) => `${type}-${site}`

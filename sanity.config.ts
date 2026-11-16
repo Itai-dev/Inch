@@ -25,7 +25,7 @@ const workspace = (site: Site): WorkspaceOptions => {
       types: schemaTypes,
       // New documents are created in this site's division.
       templates: (prev) => [
-        ...prev.filter((t) => !DIVIDED_TYPES.includes(t.schemaType) && !['homePage', 'siteSettings'].includes(t.schemaType)),
+        ...prev.filter((t) => !DIVIDED_TYPES.includes(t.schemaType) && !['homePage', 'contactPage', 'siteSettings'].includes(t.schemaType)),
         ...DIVIDED_TYPES.map((type) => ({ id: `${type}-${site}`, title: TEMPLATE_TITLES[type], schemaType: type, value: { division } })),
       ],
     },

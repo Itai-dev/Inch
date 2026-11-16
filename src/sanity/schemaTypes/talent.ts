@@ -50,8 +50,11 @@ export const talent = defineType({
     orderRankField({ type: 'talent', newItemPosition: 'after' }),
     defineField({
       name: 'categories',
+      title: 'Categories (old — add models from the category)',
       type: 'array',
       group: 'main',
+      // Models are put in a category from the category itself now; this shows only while it still holds some.
+      hidden: ({ value }: { value?: unknown[] }) => !value?.length,
       of: [
         defineArrayMember({
           type: 'reference',

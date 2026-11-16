@@ -1,4 +1,4 @@
-import { defineField, defineType, type Rule } from 'sanity'
+import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { apiVersion } from '../env'
 import { divisionField } from './division'
 
@@ -26,7 +26,21 @@ export const category = defineType({
     }),
     // Set by the Studio the category is made in (INCH” or DOT.), not chosen.
     defineField({ ...divisionField(), validation: (r: Rule) => r.required() }),
-    defineField({ name: 'order', type: 'number' }),
+    defineField({
+      name: 'models',
+      description: 'The models in this category, in this order (drag to reorder). Publish, and the category shows them on the site.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'talent' }],
+          // Only this site's models.
+          options: { filter: ({ document }) => ({ filter: 'division == $division', params: { division: document.division } }) },
+        }),
+      ],
+      validation: (r) => r.unique(),
+    }),
+    defineField({ name: 'order', title: 'Order in the menu', description: 'Lower comes first.', type: 'number' }),
   ],
   preview: { select: { title: 'title', subtitle: 'division' } },
 })
