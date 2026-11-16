@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       })
     if (sent >= MAX_APPLICATIONS) {
       return NextResponse.json(
-        { error: 'limit', message: `We already have your applications — thank you. Each person can apply ${MAX_APPLICATIONS} times; our scouts will be in touch if there's a fit.` },
+        { error: 'limit', message: "We already have your application — thank you. Our scouts will be in touch if there's a fit." },
         { status: 429 },
       )
     }
