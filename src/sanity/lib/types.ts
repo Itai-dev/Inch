@@ -27,8 +27,6 @@ export type TalentCard = {
   slug: string
   division: Division
   cover?: SanityImage
-  /** Local cover image, for placeholder models that aren't in Sanity. */
-  coverSrc?: string
   /** The first few book images, where a query asks for them (the home page's name strip). */
   pics?: SanityImage[] | null
 }

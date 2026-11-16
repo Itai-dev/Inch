@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { isPlaceholder } from '@/lib/placeholders'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { urlFor } from '@/sanity/lib/image'
 import { useSelection } from './SelectionProvider'
@@ -13,7 +12,7 @@ export function SelectionTray({ site }: { site: Site; email?: string }) {
   const [include, setInclude] = useState<'cards' | 'with' | 'only'>('cards')
   // The selection as one PDF, a page a model, each linking to her page on the site.
   const compCards = `${sitePath(site, '/comp-cards')}?ids=${items.map((i) => i._id).join(',')}${include === 'cards' ? '' : `&polaroids=${include}`}`
-  const real = items.filter((t) => !isPlaceholder(t)).length
+  const real = items.length
   const what = include === 'only' ? 'polaroids' : real > 1 ? 'comp cards' : 'comp card'
   const name = real > 1 || include === 'only' ? `${SITES[site].brand} ${what}` : 'Comp card'
   const [state, setState] = useState<'idle' | 'making' | 'link' | 'copied' | 'error'>('idle')
@@ -126,7 +125,7 @@ export function SelectionTray({ site }: { site: Site; email?: string }) {
                 {state === 'error' && <p className="text-sm text-red-600">{include === 'only' ? 'No polaroids for these models yet.' : 'Couldn’t make the PDF. Try again.'}</p>}
               </>
             ) : (
-              <p className="text-sm text-muted">Comp cards are made for models in the Studio; placeholders don’t have one.</p>
+              <p className="text-sm text-muted">Add models to make their comp cards.</p>
             )}
             <button onClick={clear} className="ink-line self-center text-sm text-muted">Clear selection</button>
           </div>

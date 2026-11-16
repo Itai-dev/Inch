@@ -3,7 +3,6 @@ import { PrintPile, type Print } from '@/components/contact/PrintPile'
 import { TypeText, typeEnd } from '@/components/motion/TypeText'
 import { DEMO_CONTACT as DEMO, HOURS, instagramHandle } from '@/lib/copy'
 import { enquiryMailto } from '@/lib/enquiry'
-import { isPlaceholder } from '@/lib/placeholders'
 import { singletonId, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
@@ -64,8 +63,8 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
   const instagram = s?.instagram || DEMO.instagram
   const hours = s?.hours || HOURS
 
-  // The prints: the real models' pictures (cover and book, a model at a time), else the placeholder looks.
-  const real = talents.filter((t) => !isPlaceholder(t))
+  // The prints: the models' pictures (cover and book, a model at a time); none at all until there are some.
+  const real = talents
   const own = real.map((t) => [t.cover, ...(t.pics ?? [])].filter((i): i is SanityImage => !!i?.asset).filter((i, k, all) => all.findIndex((j) => j.asset!._ref === i.asset!._ref) === k))
   // The Contact page's own photos (Studio › Contact page › Photos), in their order; else the board's.
   const chosen = (s?.prints ?? []).filter((i) => i?.asset).map((img) => ({ img, name: img.alt || brand }))
@@ -80,7 +79,7 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
         const shot = urlFor(img).width(900)
         return { src: (round ? shot.height(1100).focalPoint(0.5, round % 2 ? 0.25 : 0.7).fit('crop') : shot).url(), alt: img.alt || name }
       })
-    : [1, 3, 5, 7, 2, 9, 4, 6].map((n) => ({ src: `/placeholders/look-${String(n).padStart(2, '0')}.svg`, alt: '' }))
+    : []
 
   const left: Row[] = [
     // Bookings: an email with the brief laid out, so the client only fills it in.
@@ -104,7 +103,7 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
       <div className="hidden min-h-[calc(100svh-7rem)] grid-cols-[1fr_auto_1fr] items-center gap-x-[clamp(32px,4vw,80px)] px-gutter pb-[clamp(24px,4vh,48px)] md:grid">
         <Details rows={left} at={300} />
         {/* Prints from the board, landing on a pile; pick any of them up and move it about. */}
-        <PrintPile prints={prints} className="aspect-[600/720] w-[min(36vw,62vh)]" />
+        {prints.length ? <PrintPile prints={prints} className="aspect-[600/720] w-[min(36vw,62vh)]" /> : <div aria-hidden className="w-[min(36vw,62vh)]" />}
         <Details rows={right} at={1000} align="right" />
       </div>
       {/* Phones: what the page is for first. The bookings address large, as in the footer, with the
@@ -124,7 +123,7 @@ export default async function ContactPage({ params }: PageProps<'/[site]/contact
         <div className="grid grid-cols-2 gap-x-6 gap-y-6 [&>dl]:contents">
           <Details rows={[...left.slice(1), ...right]} at={typeEnd(BRIEF, typeEnd(email, 300, 24), 10) + 100} />
         </div>
-        <PrintPile prints={prints} className="mx-auto aspect-[600/720] w-[min(62vw,280px)]" />
+        {prints.length > 0 && <PrintPile prints={prints} className="mx-auto aspect-[600/720] w-[min(62vw,280px)]" />}
       </div>
     </div>
   )

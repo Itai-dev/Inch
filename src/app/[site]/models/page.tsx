@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { CategoryNav } from '@/components/CategoryNav'
 import { TalentBoard } from '@/components/TalentCard'
-import { withPlaceholders } from '@/lib/placeholders'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { CATEGORIES_BY_DIVISION_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
@@ -28,7 +27,7 @@ export default async function ModelsPage({ params }: PageProps<'/[site]/models'>
       </header>
       {/* The board keeps the header's side margins. */}
       <div className="px-gutter">
-        <TalentBoard talents={withPlaceholders(talents, division)} />
+        <TalentBoard talents={talents} />
       </div>
     </div>
   )
