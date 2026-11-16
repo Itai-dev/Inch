@@ -33,7 +33,7 @@ export const siteSettings = defineType({
           title: 'Text',
           type: 'text',
           rows: 3,
-          placeholder: 'It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you.',
+          placeholder: 'We’ve received your application. If there’s a fit, we’ll be in touch by email or phone.\n\nAlready applied and haven’t heard from us yet? No need to send it again — we’re on it.',
         }),
       ],
     }),

@@ -576,7 +576,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   const thanksLabel = thanks?.label?.trim() || 'Application received'
   const who = d.firstName.trim()
   const thanksTitle = (thanks?.title?.trim() || 'Thank you, {name}.').replace(who ? /\{name\}/g : /\s*,?\s*\{name\}/g, who)
-  const thanksText = thanks?.text?.trim() || 'It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you.'
+  const thanksText = thanks?.text?.trim() || 'We’ve received your application. If there’s a fit, we’ll be in touch by email or phone.\n\nAlready applied and haven’t heard from us yet? No need to send it again — we’re on it.'
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
