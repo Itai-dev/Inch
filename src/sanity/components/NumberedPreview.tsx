@@ -11,6 +11,8 @@ import { apiVersion } from '../env'
 
 type Store = { ids: string[]; subs: Set<() => void>; stop?: () => void }
 const stores = new Map<string, Store>()
+// One empty list, always the same: a new [] on every read makes React re-render forever (and the Studio crash).
+const NONE: string[] = []
 
 const ORDER = `*[_type == "talent" && division == $division && !(_id in path("drafts.**"))] | order(coalesce(orderRank, "0") asc, name asc)._id`
 
@@ -47,8 +49,8 @@ export function NumberedPreview(props: PreviewProps) {
       store?.subs.add(f)
       return () => store?.subs.delete(f)
     },
-    () => store?.ids ?? [],
-    () => [],
+    () => store?.ids ?? NONE,
+    () => NONE,
   )
   const n = id ? ids.indexOf(id) + 1 : 0
   const title = n > 0 ? `${String(n).padStart(2, '0')}   ${String(props.title ?? '')}` : props.title
