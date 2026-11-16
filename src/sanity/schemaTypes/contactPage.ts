@@ -1,4 +1,5 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
+import { DriveArrayInput } from '../drive/DriveArrayInput'
 
 /**
  * One per site: documents `contactPage-inch` and `contactPage-dot`. The contact details here are
@@ -25,6 +26,7 @@ export const contactPage = defineType({
       description: 'The pile of prints in the middle of the Contact page, in this order (8 or more look best). Empty = pictures from the board.',
       type: 'array',
       options: { layout: 'grid' },
+      components: { input: DriveArrayInput },
       of: [
         defineArrayMember({
           type: 'image',
