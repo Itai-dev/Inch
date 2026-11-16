@@ -1,7 +1,7 @@
 /**
  * Google Drive in the Studio: the agency's own Google Cloud project (its keys in Vercel, see
- * docs/google-drive.md). Google's sign-in gives a short-lived token for the files picked
- * (scope drive.file: only what is chosen in the picker, nothing else in the Drive), the
+ * docs/google-drive.md). Google's sign-in gives a short-lived, read-only token for the Drive (kept in
+ * the browser; nothing is changed or deleted there), the
  * picker shows the Drive, and each picked photo is downloaded in the browser and handed to
  * the Studio, which uploads it like any other.
  */
@@ -14,7 +14,9 @@ export const driveConfig = {
 /** Shown only once the agency's keys are set. */
 export const driveEnabled = Boolean(driveConfig.clientId && driveConfig.apiKey && driveConfig.appId)
 
-const SCOPE = 'https://www.googleapis.com/auth/drive.file'
+// Read-only on the Drive: with the narrower drive.file, Google's picker lists the files but shows
+// no thumbnails (blank tiles), so photos can't be told apart. The token stays in the browser.
+const SCOPE = 'https://www.googleapis.com/auth/drive.readonly'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
