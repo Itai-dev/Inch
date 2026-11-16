@@ -275,8 +275,9 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   /** Sent through, but nothing delivers applications yet (email not set up). */
   const [unsent, setUnsent] = useState(false)
   const [unit, setUnit] = useState<Unit>('cm')
-  /** Continue was pressed with something still unset: say what. */
-  const [tried, setTried] = useState(false)
+  /** What was wrong when Continue was last pressed on this step. Only these show (each until it's put
+   *  right); anything that goes wrong after that waits for the next press. */
+  const [flagged, setFlagged] = useState<string[]>([])
   const startedAt = useRef(0)
   const sheetRef = useRef<HTMLDivElement>(null)
   // The top bar's height, so the step ruler can stick right under it (phones).
@@ -367,7 +368,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   const number = NUMBER[step] ?? 0
 
   const go = (s: Step) => {
-    setTried(false)
+    setFlagged([])
     setStep(s)
     setFurthest((f) => Math.max(f, NUMBER[s] ?? 0))
   }
@@ -476,8 +477,6 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
       ['Date of birth', !d.birthdate || badDate || underage],
     ] as const
   ).filter(([, bad]) => bad).map(([k]) => k)
-  /** Continue was pressed with this still missing: it shows in the alert colour (no list under the button). */
-  const missing = (k: string) => tried && (youGaps as readonly string[]).concat(gaps).includes(k)
 
   // What the measurements step still needs.
   const gaps = (
@@ -486,6 +485,21 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   // Under the board's minimum height the application can't go on (said once Continue is pressed).
   const short = !!d.height && tooShort(division, d.height)
   const SIZE_GAP: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
+  // What each step's Continue checks: the fields still missing, and the reasons it can't go on.
+  const youProblems: string[] = [...youGaps, ...(underage ? ['underage'] : []), ...(badDate ? ['badDate'] : [])]
+  const measureProblems: string[] = [...gaps, ...(short ? ['short'] : [])]
+  const problems = step === 'you' ? youProblems : step === 'measure' ? measureProblems : []
+  /** Shown: wrong when Continue was pressed, and still wrong now. A missing field shows in the alert colour. */
+  const shown = (k: string) => flagged.includes(k) && problems.includes(k)
+  const missing = shown
+  const anyShown = flagged.some((k) => problems.includes(k))
+  // Put right, it's forgotten: going wrong again waits for the next press of Continue.
+  const problemsKey = problems.join('|')
+  const [seenProblems, setSeenProblems] = useState(problemsKey)
+  if (seenProblems !== problemsKey) {
+    setSeenProblems(problemsKey)
+    if (!flagged.every((k) => problems.includes(k))) setFlagged(flagged.filter((k) => problems.includes(k)))
+  }
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
@@ -643,8 +657,8 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 e.preventDefault()
                 // Checked here rather than by the browser, so what's missing is said plainly under the
                 // button, and the first of it is brought into view (not hidden under the ruler on phones).
-                if (!youGaps.length) return next()
-                setTried(true)
+                if (!youProblems.length) return next()
+                setFlagged(youProblems)
                 const first = e.currentTarget.querySelector<HTMLInputElement>(YOU_FIELDS[youGaps[0]])
                 first?.focus({ preventScroll: true })
                 first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
@@ -659,17 +673,17 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               <Field label="Last name" missing={missing('Last name')}><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
               <Field label="Email" missing={missing('Email')}><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Phone" missing={missing('Phone')}><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-              <Field label="Date of birth" missing={missing('Date of birth')} hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
+              <Field label="Date of birth" missing={missing('Date of birth')} hint={shown('badDate') ? 'Check the year (four digits).' : !badDate && Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              {underage ? (
+              {shown('underage') ? (
                 <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug text-alert">
                   Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
                 </p>
               ) : (
                 <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
               )}
-              <div className="sm:col-span-2">{underage ? nav('Continue →', true) : nav('Continue →', false, tried && youGaps.length ? undefined : 'Takes about 3 minutes')}</div>
+              <div className="sm:col-span-2">{nav('Continue →', false, anyShown ? undefined : 'Takes about 3 minutes')}</div>
             </form>
           )}
 
@@ -691,7 +705,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               className="flex flex-col gap-10"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (gaps.length || short) setTried(true)
+                if (measureProblems.length) setFlagged(measureProblems)
                 else next()
               }}
             >
@@ -747,10 +761,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} missing={missing('Hair')} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} missing={missing('Eyes')} />
               </div>
-              {tried && short && (
+              {shown('short') && (
                 <p role="alert" className="text-[16px] font-bold leading-snug text-alert">{tooShortMessage(division)}</p>
               )}
-              {nav('Continue →', false, tried && (gaps.length || short) ? undefined : 'Pick each size.')}
+              {nav('Continue →', false, anyShown ? undefined : 'Pick each size.')}
             </form>
           )}
 
