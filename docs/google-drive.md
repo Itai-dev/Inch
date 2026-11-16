@@ -3,7 +3,7 @@
 Photos can be brought into the Studio straight from the agency's Google Drive:
 
 - **Galleries** (a model's Portfolio and Polaroids, the Contact page's Photos): **Add from Google Drive** under the grid — pick several photos at once; they are added at the end, in the order picked.
-- **Single images** (a model's cover, the magazine's cover and pages, …): the field's **Select** menu → **Google Drive**.
+- **Single images** (a model's cover, the magazine's cover and pages, the share image, a photo opened from a gallery…): a **From Google Drive** button under the field.
 
 Each person signs in with their Google account the first time. The Studio asks for read-only access to the Drive (scope `drive.readonly`, needed for the picker to show thumbnails); the access stays in that person's browser, and nothing in the Drive is changed.
 
@@ -25,4 +25,4 @@ It runs on the agency's own Google Cloud project, set up once (about 10 minutes)
 
 Until the three are set, the Studio simply shows no Drive buttons.
 
-Code: `src/sanity/drive/` (the picker and download in `google.ts`, the gallery button in `DriveArrayInput.tsx`, the image-field source in `DriveAssetSource.tsx`).
+Code: `src/sanity/drive/` (the picker and download in `google.ts`, the gallery button in `DriveArrayInput.tsx`, the image fields' button in `DriveImageInput.tsx`).

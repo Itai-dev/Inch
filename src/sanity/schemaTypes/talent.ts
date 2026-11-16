@@ -5,6 +5,7 @@ import { DriveArrayInput } from '../drive/DriveArrayInput'
 import { divisionField } from './division'
 import { creditedImage } from './objects/creditedImage'
 import { slugRule } from './slug'
+import { CleanSlugInput } from '../components/CleanSlugInput'
 
 const gallery = (name: string, title: string) =>
   defineField({
@@ -44,6 +45,8 @@ export const talent = defineType({
     defineField({
       name: 'slug',
       type: 'slug',
+      // Tidied as it's typed: lowercase, dashes for spaces.
+      components: { input: CleanSlugInput },
       group: 'main',
       options: { source: 'name' },
       validation: slugRule,

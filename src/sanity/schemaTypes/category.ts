@@ -2,6 +2,7 @@ import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { apiVersion } from '../env'
 import { divisionField } from './division'
 import { slugRule } from './slug'
+import { CleanSlugInput } from '../components/CleanSlugInput'
 
 export const category = defineType({
   name: 'category',
@@ -12,6 +13,8 @@ export const category = defineType({
     defineField({
       name: 'slug',
       type: 'slug',
+      // Tidied as it's typed: lowercase, dashes for spaces.
+      components: { input: CleanSlugInput },
       // INCH” and DOT. can both have e.g. "new-faces".
       options: {
         source: 'title',
