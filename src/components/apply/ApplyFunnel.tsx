@@ -68,6 +68,9 @@ const STEP_NAMES = ['You', 'Measurements', 'Digitals', 'Send']
 const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A parent or guardian', measure: 'Measurements', digitals: 'Digitals', send: 'Last thing' }
 
 const narrow = { fontStretch: '80%' } as const
+/** What stops the form: under the button on a computer; on phones, where the button is pinned to the
+ *  foot of the screen, laid over the page just above that bar (taking no room). Either way the button doesn't move. */
+const STOP = 'mt-5 leading-snug text-alert max-lg:absolute max-lg:inset-x-0 max-lg:bottom-full max-lg:mt-0 max-lg:border-t max-lg:border-line max-lg:bg-bg max-lg:px-gutter max-lg:py-3'
 const big =
   'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 /** A handle field: the @ set in front, the underline under both (dark once filled or focused). */
@@ -492,7 +495,6 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   /** Shown: wrong when Continue was pressed, and still wrong now. A missing field shows in the alert colour. */
   const shown = (k: string) => flagged.includes(k) && problems.includes(k)
   const missing = shown
-  const anyShown = flagged.some((k) => problems.includes(k))
   // Put right, it's forgotten: going wrong again waits for the next press of Continue.
   const problemsKey = problems.join('|')
   const [seenProblems, setSeenProblems] = useState(problemsKey)
@@ -661,7 +663,11 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 setFlagged(youProblems)
                 const first = e.currentTarget.querySelector<HTMLInputElement>(YOU_FIELDS[youGaps[0]])
                 first?.focus({ preventScroll: true })
-                first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+                // Only when it's out of sight (under the top bar and the ruler, or below the buttons): the page stays still otherwise.
+                const box = first?.getBoundingClientRect()
+                const over = Math.max(barRef.current?.getBoundingClientRect().bottom ?? 0, rulerRef.current?.getBoundingClientRect().bottom ?? 0)
+                const under = e.currentTarget.querySelector('.apply-nav')?.getBoundingClientRect().top ?? innerHeight
+                if (box && (box.top < over || box.bottom > under)) first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
               }}
               noValidate
             >
@@ -676,14 +682,16 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               <Field label="Date of birth" missing={missing('Date of birth')} hint={shown('badDate') ? 'Check the year (four digits).' : !badDate && Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              {shown('underage') ? (
-                <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug text-alert">
-                  Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
-                </p>
-              ) : (
-                <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
-              )}
-              <div className="sm:col-span-2">{nav('Continue →', false, anyShown ? undefined : 'Takes about 3 minutes')}</div>
+              <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
+              {/* What stops the form goes under the button, so the button never moves. */}
+              <div className="flex flex-col sm:col-span-2">
+                {nav('Continue →', false, 'Takes about 3 minutes')}
+                {shown('underage') && (
+                  <p role="alert" className={`${STOP} text-[16px] font-bold`}>
+                    Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
+                  </p>
+                )}
+              </div>
             </form>
           )}
 
@@ -761,10 +769,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} missing={missing('Hair')} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} missing={missing('Eyes')} />
               </div>
-              {shown('short') && (
-                <p role="alert" className="text-[16px] font-bold leading-snug text-alert">{tooShortMessage(division)}</p>
-              )}
-              {nav('Continue →', false, anyShown ? undefined : 'Pick each size.')}
+              <div className="flex flex-col">
+                {nav('Continue →', false, 'Pick each size.')}
+                {shown('short') && <p role="alert" className={`${STOP} text-[16px] font-bold`}>{tooShortMessage(division)}</p>}
+              </div>
             </form>
           )}
 
@@ -806,12 +814,14 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                   )
                 })}
               </div>
-              {photoError && <p className="text-[14px] text-alert">{photoError}</p>}
-              {nav(
-                'Continue →',
-                SLOTS.some((s) => !photos[s.pose]),
-                `${SLOTS.filter((s) => photos[s.pose]).length} of ${SLOTS.length} added`,
-              )}
+              <div className="flex flex-col">
+                {nav(
+                  'Continue →',
+                  SLOTS.some((s) => !photos[s.pose]),
+                  `${SLOTS.filter((s) => photos[s.pose]).length} of ${SLOTS.length} added`,
+                )}
+                {photoError && <p role="alert" className={`${STOP} text-[14px]`}>{photoError}</p>}
+              </div>
             </form>
           )}
 
@@ -835,8 +845,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                   {scoutingEmail && <> Upload trouble or questions: <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</>}
                 </span>
               </label>
-              {error && <p className="sm:col-span-2 text-[14px] text-alert">{error}</p>}
-              <div className="sm:col-span-2">{nav(sending ? 'Sending…' : 'Send application', sending)}</div>
+              <div className="flex flex-col sm:col-span-2">
+                {nav(sending ? 'Sending…' : 'Send application', sending)}
+                {error && <p role="alert" className={`${STOP} text-[14px]`}>{error}</p>}
+              </div>
             </form>
           )}
         </div>
