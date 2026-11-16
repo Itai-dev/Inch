@@ -25,6 +25,8 @@ const MOVE_END = 0.12
 const DROP_END = 0.17
 const EXIT_UP = 40
 const AIR = 48 // kept clear above and below the written statement (its exit, and room to breathe)
+/** Tablets up: the statement's column, as a share of the screen's height (the classes below say the same: 120dvh). */
+const COLUMN = 1.2
 const WIDTH_PER_FONT = 11 // container width ÷ font size (as large as the height then allows)
 /** Phones: larger, the statement filling most of the screen (fewer words a line). */
 const WIDTH_PER_FONT_PHONE = 7.6
@@ -106,9 +108,9 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
       return size
     }
     const fit = () => {
-      // Tablets up: as wide as the open magazine below it (its spread: min(94vw, 100dvh)); phones: the screen.
+      // Tablets up: a little wider than the open magazine below it (COLUMN of the screen's height, within 94vw); phones: the screen.
       const phone = window.innerWidth < 768
-      const width = phone ? window.innerWidth * 0.9 : Math.min(window.innerWidth * 0.94, window.innerHeight)
+      const width = phone ? window.innerWidth * 0.9 : Math.min(window.innerWidth * 0.94, window.innerHeight * COLUMN)
       const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + (phone ? AIR_PHONE : AIR)))
       // As large as the width allows, then smaller until the statement, centred and at its highest,
       // stays below the header: the height goes roughly with the square of the size (more lines too).
@@ -245,7 +247,7 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[210vh] md:h-[270vh]'}`}>
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         {/* Placed from the layout effect below (its lift, then its exit). */}
-        <div ref={wrapRef} className={`relative max-w-[90vw] md:max-w-[min(94vw,100dvh)] ${set ? 'w-max md:max-w-none' : 'w-[90vw] md:w-[min(94vw,100dvh)]'}`}>
+        <div ref={wrapRef} className={`relative max-w-[90vw] md:max-w-[min(94vw,120dvh)] ${set ? 'w-max md:max-w-none' : 'w-[90vw] md:w-[min(94vw,120dvh)]'}`}>
           <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">
             <QuoteStroke side="left" height={markH} />
           </div>
