@@ -138,4 +138,5 @@ export const homePage = defineType({
       ],
     }),
   ],
+  preview: { prepare: () => ({ title: 'Home page' }) },
 })
