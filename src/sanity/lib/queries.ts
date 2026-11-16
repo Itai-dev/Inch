@@ -5,8 +5,7 @@ const cardFields = `_id, name, "slug": slug.current, division, cover`
 export const HOME_QUERY = defineQuery(`*[_id == $id][0]{
   "heroVideos": heroVideos[]{ _type, "src": video.asset->url, poster, asset, hotspot, crop },
   "heroVideo": heroVideo.asset->url, heroPoster, statement, intro, introImages, story[]{ _key, heading, text, images },
-  magazine{ cover, heading, text, pages[]{ _type, _key, image, name } },
-  "featured": featured[!coalesce(@->hidden, false)]->{ ${cardFields}, "pics": portfolio[0...6] }
+  magazine{ cover, heading, text, pages[]{ _type, _key, image, name } }
 }`)
 
 /** Contact details, from the site's Contact page (`contactPage-…`; older ones from Site settings until it has them). `$id` is the site's Site settings id. */

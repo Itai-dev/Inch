@@ -5,8 +5,8 @@ import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
 import { singletonId, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
-import { HOME_QUERY, TALENTS_BY_DIVISION_QUERY } from '@/sanity/lib/queries'
-import type { SanityImage, TalentCard } from '@/sanity/lib/types'
+import { HOME_QUERY } from '@/sanity/lib/queries'
+import type { SanityImage } from '@/sanity/lib/types'
 
 type Home = {
   heroVideos?: ({ _type: 'heroVideo'; src?: string; poster?: SanityImage } | ({ _type: 'heroImage' } & SanityImage))[] | null
@@ -17,7 +17,6 @@ type Home = {
   introImages?: SanityImage[]
   story?: Chapter[] | null
   magazine?: MagazineDoc
-  featured?: TalentCard[]
 } | null
 
 /**
@@ -26,12 +25,7 @@ type Home = {
  */
 export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'split' | 'grow' }) {
   const { division } = SITES[site]
-  const [home, talents] = await Promise.all([
-    sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', site) }, null, ['homePage']),
-    sanityFetch<TalentCard[]>(TALENTS_BY_DIVISION_QUERY, { division }, [], ['talent']),
-  ])
-  const featured = home?.featured?.filter((t) => t?.division === division) ?? []
-  const models = featured.length ? featured : talents
+  const home = await sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', site) }, null, ['homePage'])
   const isDot = site === 'dot'
 
   const posterUrl = (img?: SanityImage) => (img?.asset ? urlFor(img).width(2000).url() : undefined)
@@ -55,16 +49,7 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
     <>
       <QuoteVideoHero videos={videos} opening={hero} division={division} />
       <TextOpen text={home?.statement || (isDot ? DEFAULT_DOT_STATEMENT : DEFAULT_STATEMENT)} />
-      <Story site={site} home={home} talents={models} />
-    </>
-  )
-}
-
-/** Below the opening, on both sites: the magazine. */
-function Story({ site, home, talents }: { site: Site; home: Home; talents: TalentCard[] }) {
-  return (
-    <>
-      <StoryMagazine site={site} chapters={home?.story} magazine={home?.magazine} talents={talents} />
+      <StoryMagazine site={site} chapters={home?.story} magazine={home?.magazine} />
     </>
   )
 }
