@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: RouteContext<'/[site]/comp-c
   const url = new URL(req.url)
   const ids = (url.searchParams.get('ids') ?? '').split(',').filter(Boolean).slice(0, 40)
   const found = ids.length ? await sanityFetch<Talent[]>(TALENTS_FULL_BY_IDS_QUERY, { ids }, [], ['talent']) : []
-  // In the selection's order, and only this site's models (placeholders aren't in the Studio).
+  // In the selection's order, and only this site's models.
   const which = url.searchParams.get('polaroids')
   const mode: CardsMode = which === 'only' ? 'polaroids' : which === 'with' ? 'with-polaroids' : 'cards'
   const talents = ids

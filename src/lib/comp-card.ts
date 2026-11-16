@@ -1,7 +1,6 @@
 import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { DEMO_CONTACT } from '@/lib/copy'
-import { POLAROID_PLACEHOLDERS } from '@/lib/placeholders'
 import { SITES, talentPath, type Site } from '@/lib/sites'
 import { cmToFeet, cmToInches } from '@/lib/units'
 import { urlFor } from '@/sanity/lib/image'
@@ -48,16 +47,10 @@ const POLS_PER_PAGE = 3
 const POL_SIDE = 0.05
 const POL_FOOT = 0.18
 const POL_ASPECT = 1 / (POL_SIDE + (1 - 2 * POL_SIDE) * (4 / 3) + POL_FOOT)
-/** The placeholder prints, as on the site: [background, ink], one a print in turn. */
-const PLACEHOLDER_TONES: [number, number][] = [
-  [0x1a, 0xff], [0x3a, 0xff], [0x5d, 0xff], [0x2a, 0xff], [0xa7, 0x0a],
-  [0x6f, 0xff], [0x12, 0xff], [0x89, 0xff], [0x44, 0xff], [0xcd, 0x0a],
-]
-const grey = (v: number) => rgb(v / 255, v / 255, v / 255)
 
-async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, origin: string) {
-  // Hers, then the placeholder prints.
-  const all: (SanityImage | number)[] = [...polaroidsOf(t), ...Array.from({ length: POLAROID_PLACEHOLDERS }, (_, k) => k)]
+async function drawPolaroids(pdf: PDFDocument, { bold }: { bold: PDFFont; regular: PDFFont }, t: Talent, site: Site, origin: string) {
+  // Her polaroids only: no pages without any.
+  const all: SanityImage[] = polaroidsOf(t)
   const url = `${origin}${talentPath(t)}/polaroids`
   const pages = Math.ceil(all.length / POLS_PER_PAGE)
   for (let pg = 0; pg < pages; pg++) {
@@ -70,7 +63,7 @@ async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFon
     const fw = Math.min((W - 2 * M - gap * (POLS_PER_PAGE - 1)) / POLS_PER_PAGE, (areaH - 6) * POL_ASPECT)
     const fh = fw / POL_ASPECT
     const pic = { w: fw * (1 - 2 * POL_SIDE), h: fw * (1 - 2 * POL_SIDE) * (4 / 3) }
-    const imgs = await Promise.all(items.map((it) => (typeof it === 'number' ? null : embed(pdf, it, pic.w, pic.h))))
+    const imgs = await Promise.all(items.map((it) => embed(pdf, it, pic.w, pic.h)))
     const x0 = (W - (items.length * fw + (items.length - 1) * gap)) / 2
     const y = FOOT + (areaH - fh) / 2 + 3
     items.forEach((it, c) => {
@@ -82,13 +75,6 @@ async function drawPolaroids(pdf: PDFDocument, { bold, regular }: { bold: PDFFon
       const py = y + fw * POL_FOOT
       const img = imgs[c]
       if (img) page.drawImage(img, { x: px, y: py, width: pic.w, height: pic.h })
-      else if (typeof it === 'number') {
-        // A placeholder, drawn as on the site: its tone, PLACEHOLDER at the top, its number large at the foot.
-        const [bg, ink] = PLACEHOLDER_TONES[it % PLACEHOLDER_TONES.length]
-        page.drawRectangle({ x: px, y: py, width: pic.w, height: pic.h, color: grey(bg) })
-        page.drawText('PLACEHOLDER', { x: px + pic.w * 0.07, y: py + pic.h * 0.9, size: pic.w * 0.045, font: regular, color: grey(ink), opacity: 0.6 })
-        page.drawText(String(it + 1).padStart(2, '0'), { x: px + pic.w * 0.065, y: py + pic.h * 0.05, size: pic.w * 0.24, font: bold, color: grey(ink), opacity: 0.9 })
-      }
     })
     // Foot: her name and "Polaroids", the agency's mark, and the way to them online.
     const base = FOOT - 36

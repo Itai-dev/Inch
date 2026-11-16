@@ -2,7 +2,6 @@ import { QuoteVideoHero, type HeroMedia } from '@/components/motion/QuoteVideoHe
 import { TextOpen } from '@/components/motion/TextOpen'
 import { StoryMagazine, type Chapter, type MagazineDoc } from './HomeSections'
 import { DEFAULT_DOT_STATEMENT, DEFAULT_STATEMENT } from '@/lib/copy'
-import { withPlaceholders } from '@/lib/placeholders'
 import { singletonId, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
@@ -56,7 +55,7 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
     <>
       <QuoteVideoHero videos={videos} opening={hero} division={division} />
       <TextOpen text={home?.statement || (isDot ? DEFAULT_DOT_STATEMENT : DEFAULT_STATEMENT)} />
-      <Story site={site} home={home} talents={withPlaceholders(models, division)} />
+      <Story site={site} home={home} talents={models} />
     </>
   )
 }
