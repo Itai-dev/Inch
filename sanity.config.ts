@@ -1,7 +1,7 @@
 'use client'
 
 import { visionTool } from '@sanity/vision'
-import { defineConfig, type WorkspaceOptions } from 'sanity'
+import { buildLegacyTheme, defineConfig, type WorkspaceOptions } from 'sanity'
 import { structureTool } from 'sanity/structure'
 import { SITE_KEYS, SITES, type Site } from './src/lib/sites'
 import { apiVersion, dataset, projectId } from './src/sanity/env'
@@ -10,6 +10,24 @@ import { structureFor } from './src/sanity/structure'
 import { DotIcon, InchIcon } from './src/sanity/components/WorkspaceIcon'
 import { driveAssetSource } from './src/sanity/drive/DriveAssetSource'
 import { driveEnabled } from './src/sanity/drive/google'
+
+/** The Studio in the sites' black and white: no blue or purple (selection, buttons, focus, links). Green, amber and red stay as status signals. */
+const INK = '#0a0a0a'
+const theme = buildLegacyTheme({
+  '--black': INK,
+  '--white': '#ffffff',
+  '--gray-base': '#6f6f6f',
+  '--gray': '#6f6f6f',
+  '--component-bg': '#ffffff',
+  '--component-text-color': INK,
+  '--brand-primary': INK,
+  '--default-button-color': '#6f6f6f',
+  '--default-button-primary-color': INK,
+  '--focus-color': INK,
+  '--state-info-color': INK,
+  '--main-navigation-color': '#ffffff',
+  '--main-navigation-color--inverted': INK,
+})
 
 const DIVIDED_TYPES = ['talent', 'category', 'application', 'selection']
 const TEMPLATE_TITLES: Record<string, string> = { talent: 'Model', category: 'Category', application: 'Application', selection: 'Shared selection' }
@@ -23,6 +41,7 @@ const workspace = (site: Site): WorkspaceOptions => {
     subtitle: label,
     icon: site === 'dot' ? DotIcon : InchIcon,
     basePath: `/studio/${site}`,
+    theme,
     projectId: projectId || 'placeholder',
     dataset,
     schema: {
