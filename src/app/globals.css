@@ -19,6 +19,8 @@
   --muted: var(--grey-600);
   --line: #e6e6e6;
   --surface: #f4f4f3;
+  /* Something stopping the form (a calm brick red, not a siren). */
+  --alert: #b0463c;
 
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   /* One side margin for the whole site: the logo's and the menu's distance from the edge
@@ -33,6 +35,7 @@
   --muted: var(--stone-300);
   --line: #2a2a2a;
   --surface: #161616;
+  --alert: #e2877d;
 }
 /* Back to light inside a DOT. page (the model page's light/dark switch). */
 [data-theme="light"] {
@@ -41,7 +44,13 @@
   --muted: var(--grey-600);
   --line: #e6e6e6;
   --surface: #f4f4f3;
+  --alert: #b0463c;
 }
+
+/* A required field still empty after Continue: its name and underline in the alert colour. */
+[data-missing] { --line: var(--alert); }
+[data-missing] [data-label] { color: var(--alert); }
+[data-missing] :is(input, select) { border-color: var(--alert); }
 
 @theme inline {
   --color-bg: var(--bg);
@@ -49,6 +58,7 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-surface: var(--surface);
+  --color-alert: var(--alert);
   --color-ink: var(--ink);
   --color-paper: var(--paper);
   --color-stone: var(--stone-700);

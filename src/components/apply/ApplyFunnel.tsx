@@ -12,7 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Logo } from '@/components/brand/Logo'
 import { TypeText } from '@/components/motion/TypeText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { ADULT_AGE, ageFrom, MIN_APPLY_AGE } from '@/lib/apply-criteria'
+import { ADULT_AGE, ageFrom, MIN_APPLY_AGE, tooShort, tooShortMessage } from '@/lib/apply-criteria'
 import { shrinkPhoto } from '@/lib/shrink-photo'
 import { sitePath, SITES, type Site } from '@/lib/sites'
 import { cmToFeet } from '@/lib/units'
@@ -68,6 +68,9 @@ const STEP_NAMES = ['You', 'Measurements', 'Digitals', 'Send']
 const TITLE: Partial<Record<Step, string>> = { you: 'About you', guardian: 'A parent or guardian', measure: 'Measurements', digitals: 'Digitals', send: 'Last thing' }
 
 const narrow = { fontStretch: '80%' } as const
+/** What stops the form: under the button on a computer; on phones, where the button is pinned to the
+ *  foot of the screen, laid over the page just above that bar (taking no room). Either way the button doesn't move. */
+const STOP = 'mt-5 leading-snug text-alert max-lg:absolute max-lg:inset-x-0 max-lg:bottom-full max-lg:mt-0 max-lg:border-t max-lg:border-line max-lg:bg-bg max-lg:px-gutter max-lg:py-3'
 const big =
   'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 /** A handle field: the @ set in front, the underline under both (dark once filled or focused). */
@@ -75,10 +78,10 @@ const handleRow =
   'flex items-baseline border-b-2 border-line pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold focus-within:border-fg has-[input:not(:placeholder-shown)]:border-fg'
 const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.7vw,25px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 
-function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
+function Field({ label, hint, missing = false, className = '', children }: { label: string; hint?: string; missing?: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <label data-q className={`flex min-w-0 flex-col gap-2 ${className}`}>
-      <span className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
+    <label data-q data-missing={missing || undefined} className={`flex min-w-0 flex-col gap-2 ${className}`}>
+      <span data-label className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
     </label>
@@ -275,8 +278,9 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   /** Sent through, but nothing delivers applications yet (email not set up). */
   const [unsent, setUnsent] = useState(false)
   const [unit, setUnit] = useState<Unit>('cm')
-  /** Continue was pressed with something still unset: say what. */
-  const [tried, setTried] = useState(false)
+  /** What was wrong when Continue was last pressed on this step. Only these show (each until it's put
+   *  right); anything that goes wrong after that waits for the next press. */
+  const [flagged, setFlagged] = useState<string[]>([])
   const startedAt = useRef(0)
   const sheetRef = useRef<HTMLDivElement>(null)
   // The top bar's height, so the step ruler can stick right under it (phones).
@@ -367,7 +371,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   const number = NUMBER[step] ?? 0
 
   const go = (s: Step) => {
-    setTried(false)
+    setFlagged([])
     setStep(s)
     setFurthest((f) => Math.max(f, NUMBER[s] ?? 0))
   }
@@ -419,7 +423,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
     if (!res?.ok) {
       // Say what the site answered, so a failure can be followed up (the API's own reason, or the status).
-      const why = res ? ((await res.json().catch(() => null))?.error ?? `error ${res.status}`) : 'no connection'
+      const body = res ? await res.json().catch(() => null) : null
+      // A reason meant for the applicant as it stands (e.g. they've applied as often as allowed).
+      if (body?.message) return body.message as string
+      const why = res ? (body?.error ?? `error ${res.status}`) : 'no connection'
       return `Something went wrong (${why}). Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`
     }
     setUnsent(!!(await res.json().catch(() => ({})))?.unsent)
@@ -473,15 +480,28 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
       ['Date of birth', !d.birthdate || badDate || underage],
     ] as const
   ).filter(([, bad]) => bad).map(([k]) => k)
-  const youNote = [
-    youGaps.filter((k) => k !== 'Date of birth' || !d.birthdate).length && `Still to fill in: ${youGaps.filter((k) => !(k === 'Date of birth' && d.birthdate)).map((k) => (k)).join(', ')}.`,
-    badDate && 'Check the date of birth (a four-digit year).',
-  ].filter(Boolean).join(' ')
 
   // What the measurements step still needs.
   const gaps = (
     [['Height', d.height], ['T-shirt', d.tshirt], ['Pants', d.pants], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
   ).filter(([, v]) => !v).map(([k]) => k)
+  // Under the board's minimum height the application can't go on (said once Continue is pressed).
+  const short = !!d.height && tooShort(division, d.height)
+  const SIZE_GAP: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
+  // What each step's Continue checks: the fields still missing, and the reasons it can't go on.
+  const youProblems: string[] = [...youGaps, ...(underage ? ['underage'] : []), ...(badDate ? ['badDate'] : [])]
+  const measureProblems: string[] = [...gaps, ...(short ? ['short'] : [])]
+  const problems = step === 'you' ? youProblems : step === 'measure' ? measureProblems : []
+  /** Shown: wrong when Continue was pressed, and still wrong now. A missing field shows in the alert colour. */
+  const shown = (k: string) => flagged.includes(k) && problems.includes(k)
+  const missing = shown
+  // Put right, it's forgotten: going wrong again waits for the next press of Continue.
+  const problemsKey = problems.join('|')
+  const [seenProblems, setSeenProblems] = useState(problemsKey)
+  if (seenProblems !== problemsKey) {
+    setSeenProblems(problemsKey)
+    if (!flagged.every((k) => problems.includes(k))) setFlagged(flagged.filter((k) => problems.includes(k)))
+  }
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
@@ -556,7 +576,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   const thanksLabel = thanks?.label?.trim() || 'Application received'
   const who = d.firstName.trim()
   const thanksTitle = (thanks?.title?.trim() || 'Thank you, {name}.').replace(who ? /\{name\}/g : /\s*,?\s*\{name\}/g, who)
-  const thanksText = thanks?.text?.trim() || 'It’s with our scouts now. We look at every application ourselves; if there’s a fit, we’ll be in touch by email or phone to meet you.'
+  const thanksText = thanks?.text?.trim() || 'We’ve received your application. If there’s a fit, we’ll be in touch by email or phone.\n\nAlready applied and haven’t heard from us yet? No need to send it again — we’re on it.'
   if (step === 'done')
     body = (
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-start justify-center gap-6 px-gutter py-16 md:min-h-[calc(100dvh-120px)]">
@@ -582,7 +602,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
       <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
         Back
       </button>
-      {note && (alert ? <span role="alert" className="text-[13px] font-bold">{note}</span> : <span className="text-[13px] text-muted">{note}</span>)}
+      {note && (alert ? <span role="alert" className="text-[13px] font-bold text-alert">{note}</span> : <span className="text-[13px] text-muted">{note}</span>)}
     </div>
   )
 
@@ -639,11 +659,15 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 e.preventDefault()
                 // Checked here rather than by the browser, so what's missing is said plainly under the
                 // button, and the first of it is brought into view (not hidden under the ruler on phones).
-                if (!youGaps.length) return next()
-                setTried(true)
+                if (!youProblems.length) return next()
+                setFlagged(youProblems)
                 const first = e.currentTarget.querySelector<HTMLInputElement>(YOU_FIELDS[youGaps[0]])
                 first?.focus({ preventScroll: true })
-                first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+                // Only when it's out of sight (under the top bar and the ruler, or below the buttons): the page stays still otherwise.
+                const box = first?.getBoundingClientRect()
+                const over = Math.max(barRef.current?.getBoundingClientRect().bottom ?? 0, rulerRef.current?.getBoundingClientRect().bottom ?? 0)
+                const under = e.currentTarget.querySelector('.apply-nav')?.getBoundingClientRect().top ?? innerHeight
+                if (box && (box.top < over || box.bottom > under)) first?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
               }}
               noValidate
             >
@@ -651,21 +675,23 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               <span className="absolute right-0 top-0 z-10">
                 <InfoTip label="What you’ll need">{BEFORE}</InfoTip>
               </span>
-              <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
-              <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-              <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
-              <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-              <Field label="Date of birth" hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
+              <Field label="First name" missing={missing('First name')}><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
+              <Field label="Last name" missing={missing('Last name')}><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
+              <Field label="Email" missing={missing('Email')}><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
+              <Field label="Phone" missing={missing('Phone')}><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
+              <Field label="Date of birth" missing={missing('Date of birth')} hint={shown('badDate') ? 'Check the year (four digits).' : !badDate && Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
-              {underage ? (
-                <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug">
-                  Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
-                </p>
-              ) : (
-                <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
-              )}
-              <div className="sm:col-span-2">{underage ? nav('Continue →', true) : tried && youGaps.length ? nav('Continue →', false, youNote, true) : nav('Continue →', false, 'Takes about 3 minutes')}</div>
+              <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
+              {/* What stops the form goes under the button, so the button never moves. */}
+              <div className="flex flex-col sm:col-span-2">
+                {nav('Continue →', false, 'Takes about 3 minutes')}
+                {shown('underage') && (
+                  <p role="alert" className={`${STOP} text-[16px] font-bold`}>
+                    Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
+                  </p>
+                )}
+              </div>
             </form>
           )}
 
@@ -687,13 +713,13 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               className="flex flex-col gap-10"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (gaps.length) setTried(true)
+                if (measureProblems.length) setFlagged(measureProblems)
                 else next()
               }}
             >
-              <div data-q className="flex flex-col gap-2">
+              <div data-q data-missing={missing('Height') || undefined} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
+                  <span data-label className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
                   {/* Centimetres or feet and inches. */}
                   <UnitToggle unit={unit} onChange={setUnit} className="text-[15px]" />
                 </div>
@@ -712,8 +738,8 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 {SIZE_KEYS.map((k) => {
                   const value = d[k]
                   return (
-                    <label key={k} data-q className="flex min-w-0 flex-col gap-1.5">
-                      <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
+                    <label key={k} data-q data-missing={missing(SIZE_GAP[k]) || undefined} className="flex min-w-0 flex-col gap-1.5">
+                      <span data-label className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                         {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
                       <span className="relative block">
@@ -740,10 +766,13 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 })}
               </div>
               <div className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2">
-                <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
-                <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
+                <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} missing={missing('Hair')} />
+                <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} missing={missing('Eyes')} />
               </div>
-              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, 'Pick each size.')}
+              <div className="flex flex-col">
+                {nav('Continue →', false, 'Pick each size.')}
+                {shown('short') && <p role="alert" className={`${STOP} text-[16px] font-bold`}>{tooShortMessage(division)}</p>}
+              </div>
             </form>
           )}
 
@@ -785,12 +814,14 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                   )
                 })}
               </div>
-              {photoError && <p className="text-[14px] text-red-600">{photoError}</p>}
-              {nav(
-                'Continue →',
-                SLOTS.some((s) => !photos[s.pose]),
-                `${SLOTS.filter((s) => photos[s.pose]).length} of ${SLOTS.length} added`,
-              )}
+              <div className="flex flex-col">
+                {nav(
+                  'Continue →',
+                  SLOTS.some((s) => !photos[s.pose]),
+                  `${SLOTS.filter((s) => photos[s.pose]).length} of ${SLOTS.length} added`,
+                )}
+                {photoError && <p role="alert" className={`${STOP} text-[14px]`}>{photoError}</p>}
+              </div>
             </form>
           )}
 
@@ -814,8 +845,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                   {scoutingEmail && <> Upload trouble or questions: <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</>}
                 </span>
               </label>
-              {error && <p className="sm:col-span-2 text-[14px] text-red-600">{error}</p>}
-              <div className="sm:col-span-2">{nav(sending ? 'Sending…' : 'Send application', sending)}</div>
+              <div className="flex flex-col sm:col-span-2">
+                {nav(sending ? 'Sending…' : 'Send application', sending)}
+                {error && <p role="alert" className={`${STOP} text-[14px]`}>{error}</p>}
+              </div>
             </form>
           )}
         </div>
