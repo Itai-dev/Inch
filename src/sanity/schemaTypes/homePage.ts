@@ -49,14 +49,15 @@ export const homePage = defineType({
     defineField({
       name: 'statement',
       title: 'Statement (home scroll reveal)',
-      description: 'On DOT. the final ■ becomes the full stop.',
+      description:
+        'One or two sentences read best: the shorter the text, the larger it is set. A new line after a full stop starts a new line on the site. On DOT. the final ■ becomes the full stop.',
       type: 'text',
       rows: 3,
     }),
     defineField({
       name: 'magazine',
       title: 'Magazine',
-      description: 'The magazine under the statement, page by page. No pages = a magazine of the board’s models.',
+      description: 'The magazine under the statement, page by page. It shows only what is added here; with no pages, the home page has no magazine.',
       type: 'object',
       options: { collapsible: true, collapsed: false },
       fields: [

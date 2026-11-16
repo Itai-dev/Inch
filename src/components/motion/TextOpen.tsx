@@ -32,6 +32,8 @@ const AIR_PHONE = 20
 const MAX_FONT = 104
 const MIN_FONT = 26
 const LINE_HEIGHT = 1.28
+/** A statement keeps its own line breaks while that leaves it at least this share of the size it would have running on. */
+const KEEP_LINES = 0.8
 /** Set a little tight, letters and words both. */
 const TRACKING = '-0.025em'
 const WORD_SPACING = '-0.04em'
@@ -83,53 +85,60 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
   const leftRef = useRef<HTMLDivElement>(null)
   const charRefs = useRef<(HTMLSpanElement | null)[]>([])
   const [font, setFont] = useState(MAX_FONT)
-  /** Written with its own line breaks: kept as set from tablets up (phones just wrap it). */
+  /** Written with its own line breaks: kept as set from tablets up when they leave the type large (phones just wrap it). */
   const lines = text.includes('\n')
+  /** Its lines are too long to keep at a size worth reading: it runs on as a paragraph instead. */
+  const [flow, setFlow] = useState(false)
+  const set = lines && !flow
+  /** The line breaks that end a sentence: those stay breaks however the statement is set; the others become spaces when it runs on. */
+  const hard = useMemo(() => new Set([...text.matchAll(/[.!?…][”"’')\]]*[ \t]*\n/g)].map((m) => (m.index ?? 0) + m[0].length - 1)), [text])
 
   useEffect(() => {
     const el = wrapRef.current
     const t = textRef.current
     if (!el || !t) return
-    // As large as the width allows, then smaller until the statement, centred and at its highest,
-    // stays below the header: the height goes roughly with the square of the size (more lines too).
-    // Set lines (a statement written with line breaks, from tablets up): as large as its longest line allows.
-    const setLines = () => lines && matchMedia('(min-width: 768px)').matches
-    /** The longest set line's width at the size being tried. */
-    const lineWidth = () => {
-      const keep = [t.style.position, t.style.width, t.style.whiteSpace]
-      Object.assign(t.style, { position: 'absolute', width: 'max-content', whiteSpace: 'pre' })
-      const w = t.offsetWidth
-      ;[t.style.position, t.style.width, t.style.whiteSpace] = keep
-      return w
+    /** The statement's size at a font size: `asSet` on its own lines (how wide the longest is), else running on in `width`. */
+    const measure = (asSet: boolean, f: number, width: number) => {
+      const keep = [t.style.position, t.style.width, t.style.whiteSpace, t.style.fontSize]
+      Object.assign(t.style, { position: 'absolute', width: asSet ? 'max-content' : `${width}px`, whiteSpace: asSet ? 'pre' : 'normal', fontSize: `${f}px` })
+      const size = { w: t.offsetWidth, h: t.offsetHeight }
+      ;[t.style.position, t.style.width, t.style.whiteSpace, t.style.fontSize] = keep
+      return size
     }
     const fit = () => {
       // Tablets up: as wide as the open magazine below it (its spread: min(94vw, 100dvh)); phones: the screen.
-      const width = window.innerWidth < 768 ? window.innerWidth * 0.9 : Math.min(window.innerWidth * 0.94, window.innerHeight)
       const phone = window.innerWidth < 768
+      const width = phone ? window.innerWidth * 0.9 : Math.min(window.innerWidth * 0.94, window.innerHeight)
       const room = Math.max(160, window.innerHeight - 2 * (headerBottom() + (phone ? AIR_PHONE : AIR)))
-      let f = setLines() ? MAX_FONT : Math.min(MAX_FONT, width / (phone ? WIDTH_PER_FONT_PHONE : WIDTH_PER_FONT))
-      const was = t.style.fontSize
-      for (let i = 0; i < 6; i++) {
-        t.style.fontSize = `${f}px`
-        if (setLines()) {
-          const w = lineWidth()
-          if (w > width) {
+      // As large as the width allows, then smaller until the statement, centred and at its highest,
+      // stays below the header: the height goes roughly with the square of the size (more lines too).
+      // On its own lines: as large as its longest line allows.
+      const sizeFor = (asSet: boolean) => {
+        let f = asSet ? MAX_FONT : Math.min(MAX_FONT, width / (phone ? WIDTH_PER_FONT_PHONE : WIDTH_PER_FONT))
+        for (let i = 0; i < 6; i++) {
+          const { w, h } = measure(asSet, f, width)
+          if (asSet && w > width) {
             f = Math.max(MIN_FONT, (f * width) / w) * 0.995
             continue
           }
+          if (h <= room) break
+          f = Math.max(MIN_FONT, f * Math.sqrt(room / h) * 0.98)
         }
-        const h = t.offsetHeight
-        if (h <= room) break
-        f = Math.max(MIN_FONT, f * Math.sqrt(room / h) * 0.98)
+        return f
       }
-      t.style.fontSize = was
-      setFont(f)
+      const running = sizeFor(false)
+      if (!lines || phone) return setFont(running)
+      // Its own lines are kept when they fit and cost little size; long ones (a paragraph typed
+      // with line breaks) would shrink it to small print across the screen.
+      const own = sizeFor(true)
+      const keep = own >= running * KEEP_LINES && measure(true, own, width).w <= width + 1
+      setFlow(!keep)
+      setFont(keep ? own : running)
     }
     const ro = new ResizeObserver(fit)
     ro.observe(el.parentElement ?? el)
     return () => ro.disconnect()
   }, [lines])
-
 
   const markH = Math.round(font * 0.42)
   const markW = Math.round(markH * STROKE_RATIO)
@@ -236,14 +245,14 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
     <div ref={zoneRef} style={{ height: reduced ? 'auto' : holdVh ? `${ZONE_VH + holdVh}vh` : undefined }} className={`relative ${reduced || holdVh ? '' : 'h-[210vh] md:h-[270vh]'}`}>
       <div className={`${reduced ? 'py-32' : 'sticky top-0 h-dvh'} flex items-center justify-center overflow-hidden px-gutter`}>
         {/* Placed from the layout effect below (its lift, then its exit). */}
-        <div ref={wrapRef} className={`relative max-w-[90vw] md:max-w-[min(94vw,100dvh)] ${lines ? 'w-max md:max-w-none' : 'w-[90vw] md:w-[min(94vw,100dvh)]'}`}>
+        <div ref={wrapRef} className={`relative max-w-[90vw] md:max-w-[min(94vw,100dvh)] ${set ? 'w-max md:max-w-none' : 'w-[90vw] md:w-[min(94vw,100dvh)]'}`}>
           <div ref={leftRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left">
             <QuoteStroke side="left" height={markH} />
           </div>
           <div ref={rightRef} aria-hidden className="pointer-events-none absolute left-0 top-0 origin-top-left transition-opacity duration-100">
             <QuoteStroke side="right" height={markH} />
           </div>
-          <p ref={textRef} className={`m-0 font-bold ${lines ? 'md:whitespace-pre-line' : '[text-wrap:balance]'}`} style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text.replace(/\s+/g, ' ')}>
+          <p ref={textRef} className={`m-0 font-bold ${set ? 'md:whitespace-pre-line' : lines ? '' : '[text-wrap:balance]'}`} style={{ fontSize: font, lineHeight: LINE_HEIGHT, letterSpacing: TRACKING, wordSpacing: WORD_SPACING }} aria-label={text.replace(/\s+/g, ' ')}>
             {text.split('').map((c, i) => {
               const k = slots.indexOf(i)
               return (
@@ -264,7 +273,7 @@ export function TextOpen({ text, holdVh = 0, pics = [] }: { text: string; holdVh
                       </span>
                     </span>
                   )}
-                  <span aria-hidden ref={(el) => { charRefs.current[i] = el }} style={{ opacity: i < cursor ? 1 : 0 }}>
+                  <span aria-hidden ref={(el) => { charRefs.current[i] = el }} style={{ opacity: i < cursor ? 1 : 0, whiteSpace: hard.has(i) ? 'pre-line' : undefined }}>
                     {c}
                   </span>
                 </Fragment>
