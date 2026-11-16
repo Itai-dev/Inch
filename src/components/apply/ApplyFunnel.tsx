@@ -419,7 +419,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
     const res = await fetch('/api/apply', { method: 'POST', body: fd }).catch(() => null)
     if (!res?.ok) {
       // Say what the site answered, so a failure can be followed up (the API's own reason, or the status).
-      const why = res ? ((await res.json().catch(() => null))?.error ?? `error ${res.status}`) : 'no connection'
+      const body = res ? await res.json().catch(() => null) : null
+      // A reason meant for the applicant as it stands (e.g. they've applied as often as allowed).
+      if (body?.message) return body.message as string
+      const why = res ? (body?.error ?? `error ${res.status}`) : 'no connection'
       return `Something went wrong (${why}). Please try again${scoutingEmail ? `, or write to ${scoutingEmail}` : ''}.`
     }
     setUnsent(!!(await res.json().catch(() => ({})))?.unsent)

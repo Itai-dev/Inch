@@ -38,6 +38,8 @@ const MAX_FILES = 4
 const MAX_BYTES = 2.5 * 1024 * 1024
 const MAX_TOTAL = 4.3 * 1024 * 1024
 const MIN_FILL_MS = 8000
+// How many applications one person may send (counted in the Studio, by email or by name and date of birth).
+const MAX_APPLICATIONS = 2
 
 const key = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
@@ -79,13 +81,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: files.length < MIN_FILES ? 'Four photos are needed' : 'The photos are too large' }, { status: 400 })
   }
 
-  const name = `${d.firstName} ${d.lastName}`
+  const name = `${d.firstName} ${d.lastName}`.trim()
   // Everyone's application is kept; the ones outside the current criteria are flagged for the scouts.
   const outsideCriteria = !meetsCriteria(d.division, age, d.height)
 
   // Kept in the Studio when it can write (SANITY_API_WRITE_TOKEN), and emailed to the scouts
   // with the photos attached. Either is enough; with neither, the applicant is told to try again.
   const client = getWriteClient()
+
+  // Already applied as often as allowed: say so plainly (deleting one in the Studio frees a place).
+  if (client) {
+    const sent = await client
+      .fetch<number>(
+        'count(*[_type == "application" && (lower(email) == $email || (lower(name) == $name && birthdate == $birthdate))])',
+        { email: d.email.trim().toLowerCase(), name: name.toLowerCase(), birthdate: d.birthdate },
+      )
+      .catch((e) => {
+        console.error('[apply] Could not count earlier applications', e)
+        return 0
+      })
+    if (sent >= MAX_APPLICATIONS) {
+      return NextResponse.json(
+        { error: 'limit', message: `We already have your applications — thank you. Each person can apply ${MAX_APPLICATIONS} times; our scouts will be in touch if there's a fit.` },
+        { status: 429 },
+      )
+    }
+  }
   // The Studio's copies of the photos, when it saved them (their URLs go in the email).
   let studioUrls: string[] = []
   const saved = client
