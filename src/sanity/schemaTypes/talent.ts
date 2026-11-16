@@ -28,6 +28,15 @@ export const talent = defineType({
   ],
   fields: [
     defineField({ name: 'name', type: 'string', group: 'main', validation: (r) => r.required() }),
+    // Off the site (board, categories, her page, selections, home) but kept in the Studio, to bring back any time.
+    defineField({
+      name: 'hidden',
+      title: 'Hide from the site',
+      description: 'On: she disappears from the website but stays here. Turn off to show her again. (To remove her for good: ⋯ next to Publish → Delete.)',
+      type: 'boolean',
+      group: 'main',
+      initialValue: false,
+    }),
     defineField({
       name: 'slug',
       type: 'slug',
@@ -66,8 +75,8 @@ export const talent = defineType({
   orderings: [orderRankOrdering],
   // Numbered by her place on the board (the id and division ride in the description for that).
   preview: {
-    select: { title: 'name', media: 'cover', id: '_id', division: 'division' },
-    prepare: ({ title, media, id, division }) => ({ title, media, description: `${id}|${division}` }),
+    select: { title: 'name', media: 'cover', id: '_id', division: 'division', hidden: 'hidden' },
+    prepare: ({ title, media, id, division, hidden }) => ({ title, media, description: `${id}|${division}|${hidden ? 1 : 0}` }),
   },
   components: { preview: NumberedPreview },
 })

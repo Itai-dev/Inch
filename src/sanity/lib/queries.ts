@@ -5,7 +5,7 @@ const cardFields = `_id, name, "slug": slug.current, division, cover`
 export const HOME_QUERY = defineQuery(`*[_id == $id][0]{
   "heroVideos": heroVideos[]{ _type, "src": video.asset->url, poster, asset, hotspot, crop },
   "heroVideo": heroVideo.asset->url, heroPoster, statement, intro, introImages, story[]{ _key, heading, text, images },
-  "featured": featured[]->{ ${cardFields}, "pics": portfolio[0...6] }
+  "featured": featured[!coalesce(@->hidden, false)]->{ ${cardFields}, "pics": portfolio[0...6] }
 }`)
 
 export const SITE_SETTINGS_QUERY = defineQuery(`*[_id == $id][0]{ email, phone, address, instagram }`)
@@ -17,34 +17,34 @@ export const CATEGORIES_BY_DIVISION_QUERY = defineQuery(
 )
 
 export const TALENTS_BY_DIVISION_QUERY = defineQuery(
-  `*[_type == "talent" && division == $division] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields}, "pics": portfolio[0...6] }`,
+  `*[_type == "talent" && division == $division && !coalesce(hidden, false)] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields}, "pics": portfolio[0...6] }`,
 )
 
 export const CATEGORY_QUERY = defineQuery(`*[_type == "category" && division == $division && slug.current == $category][0]{
   _id, title, "slug": slug.current, division,
-  "talents": *[_type == "talent" && references(^._id)] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields} }
+  "talents": *[_type == "talent" && references(^._id) && !coalesce(hidden, false)] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields} }
 }`)
 
-export const TALENT_QUERY = defineQuery(`*[_type == "talent" && slug.current == $slug][0]{
+export const TALENT_QUERY = defineQuery(`*[_type == "talent" && slug.current == $slug && !coalesce(hidden, false)][0]{
   ${cardFields}, portfolio, polaroids, measurements, bio, instagram,
   "categories": categories[]->{ title, "slug": slug.current }
 }`)
 
 /** Whole talents by id, for comp cards of a selection. */
-export const TALENTS_FULL_BY_IDS_QUERY = defineQuery(`*[_type == "talent" && _id in $ids]{
+export const TALENTS_FULL_BY_IDS_QUERY = defineQuery(`*[_type == "talent" && _id in $ids && !coalesce(hidden, false)]{
   ${cardFields}, portfolio, polaroids, measurements
 }`)
 
 export const TALENTS_BY_IDS_QUERY = defineQuery(
-  `*[_type == "talent" && _id in $ids]{ ${cardFields} }`,
+  `*[_type == "talent" && _id in $ids && !coalesce(hidden, false)]{ ${cardFields} }`,
 )
 
 export const SELECTION_QUERY = defineQuery(`*[_type == "selection" && shareId == $shareId][0]{
   title, note, division, _createdAt,
-  "talents": talents[]->{ ${cardFields}, measurements }
+  "talents": talents[!coalesce(@->hidden, false)]->{ ${cardFields}, measurements }
 }`)
 
 export const ALL_SLUGS_QUERY = defineQuery(`{
-  "talents": *[_type == "talent" && defined(slug.current)]{ "slug": slug.current, division, _updatedAt },
+  "talents": *[_type == "talent" && defined(slug.current) && !coalesce(hidden, false)]{ "slug": slug.current, division, _updatedAt },
   "categories": *[_type == "category" && defined(slug.current)]{ "slug": slug.current, division, _updatedAt }
 }`)
