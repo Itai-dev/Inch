@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { ModelSheet, type Book } from '@/components/ModelSheet'
 import { isPlaceholder, placeholderBook, placeholderTalent, POLAROID_PLACEHOLDERS } from '@/lib/placeholders'
-import { siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
+import { decodeSlug, siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
 import { imageSlides, placeholderSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
@@ -15,7 +15,11 @@ const BOOKS = [
   { segment: 'polaroids', field: 'polaroids', title: 'Polaroids', view: 'book', placeholders: 10, wideAt: undefined },
 ] as const
 
-const load = async (slug: string) => (await sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])) ?? placeholderTalent(slug)
+// Route params arrive URL-encoded ("SUN%20MIZRAHI"), so a slug typed with a space or an accent still has to match.
+const load = async (raw: string) => {
+  const slug = decodeSlug(raw)
+  return (await sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])) ?? placeholderTalent(slug)
+}
 
 const booksFor = (t: Talent): Book[] =>
   BOOKS.map((b) => ({

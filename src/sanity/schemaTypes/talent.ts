@@ -4,6 +4,7 @@ import { NumberedPreview } from '../components/NumberedPreview'
 import { DriveArrayInput } from '../drive/DriveArrayInput'
 import { divisionField } from './division'
 import { creditedImage } from './objects/creditedImage'
+import { slugRule } from './slug'
 
 const gallery = (name: string, title: string) =>
   defineField({
@@ -45,7 +46,7 @@ export const talent = defineType({
       type: 'slug',
       group: 'main',
       options: { source: 'name' },
-      validation: (r) => r.required(),
+      validation: slugRule,
     }),
     // Set by the Studio the model is made in (INCH” or DOT.), not chosen.
     defineField({ ...divisionField(), group: 'main', validation: (r: Rule) => r.required() }),

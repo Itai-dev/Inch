@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { apiVersion } from '../env'
 import { divisionField } from './division'
+import { slugRule } from './slug'
 
 export const category = defineType({
   name: 'category',
@@ -22,7 +23,7 @@ export const category = defineType({
           )
         },
       },
-      validation: (r) => r.required(),
+      validation: slugRule,
     }),
     // Set by the Studio the category is made in (INCH” or DOT.), not chosen.
     defineField({ ...divisionField(), validation: (r: Rule) => r.required() }),
