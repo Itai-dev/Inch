@@ -23,7 +23,6 @@ function ImageWithDrive(props: InputProps) {
       setBusy('Choose a photo in the Google Drive window…')
       const { files, token } = await pickFromDrive({ multiple: false, folderId: folder.start() })
       if (!files.length) return
-      folder.remember(files[0].parentId)
       setBusy(`Uploading ${files[0].name}`)
       const file = await downloadFromDrive(files[0], token)
       const asset = await client.assets.upload('image', file, { filename: file.name, source: { name: 'google-drive', id: files[0].id } })

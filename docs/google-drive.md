@@ -7,7 +7,7 @@ Photos can be brought into the Studio straight from the agency's Google Drive:
 
 Each person signs in with their Google account the first time. The Studio asks for read-only access to the Drive (scope `drive.readonly`, needed for the picker to show thumbnails); the access stays in that person's browser, and nothing in the Drive is changed.
 
-**Where it opens:** in the folder set in Studio › Site settings › *Google Drive folder* (the folder with that site's models). After the first photos are picked for a model, the window opens in the folder they came from the next time, for that model, in that browser.
+**Where it opens:** in the folder set in Studio › Site settings › *Google Drive folder* (the folder with that site's models). It opens there every time.
 
 It runs on the agency's own Google Cloud project, set up once (about 10 minutes), with the Google account that owns the Drive:
 

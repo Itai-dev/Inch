@@ -12,7 +12,7 @@ export const siteSettings = defineType({
       name: 'driveFolder',
       title: 'Google Drive folder',
       description:
-        'The link of the Drive folder with this site’s models (open the folder in Google Drive and copy its address). “From Google Drive” opens there; after the first photos for a model, it opens in her own folder.',
+        'The link of the Drive folder with this site’s models (open the folder in Google Drive and copy its address). “From Google Drive” always opens there.',
       type: 'url',
       placeholder: 'https://drive.google.com/drive/folders/…',
     }),

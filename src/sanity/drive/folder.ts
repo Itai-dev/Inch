@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { useClient, useFormValue, useWorkspace } from 'sanity'
+import { useClient, useWorkspace } from 'sanity'
 import { apiVersion } from '../env'
 import { driveEnabled } from './google'
 
@@ -12,24 +12,13 @@ export const folderIdOf = (link?: string | null) => {
   return s.match(/\/folders\/([\w-]+)/)?.[1] ?? s.match(/[?&]id=([\w-]+)/)?.[1] ?? (/^[\w-]{10,}$/.test(s) ? s : undefined)
 }
 
-const KEY = 'inch-drive-folder:'
-const recall = (id: string) => {
-  try {
-    return localStorage.getItem(KEY + id) || undefined
-  } catch {
-    return undefined
-  }
-}
-
 /**
- * Where the Drive window opens for the document being edited: the folder last picked from for it
- * (remembered in this browser: a model's own folder, after the first time), else the site's folder
- * (Studio › Site settings › Google Drive folder), else the Drive as Google opens it.
+ * Where the Drive window opens: always the site's main folder (Studio › Site settings › Google Drive
+ * folder), whatever was picked from last; without one, the Drive as Google opens it.
  */
 export function useDriveFolder() {
   const client = useClient({ apiVersion })
   const site = useWorkspace().name
-  const docId = String(useFormValue(['_id']) ?? '').replace(/^drafts\./, '')
   const siteFolder = useRef<string | undefined>(undefined)
 
   useEffect(() => {
@@ -43,13 +32,6 @@ export function useDriveFolder() {
 
   return {
     /** The folder to open in. */
-    start: () => (docId && recall(docId)) || siteFolder.current,
-    /** After a pick: this document's folder from now on. */
-    remember: (folderId?: string) => {
-      if (!docId || !folderId) return
-      try {
-        localStorage.setItem(KEY + docId, folderId)
-      } catch {}
-    },
+    start: () => siteFolder.current,
   }
 }

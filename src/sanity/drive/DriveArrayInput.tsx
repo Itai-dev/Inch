@@ -66,7 +66,6 @@ function addItems(wrap: Wrap, kinds: { name: string; title: string }[]) {
       run(async () => {
         setBusy('Choose photos in the Google Drive window…')
         const { files, token } = await pickFromDrive({ multiple: true, folderId: folder.start() })
-        folder.remember(files[0]?.parentId)
         await upload(files.map((f) => ({ name: f.name, file: () => downloadFromDrive(f, token), source: { name: 'google-drive', id: f.id } })))
       })
     const pick = () => fileInput.current?.click()
