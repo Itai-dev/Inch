@@ -47,6 +47,11 @@
   --alert: #b0463c;
 }
 
+/* A required field still empty after Continue: its name and underline in the alert colour. */
+[data-missing] { --line: var(--alert); }
+[data-missing] [data-label] { color: var(--alert); }
+[data-missing] :is(input, select) { border-color: var(--alert); }
+
 @theme inline {
   --color-bg: var(--bg);
   --color-fg: var(--fg);

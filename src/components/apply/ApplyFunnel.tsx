@@ -75,10 +75,10 @@ const handleRow =
   'flex items-baseline border-b-2 border-line pb-1.5 text-[clamp(22px,2.1vw,30px)] font-semibold focus-within:border-fg has-[input:not(:placeholder-shown)]:border-fg'
 const mid = 'w-full border-b-2 border-fg bg-transparent pb-1.5 text-[clamp(20px,1.7vw,25px)] font-semibold outline-none placeholder:text-muted/40 placeholder-shown:border-line focus:border-fg'
 
-function Field({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
+function Field({ label, hint, missing = false, className = '', children }: { label: string; hint?: string; missing?: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <label data-q className={`flex min-w-0 flex-col gap-2 ${className}`}>
-      <span className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
+    <label data-q data-missing={missing || undefined} className={`flex min-w-0 flex-col gap-2 ${className}`}>
+      <span data-label className="text-[13px] uppercase tracking-[0.04em]" style={narrow}>{label}</span>
       {children}
       {hint && <span className="text-[12px] text-muted">{hint}</span>}
     </label>
@@ -476,10 +476,8 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
       ['Date of birth', !d.birthdate || badDate || underage],
     ] as const
   ).filter(([, bad]) => bad).map(([k]) => k)
-  const youNote = [
-    youGaps.filter((k) => k !== 'Date of birth' || !d.birthdate).length && `Still to fill in: ${youGaps.filter((k) => !(k === 'Date of birth' && d.birthdate)).map((k) => (k)).join(', ')}.`,
-    badDate && 'Check the date of birth (a four-digit year).',
-  ].filter(Boolean).join(' ')
+  /** Continue was pressed with this still missing: it shows in the alert colour (no list under the button). */
+  const missing = (k: string) => tried && (youGaps as readonly string[]).concat(gaps).includes(k)
 
   // What the measurements step still needs.
   const gaps = (
@@ -487,6 +485,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   ).filter(([, v]) => !v).map(([k]) => k)
   // Under the board's minimum height the application can't go on (said once Continue is pressed).
   const short = !!d.height && tooShort(division, d.height)
+  const SIZE_GAP: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
@@ -656,11 +655,11 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               <span className="absolute right-0 top-0 z-10">
                 <InfoTip label="What you’ll need">{BEFORE}</InfoTip>
               </span>
-              <Field label="First name"><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
-              <Field label="Last name"><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
-              <Field label="Email"><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
-              <Field label="Phone"><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-              <Field label="Date of birth" hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
+              <Field label="First name" missing={missing('First name')}><input required autoComplete="given-name" className={big} value={d.firstName} onChange={(e) => set('firstName', e.target.value)} /></Field>
+              <Field label="Last name" missing={missing('Last name')}><input required autoComplete="family-name" className={big} value={d.lastName} onChange={(e) => set('lastName', e.target.value)} /></Field>
+              <Field label="Email" missing={missing('Email')}><input required type="email" autoComplete="email" placeholder="you@email.com" className={big} value={d.email} onChange={(e) => set('email', e.target.value)} /></Field>
+              <Field label="Phone" missing={missing('Phone')}><input required type="tel" autoComplete="tel" placeholder="+972" className={big} value={d.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
+              <Field label="Date of birth" missing={missing('Date of birth')} hint={badDate ? 'Check the year (four digits).' : Number.isFinite(age) && age > 0 ? `${age} years old` : undefined}>
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
               {underage ? (
@@ -670,7 +669,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               ) : (
                 <p className="sm:col-span-2 text-[13px] text-muted">Under {ADULT_AGE}? We’ll ask for a parent or guardian’s consent next.</p>
               )}
-              <div className="sm:col-span-2">{underage ? nav('Continue →', true) : tried && youGaps.length ? nav('Continue →', false, youNote, true) : nav('Continue →', false, 'Takes about 3 minutes')}</div>
+              <div className="sm:col-span-2">{underage ? nav('Continue →', true) : nav('Continue →', false, tried && youGaps.length ? undefined : 'Takes about 3 minutes')}</div>
             </form>
           )}
 
@@ -696,9 +695,9 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 else next()
               }}
             >
-              <div data-q className="flex flex-col gap-2">
+              <div data-q data-missing={missing('Height') || undefined} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
+                  <span data-label className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>Height</span>
                   {/* Centimetres or feet and inches. */}
                   <UnitToggle unit={unit} onChange={setUnit} className="text-[15px]" />
                 </div>
@@ -717,8 +716,8 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 {SIZE_KEYS.map((k) => {
                   const value = d[k]
                   return (
-                    <label key={k} data-q className="flex min-w-0 flex-col gap-1.5">
-                      <span className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
+                    <label key={k} data-q data-missing={missing(SIZE_GAP[k]) || undefined} className="flex min-w-0 flex-col gap-1.5">
+                      <span data-label className="truncate text-[12px] uppercase tracking-[0.04em]" style={narrow}>
                         {SIZE_NAME[k]} {k !== 'tshirt' && <span className="text-muted">EU</span>}
                       </span>
                       <span className="relative block">
@@ -745,13 +744,13 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 })}
               </div>
               <div className="grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-2">
-                <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
-                <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
+                <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} missing={missing('Hair')} />
+                <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} missing={missing('Eyes')} />
               </div>
               {tried && short && (
                 <p role="alert" className="text-[16px] font-bold leading-snug text-alert">{tooShortMessage(division)}</p>
               )}
-              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, tried && short ? undefined : 'Pick each size.')}
+              {nav('Continue →', false, tried && (gaps.length || short) ? undefined : 'Pick each size.')}
             </form>
           )}
 

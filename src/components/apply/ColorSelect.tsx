@@ -58,6 +58,7 @@ export function ColorSelect({
   onChange,
   iris = false,
   inputClassName,
+  missing = false,
 }: {
   label: string
   options: Swatch[]
@@ -66,14 +67,16 @@ export function ColorSelect({
   /** Draw the chosen colour as an iris (eye colour) rather than a flat dot. */
   iris?: boolean
   inputClassName: string
+  /** Still to choose after Continue was pressed: shown in the alert colour. */
+  missing?: boolean
 }) {
   const id = useId()
   const [other, setOther] = useState(!!value && !options.some((o) => o.name === value))
   const chosen = other ? OTHER : value
   const swatch = options.find((o) => o.name === chosen)
   return (
-    <div data-q className="relative flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={`${id}-select`} className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
+    <div data-q data-missing={missing || undefined} className="relative flex min-w-0 flex-col gap-1.5">
+      <label data-label htmlFor={`${id}-select`} className="text-[12px] uppercase tracking-[0.04em]" style={narrow}>
         {label}
       </label>
       {/* The device's own picker (a wheel on a phone, as the sizes), the chosen colour beside it. */}
