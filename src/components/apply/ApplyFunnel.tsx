@@ -587,7 +587,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
       <button type="button" onClick={back} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
         Back
       </button>
-      {note && (alert ? <span role="alert" className="text-[13px] font-bold">{note}</span> : <span className="text-[13px] text-muted">{note}</span>)}
+      {note && (alert ? <span role="alert" className="text-[13px] font-bold text-alert">{note}</span> : <span className="text-[13px] text-muted">{note}</span>)}
     </div>
   )
 
@@ -664,7 +664,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 <input required type="date" autoComplete="bday" min="1940-01-01" max={new Date().toISOString().slice(0, 10)} className={big} value={d.birthdate} onChange={(e) => set('birthdate', e.target.value)} />
               </Field>
               {underage ? (
-                <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug">
+                <p role="alert" className="sm:col-span-2 text-[16px] font-bold leading-snug text-alert">
                   Unfortunately, we can’t process your application: you need to be at least {MIN_APPLY_AGE} to apply.
                 </p>
               ) : (
@@ -749,7 +749,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
               {tried && short && (
-                <p role="alert" className="text-[16px] font-bold leading-snug">{tooShortMessage(division)}</p>
+                <p role="alert" className="text-[16px] font-bold leading-snug text-alert">{tooShortMessage(division)}</p>
               )}
               {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, tried && short ? undefined : 'Pick each size.')}
             </form>
@@ -793,7 +793,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                   )
                 })}
               </div>
-              {photoError && <p className="text-[14px] text-red-600">{photoError}</p>}
+              {photoError && <p className="text-[14px] text-alert">{photoError}</p>}
               {nav(
                 'Continue →',
                 SLOTS.some((s) => !photos[s.pose]),
@@ -822,7 +822,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                   {scoutingEmail && <> Upload trouble or questions: <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</>}
                 </span>
               </label>
-              {error && <p className="sm:col-span-2 text-[14px] text-red-600">{error}</p>}
+              {error && <p className="sm:col-span-2 text-[14px] text-alert">{error}</p>}
               <div className="sm:col-span-2">{nav(sending ? 'Sending…' : 'Send application', sending)}</div>
             </form>
           )}
