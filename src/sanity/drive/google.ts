@@ -69,14 +69,19 @@ async function loadPicker() {
   await new Promise<void>((resolve) => window.gapi.load('picker', () => resolve()))
 }
 
-export type DriveFile = { id: string; name: string; mimeType: string }
+export type DriveFile = { id: string; name: string; mimeType: string; parentId?: string }
 
-/** Opens Google's picker on the Drive (photos, folders to browse, shared drives too). Resolves with the picked files, or [] if closed. */
-export async function pickFromDrive({ multiple }: { multiple: boolean }): Promise<{ files: DriveFile[]; token: string }> {
+/**
+ * Opens Google's picker on the Drive (photos, folders to browse, shared drives too), in `folderId` when given.
+ * Resolves with the picked files (each with the folder it was in), or [] if closed.
+ */
+export async function pickFromDrive({ multiple, folderId }: { multiple: boolean; folderId?: string }): Promise<{ files: DriveFile[]; token: string }> {
   const [accessToken] = await Promise.all([getToken(), loadPicker()])
   const g = window.google
   return new Promise((resolve) => {
     const view = new g.picker.DocsView(g.picker.ViewId.DOCS_IMAGES).setIncludeFolders(true).setSelectFolderEnabled(false).setMode(g.picker.DocsViewMode.GRID)
+    // Straight into the folder to start from (the breadcrumb still leads up and out of it).
+    if (folderId) view.setParent(folderId)
     const shared = new g.picker.DocsView(g.picker.ViewId.DOCS_IMAGES).setIncludeFolders(true).setSelectFolderEnabled(false).setEnableDrives(true)
     let builder = new g.picker.PickerBuilder()
       .addView(view)
@@ -88,7 +93,7 @@ export async function pickFromDrive({ multiple }: { multiple: boolean }): Promis
       .setTitle(multiple ? 'Choose photos (several at once: ⌘ / Ctrl)' : 'Choose a photo')
       .setCallback((data: any) => {
         if (data.action === g.picker.Action.PICKED) {
-          resolve({ token: accessToken, files: data.docs.map((d: any) => ({ id: d.id, name: d.name, mimeType: d.mimeType })) })
+          resolve({ token: accessToken, files: data.docs.map((d: any) => ({ id: d.id, name: d.name, mimeType: d.mimeType, parentId: d.parentId })) })
         } else if (data.action === g.picker.Action.CANCEL) resolve({ token: accessToken, files: [] })
       })
     if (multiple) builder = builder.enableFeature(g.picker.Feature.MULTISELECT_ENABLED)

@@ -6,6 +6,7 @@ import { Menu, MenuButton, MenuItem } from '@sanity/ui/menu'
 import { type ArrayInputFunctionsProps, type ArrayOfObjectsInputProps, type ArraySchemaType, useClient } from 'sanity'
 import { apiVersion } from '../env'
 import { downloadFromDrive, driveEnabled, pickFromDrive } from './google'
+import { useDriveFolder } from './folder'
 import { DriveIcon } from './DriveIcon'
 
 const key = () => Math.random().toString(36).slice(2, 14)
@@ -34,6 +35,7 @@ function addItems(wrap: Wrap, kinds: { name: string; title: string }[]) {
   return function AddItems(props: ArrayInputFunctionsProps<Item, ArraySchemaType>) {
     const client = useClient({ apiVersion })
     const fileInput = useRef<HTMLInputElement>(null)
+    const folder = useDriveFolder()
     const [busy, setBusy] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
@@ -63,7 +65,8 @@ function addItems(wrap: Wrap, kinds: { name: string; title: string }[]) {
     const fromDrive = () =>
       run(async () => {
         setBusy('Choose photos in the Google Drive window…')
-        const { files, token } = await pickFromDrive({ multiple: true })
+        const { files, token } = await pickFromDrive({ multiple: true, folderId: folder.start() })
+        folder.remember(files[0]?.parentId)
         await upload(files.map((f) => ({ name: f.name, file: () => downloadFromDrive(f, token), source: { name: 'google-drive', id: f.id } })))
       })
     const pick = () => fileInput.current?.click()

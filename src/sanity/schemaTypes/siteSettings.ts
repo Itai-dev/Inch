@@ -8,6 +8,14 @@ export const siteSettings = defineType({
   fields: [
     defineField({ name: 'title', title: 'Site title', type: 'string' }),
     defineField({ name: 'description', title: 'SEO description', description: 'What search engines show under the site’s name.', type: 'text', rows: 3 }),
+    defineField({
+      name: 'driveFolder',
+      title: 'Google Drive folder',
+      description:
+        'The link of the Drive folder with this site’s models (open the folder in Google Drive and copy its address). “From Google Drive” opens there; after the first photos for a model, it opens in her own folder.',
+      type: 'url',
+      placeholder: 'https://drive.google.com/drive/folders/…',
+    }),
     defineField({ name: 'ogImage', title: 'Share image', description: 'Shown when a link to the site is shared (WhatsApp, social). 1200 × 630.', type: 'image' }),
     // Contact details moved to the Contact page: these older ones show only while they still hold something (the Contact page's win).
     defineField({ name: 'email', title: 'Email (old — now on Contact page)', type: 'string', hidden: ({ value }) => !value }),
