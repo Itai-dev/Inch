@@ -117,26 +117,6 @@ const START = { tshirt: { women: 'S', men: 'M' }, pants: { women: 36, men: 48 },
 const SIZE_NAME: Record<Size, string> = { tshirt: 'T-shirt', pants: 'Pants', shoes: 'Shoes' }
 
 /** A small (i) that opens a note under it; a tap anywhere else closes it. */
-/** A popup over the page (the browser's own modal dialog: Escape or a button shuts it). */
-function Notice({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    if (open && !el.open) el.showModal()
-    if (!open && el.open) el.close()
-  }, [open])
-  return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      className="m-auto w-[min(520px,calc(100vw-32px))] border-2 border-fg bg-bg p-7 text-fg backdrop:bg-black/50"
-    >
-      <div role="alert" className="flex flex-col gap-6">{children}</div>
-    </dialog>
-  )
-}
-
 function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLSpanElement>(null)
@@ -297,8 +277,6 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   const [unit, setUnit] = useState<Unit>('cm')
   /** Continue was pressed with something still unset: say what. */
   const [tried, setTried] = useState(false)
-  /** Continue was pressed with a height under the board's minimum: the popup saying so. */
-  const [shortOpen, setShortOpen] = useState(false)
   const startedAt = useRef(0)
   const sheetRef = useRef<HTMLDivElement>(null)
   // The top bar's height, so the step ruler can stick right under it (phones).
@@ -399,14 +377,13 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   }, [step])
   const next = () => go(flow[index + 1])
   const started = step !== 'done' && (Object.values(d).some(Boolean) || Object.keys(photos).length > 0)
-  const close = useCallback((sure = false) => {
-    if (started && !sure && !window.confirm('Leave your application? What you’ve filled in will be lost.')) return
+  const close = useCallback(() => {
+    if (started && !window.confirm('Leave your application? What you’ve filled in will be lost.')) return
     if (hasSitePageBehind()) router.back()
     else router.push(sitePath(site))
   }, [started, router, site])
   useEffect(() => {
-    // Escape shuts a popup first (the dialog handles it), not the whole application.
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !document.querySelector('dialog[open]') && close()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
@@ -508,6 +485,8 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
   const gaps = (
     [['Height', d.height], ['T-shirt', d.tshirt], ['Pants', d.pants], ['Shoes', d.shoes], ['Hair', d.hair], ['Eyes', d.eyes]] as const
   ).filter(([, v]) => !v).map(([k]) => k)
+  // Under the board's minimum height the application can't go on (said once Continue is pressed).
+  const short = !!d.height && tooShort(division, d.height)
 
   // The comp card, filled in as far as the form is.
   const fullName = [d.firstName, d.lastName].filter(Boolean).join(' ')
@@ -596,7 +575,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
         </p>
         {unsent && <p className="border-l-2 border-current pl-3 text-[13px] text-muted">Not delivered: this site isn’t connected to email yet (RESEND_API_KEY in Vercel), so nothing was sent.</p>}
         {scoutingEmail && <p className="text-[14px] text-muted">Questions? Write to <a href={`mailto:${scoutingEmail}`} className="underline">{scoutingEmail}</a>.</p>}
-        <button type="button" onClick={() => close()} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': `${lag + 1350}ms` } as React.CSSProperties}>Back to {brand}</button>
+        <button type="button" onClick={close} className="ink-line scale-in self-start text-[14px] font-bold uppercase" style={{ ...narrow, '--at': `${lag + 1350}ms` } as React.CSSProperties}>Back to {brand}</button>
       </div>
     )
 
@@ -713,8 +692,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
               className="flex flex-col gap-10"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (gaps.length) setTried(true)
-                else if (d.height && tooShort(division, d.height)) setShortOpen(true)
+                if (gaps.length || short) setTried(true)
                 else next()
               }}
             >
@@ -770,18 +748,10 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
                 <ColorSelect label="Hair colour" options={HAIR} value={d.hair} onChange={(v) => set('hair', v)} inputClassName={mid} />
                 <ColorSelect label="Eye colour" options={EYES} value={d.eyes} onChange={(v) => set('eyes', v)} iris inputClassName={mid} />
               </div>
-              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, 'Pick each size.')}
-              <Notice open={shortOpen} onClose={() => setShortOpen(false)}>
-                <p className="text-[18px] font-bold leading-snug">{tooShortMessage(division)}</p>
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                  <button type="button" onClick={() => close(true)} className="h-12 bg-fg px-7 text-[14px] font-bold uppercase text-bg hover:opacity-85" style={narrow}>
-                    Back to {brand}
-                  </button>
-                  <button type="button" onClick={() => setShortOpen(false)} className="text-[14px] font-bold uppercase text-muted hover:text-fg" style={narrow}>
-                    Change my height
-                  </button>
-                </div>
-              </Notice>
+              {tried && short && (
+                <p role="alert" className="text-[16px] font-bold leading-snug">{tooShortMessage(division)}</p>
+              )}
+              {tried && gaps.length ? nav('Continue →', false, `Still to set: ${gaps.join(', ')}.`, true) : nav('Continue →', false, tried && short ? undefined : 'Pick each size.')}
             </form>
           )}
 
@@ -884,7 +854,7 @@ export function ApplyFunnel({ site, scoutingEmail, thanks }: { site: Site; image
         >
           <Logo division={division} className="text-[48px] md:text-[70px]" />
         </Link>
-        <button type="button" onClick={() => close()} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
+        <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60">
           <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
             <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
           </svg>
