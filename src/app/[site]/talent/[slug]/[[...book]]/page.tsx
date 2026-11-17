@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { ModelSheet, type Book } from '@/components/ModelSheet'
-import { decodeSlug, siteForDivision, sitePath, talentPath, type Site } from '@/lib/sites'
+import { decodeSlug, sitePath, SITES, talentPath, type Site } from '@/lib/sites'
 import { imageSlides } from '@/lib/slides'
 import { sanityFetch } from '@/sanity/lib/client'
 import { urlFor } from '@/sanity/lib/image'
@@ -15,9 +15,10 @@ const BOOKS = [
 ] as const
 
 // Route params arrive URL-encoded ("SUN%20MIZRAHI"), so a slug typed with a space or an accent still has to match.
-const load = async (raw: string) => {
+// Only this site's models: a DOT. model has no page on INCH” (and the other way round).
+const load = async (site: Site, raw: string) => {
   const slug = decodeSlug(raw)
-  return sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])
+  return sanityFetch<Talent | null>(TALENT_QUERY, { slug, division: SITES[site].division }, null, ['talent'])
 }
 
 // Only the books she has pictures in: no Polaroids in the menu (or at its address) without polaroids.
@@ -27,8 +28,8 @@ const booksFor = (t: Talent): Book[] =>
 const tabsFor = (t: Talent) => [...booksFor(t), ...(t.bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
 
 export async function generateMetadata({ params }: PageProps<'/[site]/talent/[slug]/[[...book]]'>): Promise<Metadata> {
-  const { slug, book } = await params
-  const t = await load(slug)
+  const { site, slug, book } = await params
+  const t = await load(site as Site, slug)
   if (!t) return {}
   const segment = book?.[0] ?? ''
   const tab = tabsFor(t).find((x) => x.segment === segment)
@@ -41,10 +42,8 @@ export async function generateMetadata({ params }: PageProps<'/[site]/talent/[sl
 
 export default async function TalentPage({ params }: PageProps<'/[site]/talent/[slug]/[[...book]]'>) {
   const { site, slug, book } = await params
-  const t = await load(slug)
+  const t = await load(site as Site, slug)
   if (!t) notFound()
-  // A DOT. model only lives on DOT. (and vice versa).
-  if (siteForDivision(t.division) !== (site as Site)) redirect(talentPath(t) + (book?.length ? `/${book.join('/')}` : ''))
 
   const tabs = tabsFor(t)
   const segment = book?.[0] ?? tabs[0]?.segment ?? ''

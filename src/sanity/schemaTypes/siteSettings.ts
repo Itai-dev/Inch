@@ -1,10 +1,14 @@
 import { defineField, defineType } from 'sanity'
+import { otherSiteOnly } from './division'
 
 /** One per site: documents `siteSettings-inch` and `siteSettings-dot`. SEO, sharing and the application's thanks; contact details are on the Contact page. */
 export const siteSettings = defineType({
   name: 'siteSettings',
   title: 'Site settings',
   type: 'document',
+  // Locked when opened in the other site's Studio; reached from each Studio's own list, not the search.
+  readOnly: otherSiteOnly,
+  __experimental_omnisearch_visibility: false,
   fields: [
     defineField({ name: 'title', title: 'Site title', type: 'string' }),
     defineField({ name: 'description', title: 'SEO description', description: 'What search engines show under the site’s name.', type: 'text', rows: 3 }),

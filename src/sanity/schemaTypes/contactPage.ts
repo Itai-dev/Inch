@@ -1,5 +1,6 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { DriveArrayInput } from '../drive/DriveArrayInput'
+import { otherSiteOnly } from './division'
 
 /**
  * One per site: documents `contactPage-inch` and `contactPage-dot`. The contact details here are
@@ -9,6 +10,9 @@ export const contactPage = defineType({
   name: 'contactPage',
   title: 'Contact page',
   type: 'document',
+  // Locked when opened in the other site's Studio; reached from each Studio's own list, not the search.
+  readOnly: otherSiteOnly,
+  __experimental_omnisearch_visibility: false,
   fields: [
     defineField({
       name: 'email',

@@ -2,7 +2,7 @@ import { orderRankField, orderRankOrdering } from '@sanity/orderable-document-li
 import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { NumberedPreview } from '../components/NumberedPreview'
 import { DriveArrayInput } from '../drive/DriveArrayInput'
-import { divisionField } from './division'
+import { divisionField, otherSiteOnly } from './division'
 import { creditedImage } from './objects/creditedImage'
 import { slugRule } from './slug'
 import { CleanSlugInput } from '../components/CleanSlugInput'
@@ -26,6 +26,8 @@ export const talent = defineType({
   name: 'talent',
   title: 'Talent',
   type: 'document',
+  // Locked when opened in the other site's Studio.
+  readOnly: otherSiteOnly,
   groups: [
     { name: 'main', title: 'Main', default: true },
     { name: 'media', title: 'Books' },

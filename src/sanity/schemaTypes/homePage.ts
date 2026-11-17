@@ -1,5 +1,5 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
-import { divisionOfSingleton } from './division'
+import { divisionOfSingleton, otherSiteOnly } from './division'
 import { creditedImage } from './objects/creditedImage'
 import { MagazinePagesInput } from '../drive/DriveArrayInput'
 
@@ -8,6 +8,9 @@ export const homePage = defineType({
   name: 'homePage',
   title: 'Home page',
   type: 'document',
+  // Locked when opened in the other site's Studio; reached from each Studio's own list, not the search.
+  readOnly: otherSiteOnly,
+  __experimental_omnisearch_visibility: false,
   fields: [
     defineField({
       name: 'heroVideos',
