@@ -82,7 +82,13 @@ export const talent = defineType({
     gallery('polaroids', 'Polaroids'),
     defineField({ name: 'measurements', type: 'measurements', group: 'details' }),
     defineField({ name: 'bio', type: 'text', rows: 4, group: 'details' }),
-    defineField({ name: 'instagram', title: 'Instagram handle', type: 'string', group: 'details' }),
+    defineField({
+      name: 'instagram',
+      title: 'Instagram',
+      description: 'The name (sunmizrahii or @sunmizrahii) or the whole link (https://www.instagram.com/sunmizrahii/): both work.',
+      type: 'string',
+      group: 'details',
+    }),
   ],
   orderings: [orderRankOrdering],
   // Numbered by her place on the board (the id and division ride in the description for that).

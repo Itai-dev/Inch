@@ -10,6 +10,18 @@ export const DEMO_CONTACT = {
   instagram: 'https://instagram.com/inch.mgmt',
 }
 export const HOURS = 'Sunday – Thursday, 10:00 – 18:00'
+/**
+ * A model's Instagram as typed in the Studio — "@name", "name" or the whole link
+ * ("https://www.instagram.com/name/?hl=en") — as her profile's address; nothing usable → undefined.
+ */
+export const instagramUrl = (v?: string | null) => {
+  const handle = (v ?? '')
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.|m\.)?instagram\.com\//i, '')
+    .replace(/^@+/, '')
+    .replace(/[/?#\s].*$/, '')
+  return /^[\w.]+$/.test(handle) ? `https://www.instagram.com/${handle}/` : undefined
+}
 export const instagramHandle = (url: string) => url.replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')
 
 // TODO: final DOT. line from INCH” — placeholder.

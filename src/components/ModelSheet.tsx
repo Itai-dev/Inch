@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { instagramUrl } from '@/lib/copy'
 import { siteForDivision, sitePath } from '@/lib/sites'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
@@ -253,7 +254,7 @@ export function ModelSheet({
     toggle(t)
     if (!has(t._id)) setTrayOpen(true)
   }
-  const handle = instagram?.replace('@', '')
+  const instagramHref = instagramUrl(instagram)
   // Both units, so each value keeps the width of the wider one and nothing moves when switching.
   const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
   const statsCm = measurements ? measurementRows(measurements, division, 'cm') : []
@@ -391,8 +392,8 @@ export function ModelSheet({
   const bookActions = (stacked = false) => (
     <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap items-center gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
       {bioTab && tabBtn(bioTab)}
-      {handle && (
-        <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
+      {instagramHref && (
+        <a href={instagramHref} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
           Instagram
         </a>
       )}
@@ -450,8 +451,8 @@ export function ModelSheet({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-y-3">
           {bioTab && tabBtn(bioTab)}
-          {handle && (
-            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
+          {instagramHref && (
+            <a href={instagramHref} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
               Instagram
             </a>
           )}
