@@ -1,11 +1,13 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
-import { DIVISIONS } from './division'
+import { DIVISIONS, otherSiteOnly } from './division'
 
 /** Submitted through the Smart Apply funnel. */
 export const application = defineType({
   name: 'application',
   title: 'Application',
   type: 'document',
+  // Locked when opened in the other site's Studio.
+  readOnly: otherSiteOnly,
   fields: [
     defineField({
       name: 'status',
@@ -21,7 +23,8 @@ export const application = defineType({
       },
       initialValue: 'new',
     }),
-    defineField({ name: 'division', type: 'string', options: { list: DIVISIONS } }),
+    // The site it was sent from: not changed by hand (it would move the application to the other Studio).
+    defineField({ name: 'division', type: 'string', options: { list: DIVISIONS }, readOnly: true }),
     defineField({ name: 'name', type: 'string' }),
     defineField({ name: 'birthdate', title: 'Date of birth', type: 'date' }),
     defineField({ name: 'age', title: 'Age when applying', type: 'number' }),

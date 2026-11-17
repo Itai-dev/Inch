@@ -38,10 +38,8 @@ export async function HomeView({ site, hero = 'grow' }: { site: Site; hero?: 'sp
     if (!list.length && h?.heroVideo) list.push({ kind: 'video', src: h.heroVideo, poster: posterUrl(h.heroPoster) })
     return list
   }
-  let videos = heroMedia(home)
-  // DOT. without videos of its own yet: INCH”'s, until DOT.'s Home page has some.
-  // TODO: DOT.'s own hero videos in the Studio (DOT. › Home page › Hero videos & images).
-  if (isDot && !videos.length) videos = heroMedia(await sanityFetch<Home>(HOME_QUERY, { id: singletonId('homePage', 'inch') }, null, ['homePage']))
+  // Each site shows only its own Home page's videos: DOT. never borrows INCH”'s (nor the other way round).
+  const videos = heroMedia(home)
 
   // Both sites alike: the mark (INCH”'s ”, DOT.'s ■) opens to the full-screen video → the statement
   // on scroll → the magazine.

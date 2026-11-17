@@ -1,5 +1,5 @@
 import { compCardsPdf } from '@/lib/comp-card'
-import { decodeSlug, singletonId, siteForDivision, type Site } from '@/lib/sites'
+import { decodeSlug, isSite, singletonId, SITES } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { SITE_SETTINGS_QUERY, TALENT_QUERY } from '@/sanity/lib/queries'
 import type { SiteSettings, Talent } from '@/sanity/lib/types'
@@ -8,11 +8,13 @@ import type { SiteSettings, Talent } from '@/sanity/lib/types'
 export async function GET(req: Request, { params }: RouteContext<'/[site]/talent/[slug]/comp-card'>) {
   const { site, slug: raw } = await params
   const slug = decodeSlug(raw)
-  const t = await sanityFetch<Talent | null>(TALENT_QUERY, { slug }, null, ['talent'])
-  if (!t || siteForDivision(t.division) !== (site as Site)) return new Response('Not found', { status: 404 })
-  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site as Site) }, null, ['siteSettings'])
+  if (!isSite(site)) return new Response('Not found', { status: 404 })
+  // This site's models only.
+  const t = await sanityFetch<Talent | null>(TALENT_QUERY, { slug, division: SITES[site].division }, null, ['talent'])
+  if (!t) return new Response('Not found', { status: 404 })
+  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
 
-  const bytes = await compCardsPdf([t], site as Site, settings, new URL(req.url).origin)
+  const bytes = await compCardsPdf([t], site, settings, new URL(req.url).origin)
   return new Response(new Uint8Array(bytes), {
     headers: {
       'content-type': 'application/pdf',

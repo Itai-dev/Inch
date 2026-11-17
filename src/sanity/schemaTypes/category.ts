@@ -1,6 +1,6 @@
 import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { apiVersion } from '../env'
-import { divisionField } from './division'
+import { divisionField, otherSiteOnly } from './division'
 import { slugRule } from './slug'
 import { CleanSlugInput } from '../components/CleanSlugInput'
 
@@ -8,6 +8,8 @@ export const category = defineType({
   name: 'category',
   title: 'Category',
   type: 'document',
+  // Locked when opened in the other site's Studio.
+  readOnly: otherSiteOnly,
   fields: [
     defineField({ name: 'title', type: 'string', validation: (r) => r.required() }),
     defineField({
