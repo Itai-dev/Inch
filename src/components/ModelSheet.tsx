@@ -68,20 +68,14 @@ const onWide = (cb: () => void) => {
   return () => m.removeEventListener('change', cb)
 }
 /**
- * Tall screens between a phone and a laptop (a foldable opened flat, a tablet upright): the
- * pictures fill the top half and the rest (sizes, books and actions, the ruler) sits in a deck in the bottom half, like a laptop's screen over its keyboard. Half-folded,
- * where the browser tells where the fold is (Viewport Segments), the halves meet at the fold.
+ * Tall screens between a phone and a laptop (a foldable opened, a tablet upright): two pages, with
+ * the sizes on top and the books and actions at the foot, as on a phone.
  */
-const FOLD_MQ = '(min-width: 600px) and (max-width: 1023.98px) and (max-aspect-ratio: 4/5) and (min-height: 760px)'
-/** The deck's height in pixels; 0 where the page keeps its usual layout. */
-const deckHeight = () => {
-  const segs = (window as { viewport?: { segments?: DOMRect[] } }).viewport?.segments
-  if (segs?.length === 2 && segs[1].y > segs[0].y + 1 && innerWidth >= 600 && innerWidth < 1024) return Math.round(innerHeight - segs[1].y)
-  return matchMedia(FOLD_MQ).matches ? Math.round(innerHeight / 2) : 0
-}
-const onDeck = (cb: () => void) => {
-  addEventListener('resize', cb)
-  return () => removeEventListener('resize', cb)
+const TALL = '(min-width: 600px) and (max-width: 1023.98px) and (max-aspect-ratio: 4/5)'
+const onTall = (cb: () => void) => {
+  const m = matchMedia(TALL)
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
 }
 /** The books and the bio, all at full strength; the open one carries the line (aria-current), the others draw it on hover. */
 const tabCls = () => 'ink-line uppercase'
@@ -152,8 +146,8 @@ export function ModelSheet({
       clearTimeout(t)
     }
   }, [showBook])
-  const deck = useSyncExternalStore(onDeck, deckHeight, () => 0)
-  const per = stage.w < 640 && !deck ? 1 : 2
+  const tall = useSyncExternalStore(onTall, () => matchMedia(TALL).matches, () => false)
+  const per = stage.w < 640 && !tall ? 1 : 2
   const polaroids = book?.segment === 'polaroids'
   // Pages side by side: two portraits (three polaroids); phones two of either.
   const cols = per === 2 && polaroids ? 3 : 2
@@ -172,7 +166,7 @@ export function ModelSheet({
   // Two pages: the books and actions sit just under the spread, so leave room for them.
   // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
   const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
-  const underSpread = showBook && per === 2 && !wide && !deck
+  const underSpread = showBook && per === 2 && !wide && !tall
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
@@ -187,9 +181,6 @@ export function ModelSheet({
   const left = (stage.w - frameW) / 2
   // Wide: the pictures start right under the name, the same gap below it as above it.
   const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH) / 2)
-  // Phones with room to spare (a tall one): the sizes and the books drawn in toward the pictures,
-  // so the space is shared out rather than left in two gaps either side of them.
-  const drawIn = per === 1 && showBook && !deck ? Math.round(Math.min(90, Math.max(0, stage.h - pageH - capH) * 0.3)) : 0
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -444,7 +435,7 @@ export function ModelSheet({
           type="button"
           onClick={() => select_(talent)}
           aria-pressed={selected}
-          className={`intro-write border border-fg px-3.5 py-2 uppercase ${stacked ? 'mt-4' : ''} ${selected ? 'hover:bg-fg hover:text-bg' : 'bg-fg text-bg hover:opacity-85'}`}
+          className={`intro-write flex h-[2.6em] items-center justify-center border border-fg px-3.5 uppercase leading-none [text-box:trim-both_cap_alphabetic] ${stacked ? 'mt-4' : ''} ${selected ? 'hover:bg-fg hover:text-bg' : 'bg-fg text-bg hover:opacity-85'}`}
           style={write('+ Selection')}
         >
           {selected ? 'Selected ✓' : '+ Selection'}
@@ -495,7 +486,7 @@ export function ModelSheet({
           type="button"
           onClick={() => select_(talent)}
           aria-pressed={selected}
-          className={`intro-write flex h-12 w-full items-center justify-center border border-fg uppercase ${selected ? '' : 'bg-fg text-bg'}`}
+          className={`intro-write flex h-12 w-full items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
           style={write('+ Selection')}
         >
           {selected ? 'Selected ✓' : '+ Selection'}
@@ -606,11 +597,7 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {!deck && (
-            <div className="relative z-30" style={drawIn ? { transform: `translateY(${drawIn}px)` } : undefined}>
-            {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
-            </div>
-          )}
+          {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
         </header>
       )}
 
@@ -809,19 +796,11 @@ export function ModelSheet({
         </>
       )}
 
-      {/* Books | counter | actions, then the ruler across the full width; on a tall screen, the deck. */}
-      {deck ? (
-        <div className="flex shrink-0 flex-col justify-evenly pb-[max(14px,env(safe-area-inset-bottom))] pt-4" style={{ height: deck }}>
-          {renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
-          {actionsRow('px-gutter')}
-          {rulerBlock}
-        </div>
-      ) : (
-        <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'}`}>
-          {!underSpread && !wide && (per === 1 ? <div className="relative z-30" style={drawIn ? { transform: `translateY(${-drawIn}px)` } : undefined}>{phoneBar}</div> : actionsRow('px-gutter'))}
-          {rulerBlock}
-        </div>
-      )}
+      {/* Books | counter | actions, then the ruler across the full width */}
+      <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 || tall ? 'gap-8' : 'gap-2.5'}`}>
+        {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
+        {rulerBlock}
+      </div>
     </div>
   )
 }
