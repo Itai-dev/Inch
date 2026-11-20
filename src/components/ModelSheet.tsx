@@ -861,7 +861,7 @@ export function ModelSheet({
         className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-9! pt-4' : ''}`}
         style={folded ? { height: folded } : undefined}
       >
-        {tall && renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
+        {tall && renderStats('mb-4 flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true)}
         {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
