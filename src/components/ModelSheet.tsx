@@ -161,6 +161,11 @@ export function ModelSheet({
   }, [showBook])
   const folded = useSyncExternalStore(onFold, foldedHeight, () => 0)
   const tall = useSyncExternalStore(onTall, () => matchMedia(TALL).matches, () => false) || !!folded
+  // Tall screens split in two, as if already half-folded: the name and the pictures on the upper half,
+  // the sizes and the controls on the lower. Folded, the halves meet at the fold itself.
+  // (Opened flat, the fold is half way down the screen, not the page: the browser's bars sit above it.)
+  const viewH = useSyncExternalStore(onFold, () => innerHeight, () => 0)
+  const deckH = folded || (tall ? Math.round(Math.min(viewH * 0.6, Math.max(viewH * 0.4, screen.height / 2))) : 0)
   const per = stage.w < 640 && !tall ? 1 : 2
   const polaroids = book?.segment === 'polaroids'
   // Pages side by side: two portraits (three polaroids); phones two of either.
@@ -176,7 +181,7 @@ export function ModelSheet({
   }
   const S = Math.max(1, spreads.length)
   // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
-  const capH = per === 2 ? 0 : CAPTION_H
+  const capH = per === 2 && !deckH ? 0 : CAPTION_H
   // Two pages: the books and actions sit just under the spread, so leave room for them.
   // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
   const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
@@ -184,7 +189,7 @@ export function ModelSheet({
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
-  let pageH = Math.max(0, stage.h - capH - rowH - (folded ? 24 : 0)) * (wide ? 0.95 : 1)
+  let pageH = Math.max(0, stage.h - capH - rowH - (deckH ? 24 : 0)) * (wide ? 0.95 : 1)
   let pageW = pageH * 0.75
   if (pageW * cols + FOLD * (cols - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (cols - 1)) / cols)
@@ -194,7 +199,7 @@ export function ModelSheet({
   const frameW = pageW * cols + FOLD * (cols - 1)
   const left = (stage.w - frameW) / 2
   // Wide: the pictures start right under the name, the same gap below it as above it.
-  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH - (folded ? 24 : 0)) / 2)
+  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH - (deckH ? 24 : 0)) / 2)
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -517,10 +522,10 @@ export function ModelSheet({
   )
 
   // Tall screens (a foldable, a tablet upright): a control panel, like a keyboard under the pictures.
-  // Two columns of keys between hairlines (the books and the overview on the left, the comp card
-  // and Instagram on the right, the bio under whichever is shorter), then the selection across.
-  // (Half-folded, the keys grow to fill the lower half.)
-  const keyCell = `flex items-center border-t border-line ${folded ? 'min-h-[2.7em] flex-1' : 'h-[2.7em]'}`
+  // Keys between hairlines, each word in the middle of its key: the books and the overview on the
+  // left, the comp card and Instagram on the right, the bio across both; then the selection across.
+  // The keys grow to fill the lower half.
+  const keyCell = 'flex items-center justify-center border-t border-line text-center'
   const keyLeft = [
     ...tabs.filter((t) => t !== bioTab).map(tabBtn),
     book && N > 0 ? (
@@ -541,34 +546,30 @@ export function ModelSheet({
       </a>
     ) : null,
   ].filter(Boolean)
-  if (bioTab) (keyLeft.length <= keyRight.length ? keyLeft : keyRight).push(tabBtn(bioTab))
   const keyRows = Math.max(keyLeft.length, keyRight.length)
-  const keyColumn = (keys: React.ReactNode[], label?: string) => {
-    const cells = Array.from({ length: keyRows }, (_, k) => (
-      <div key={k} className={keyCell}>
-        {keys[k]}
-      </div>
-    ))
-    return label ? (
-      <nav className="flex flex-col border-b border-line" aria-label={label}>
-        {cells}
-      </nav>
-    ) : (
-      <div className="flex flex-col border-b border-line">{cells}</div>
-    )
-  }
   const keyboard = (
-    <div className={`flex flex-col gap-5 px-gutter ${rowCls} ${folded ? 'min-h-0 flex-1 text-[clamp(18px,3.2vw,24px)]!' : 'text-[clamp(16px,2.6vw,20px)]!'}`} style={narrow}>
-      <div className={`grid grid-cols-2 gap-x-gutter ${folded ? 'min-h-0 flex-1' : ''}`}>
-        {keyColumn(keyLeft, 'Books')}
-        {keyColumn(keyRight)}
-      </div>
+    <div className={`flex min-h-0 flex-1 flex-col gap-4 px-gutter ${rowCls} text-[clamp(16px,2.8vw,22px)]!`} style={narrow}>
+      <nav
+        aria-label="Books"
+        className="grid min-h-0 flex-1 grid-cols-2 gap-x-gutter border-b border-line"
+        style={{ gridTemplateRows: `repeat(${keyRows + (bioTab ? 1 : 0)}, minmax(2.6em, 1fr))` }}
+      >
+        {Array.from({ length: keyRows }, (_, r) => [
+          <div key={`l${r}`} className={keyCell}>
+            {keyLeft[r]}
+          </div>,
+          <div key={`r${r}`} className={keyCell}>
+            {keyRight[r]}
+          </div>,
+        ])}
+        {bioTab && <div className={`${keyCell} col-span-2`}>{tabBtn(bioTab)}</div>}
+      </nav>
       {talent && (
         <button
           type="button"
           onClick={() => select_(talent)}
           aria-pressed={selected}
-          className={`intro-write flex h-[2.9em] w-full items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
+          className={`intro-write flex h-[2.9em] w-full shrink-0 items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
           style={write('+ Selection')}
         >
           {selected ? 'Selected ✓' : '+ Selection'}
@@ -672,7 +673,7 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
+          {!deckH && renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
         </header>
       )}
 
@@ -736,7 +737,7 @@ export function ModelSheet({
                           <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                         </div>
                       )}
-                      {o === 0 && per === 1 && s.caption && !polaroids && !(shared && j > 0) && (
+                      {o === 0 && (per === 1 || !!deckH) && s.caption && !polaroids && !(shared && j > 0) && (
                         <figcaption className="line-clamp-2 pt-1.5 text-[10px] uppercase leading-[1.35] tracking-[0.14em] text-muted" style={shared ? { width: frameW } : undefined}>
                           {s.caption}
                         </figcaption>
@@ -749,7 +750,7 @@ export function ModelSheet({
           })}
           </div>
           {/* The credits, set vertically: up the left edge of the left page, down the right edge of the right one. */}
-          {per === 2 &&
+          {per === 2 && !deckH &&
             !polaroids &&
             visible.map((i, j) => {
               const caption = slides[i]?.caption
@@ -873,10 +874,11 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div
-        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 || tall ? 'gap-8' : 'gap-2.5'} ${folded ? 'gap-6! pt-6' : ''}`}
-        style={folded ? { height: folded } : undefined}
+        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${deckH ? 'gap-6! pt-6' : ''}`}
+        style={deckH ? { height: deckH } : undefined}
       >
-        {!underSpread && !wide && (tall ? keyboard : per === 1 ? phoneBar : actionsRow('px-gutter'))}
+        {!!deckH && renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
+        {!underSpread && !wide && (deckH ? keyboard : per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
     </div>
