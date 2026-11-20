@@ -4,7 +4,8 @@ import { DivisionMark } from '@/components/brand/Marks'
 import type { TalentCard } from '@/sanity/lib/types'
 import { useSelection } from './SelectionProvider'
 
-export function AddToSelectionButton({ talent, compact }: { talent: TalentCard; compact?: boolean }) {
+/** `compact` is the round "+", glass over a picture; `onPage` gives it a faint grey fill where it sits on the page (the list). */
+export function AddToSelectionButton({ talent, compact, onPage }: { talent: TalentCard; compact?: boolean; onPage?: boolean }) {
   const { has, toggle } = useSelection()
   const selected = has(talent._id)
   return (
@@ -15,7 +16,7 @@ export function AddToSelectionButton({ talent, compact }: { talent: TalentCard; 
       aria-pressed={selected}
       className={
         compact
-          ? `grid size-8 place-items-center rounded-full border text-lg leading-none backdrop-blur ${selected ? 'border-fg bg-fg text-bg' : 'border-white/70 bg-white/60'}`
+          ? `grid size-8 place-items-center rounded-full border text-lg leading-none backdrop-blur ${selected ? 'border-fg bg-fg text-bg' : `border-white/70 ${onPage ? 'bg-fg/5' : 'bg-white/60'}`}`
           : `border px-5 py-3 text-[14px] font-bold uppercase ${selected ? 'border-fg bg-fg text-bg' : 'border-fg'}`
       }
     >

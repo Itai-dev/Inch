@@ -95,7 +95,7 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
                   <span className="block transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2">{t.name}</span>
                 </Link>
                 <span className="relative z-10 transition-[opacity,transform] duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-                  <AddToSelectionButton talent={t} compact />
+                  <AddToSelectionButton talent={t} compact onPage />
                 </span>
               </span>
               {/* On a phone the row is too narrow for it; the whole row opens her page anyway. */}
