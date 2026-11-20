@@ -524,7 +524,7 @@ export function ModelSheet({
   // Tall screens (a foldable, a tablet upright): a control panel, like a keyboard under the pictures.
   // Keys between hairlines, each word in the middle of its key: the books and the overview on the
   // left, the comp card and Instagram on the right, the bio across both; then the selection across.
-  // The keys grow to fill the lower half.
+  // All of it close together at the foot of the lower half.
   const keyCell = 'flex items-center justify-center border-t border-line text-center'
   const keyLeft = [
     ...tabs.filter((t) => t !== bioTab).map(tabBtn),
@@ -548,11 +548,11 @@ export function ModelSheet({
   ].filter(Boolean)
   const keyRows = Math.max(keyLeft.length, keyRight.length)
   const keyboard = (
-    <div className={`flex min-h-0 flex-1 flex-col gap-4 px-gutter ${rowCls} text-[clamp(16px,2.8vw,22px)]!`} style={narrow}>
+    <div className={`flex flex-col gap-3 px-gutter ${rowCls} text-[clamp(15px,2.4vw,19px)]!`} style={narrow}>
       <nav
         aria-label="Books"
-        className="grid min-h-0 flex-1 grid-cols-2 gap-x-gutter border-b border-line"
-        style={{ gridTemplateRows: `repeat(${keyRows + (bioTab ? 1 : 0)}, minmax(2.6em, 1fr))` }}
+        className="grid grid-cols-2 gap-x-gutter border-b border-line"
+        style={{ gridTemplateRows: `repeat(${keyRows + (bioTab ? 1 : 0)}, 2.3em)` }}
       >
         {Array.from({ length: keyRows }, (_, r) => [
           <div key={`l${r}`} className={keyCell}>
@@ -569,7 +569,7 @@ export function ModelSheet({
           type="button"
           onClick={() => select_(talent)}
           aria-pressed={selected}
-          className={`intro-write flex h-[2.9em] w-full shrink-0 items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
+          className={`intro-write flex h-[2.7em] w-full shrink-0 items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
           style={write('+ Selection')}
         >
           {selected ? 'Selected ✓' : '+ Selection'}
@@ -874,7 +874,7 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div
-        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${deckH ? 'gap-6! pt-6' : ''}`}
+        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${deckH ? 'justify-end gap-4! pt-4' : ''}`}
         style={deckH ? { height: deckH } : undefined}
       >
         {!!deckH && renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
