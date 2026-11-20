@@ -77,6 +77,19 @@ const onTall = (cb: () => void) => {
   m.addEventListener('change', cb)
   return () => m.removeEventListener('change', cb)
 }
+/**
+ * A foldable half-folded like a laptop (the browser reports two screens, one over the other): the
+ * name, sizes and pictures stand on the upper half; the books, actions and ruler lie on the lower
+ * one. The height of the lower half and the fold, in pixels; 0 when not folded so.
+ */
+const foldedHeight = () => {
+  const segs = (window as { viewport?: { segments?: { y: number; height: number }[] | null } }).viewport?.segments
+  return segs?.length === 2 && segs[1].y > segs[0].y + 1 ? Math.round(innerHeight - segs[0].height) : 0
+}
+const onFold = (cb: () => void) => {
+  addEventListener('resize', cb)
+  return () => removeEventListener('resize', cb)
+}
 /** The books and the bio, all at full strength; the open one carries the line (aria-current), the others draw it on hover. */
 const tabCls = () => 'ink-line uppercase'
 const narrow = { fontStretch: '80%' } as const
@@ -146,7 +159,8 @@ export function ModelSheet({
       clearTimeout(t)
     }
   }, [showBook])
-  const tall = useSyncExternalStore(onTall, () => matchMedia(TALL).matches, () => false)
+  const folded = useSyncExternalStore(onFold, foldedHeight, () => 0)
+  const tall = useSyncExternalStore(onTall, () => matchMedia(TALL).matches, () => false) || !!folded
   const per = stage.w < 640 && !tall ? 1 : 2
   const polaroids = book?.segment === 'polaroids'
   // Pages side by side: two portraits (three polaroids); phones two of either.
@@ -170,7 +184,7 @@ export function ModelSheet({
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
-  let pageH = Math.max(0, stage.h - capH - rowH) * (wide ? 0.95 : 1)
+  let pageH = Math.max(0, stage.h - capH - rowH - (folded ? 24 : 0)) * (wide ? 0.95 : 1)
   let pageW = pageH * 0.75
   if (pageW * cols + FOLD * (cols - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (cols - 1)) / cols)
@@ -180,7 +194,7 @@ export function ModelSheet({
   const frameW = pageW * cols + FOLD * (cols - 1)
   const left = (stage.w - frameW) / 2
   // Wide: the pictures start right under the name, the same gap below it as above it.
-  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH) / 2)
+  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH - (folded ? 24 : 0)) / 2)
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -797,7 +811,10 @@ export function ModelSheet({
       )}
 
       {/* Books | counter | actions, then the ruler across the full width */}
-      <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 || tall ? 'gap-8' : 'gap-2.5'}`}>
+      <div
+        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 || tall ? 'gap-8' : 'gap-2.5'} ${folded ? 'justify-center gap-12!' : ''}`}
+        style={folded ? { height: folded } : undefined}
+      >
         {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
