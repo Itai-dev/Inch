@@ -8,7 +8,7 @@ import { useSelection } from './SelectionProvider'
 /** How long the button shows her mark before the selection opens, so you see it was pressed. */
 const OPEN_AFTER_MS = 500
 
-/** `compact` is the round "+", glass over a picture; `onPage` gives it a faint grey fill where it sits on the page (the list). */
+/** `compact` is the round "+", glass over a picture (on a phone its touch area reaches 12px past the circle); `onPage` gives it a faint grey fill where it sits on the page (the list). */
 export function AddToSelectionButton({ talent, compact, onPage }: { talent: TalentCard; compact?: boolean; onPage?: boolean }) {
   const { has, toggle, setOpen } = useSelection()
   const selected = has(talent._id)
@@ -29,7 +29,7 @@ export function AddToSelectionButton({ talent, compact, onPage }: { talent: Tale
       aria-pressed={selected}
       className={
         compact
-          ? `grid size-8 place-items-center rounded-full border text-lg leading-none backdrop-blur ${selected ? 'border-fg bg-fg text-bg' : `border-white/70 ${onPage ? 'bg-fg/5' : 'bg-white/60'}`}`
+          ? `relative grid size-8 place-items-center rounded-full border before:absolute before:-inset-3 md:before:inset-0 text-lg leading-none backdrop-blur ${selected ? 'border-fg bg-fg text-bg' : `border-white/70 ${onPage ? 'bg-fg/5' : 'bg-white/60'}`}`
           : `border px-5 py-3 text-[14px] font-bold uppercase ${selected ? 'border-fg bg-fg text-bg' : 'border-fg'}`
       }
     >
