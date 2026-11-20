@@ -21,9 +21,9 @@ export function measurementRows(m: M, division: Division, unit: Unit): [string, 
   return rows.filter((r): r is [string, string | number] => !!r[1])
 }
 
-/** Stored in cm; shown in feet/inches first, cm one tap away. Shoes stay EU. */
+/** Stored in cm; shown in cm first, feet/inches one tap away. Shoes stay EU. */
 export function Measurements({ m, division }: { m?: M; division: Division }) {
-  const [unit, setUnit] = useState<Unit>('in')
+  const [unit, setUnit] = useState<Unit>('cm')
   if (!m) return null
   return (
     <div className="flex flex-col gap-3">
@@ -41,21 +41,21 @@ export function Measurements({ m, division }: { m?: M; division: Division }) {
 }
 
 /**
- * IN / CM, written as such: the chosen unit bold, the other light. Each keeps room for its bold
+ * CM / IN, written as such: the chosen unit bold, the other light. Each keeps room for its bold
  * self, so nothing shifts when switching.
  */
 export function UnitToggle({ unit, onChange, className = '' }: { unit: Unit; onChange: (u: Unit) => void; className?: string }) {
   const option = (u: Unit) => (
-    <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onChange(u)} className="inline-grid uppercase hover:opacity-60">
+    <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onChange(u)} className="ink-line inline-grid uppercase">
       <span aria-hidden className="invisible font-bold [grid-area:1/1]">{u}</span>
       <span className={`[grid-area:1/1] ${unit === u ? 'font-bold' : 'font-light'}`}>{u}</span>
     </button>
   )
   return (
     <div role="radiogroup" aria-label="Units" className={`inline-flex items-baseline gap-[0.3em] ${className}`}>
-      {option('in')}
-      <span aria-hidden className="font-light">/</span>
       {option('cm')}
+      <span aria-hidden className="font-light">/</span>
+      {option('in')}
     </div>
   )
 }

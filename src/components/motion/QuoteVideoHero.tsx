@@ -10,11 +10,12 @@
  *    the hero items (click a number / arrow keys). Every 6 s
  *    the next item pushes the current one out sideways.
  * 4. Scrolling moves the video up; the giant logo shrinks into the header.
- * `opening="grow"` (on /logotest) replaces step 2: the ” grows in one movement, ever faster,
+ * `opening="grow"` (the live home) replaces step 2: the ” grows in one movement, ever faster,
  * the video fading in inside it, into its left stroke until the video fills the screen.
  * The stage is exposed as `data-hero` so globals.css can restyle the header.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { preload } from 'react-dom'
 import { Logo } from '@/components/brand/Logo'
 import { LEFT_PATH, QuoteMark, QuoteStroke, RIGHT_PATH, STROKE_GAP_RATIO } from '@/components/brand/Marks'
 import { SKIP_HERO_LOADER } from '@/components/SiteSwitchLink'
@@ -25,18 +26,20 @@ export type HeroMedia = { kind: 'video' | 'image'; src: string; poster?: string 
 type Stage = 'intro' | 'open' | 'over' | 'past'
 
 const MARK_VH = 0.065 // ” height at rest, as a share of viewport height (70px @ 1080) — keep in sync with the 6.5dvh loader mark
+const DOT_VH = 0.045 // DOT.'s blinking ■, as a share of viewport height
 const WIN_VH = 0.316 // first video window height (341px @ 1080)
 const STROKE = 0.206 // stroke height ÷ window height
 const STROKE_GAP = 0.02 // gap between window and stroke ÷ window height (kept tight to the video)
-const BLINK_MS = 900 // one soft blink (a slight fade out and back, eased); the open always starts at the top of one
-const MIN_BLINKS = 2 // even when the video is cached
-const MAX_WAIT_MS = 4000 // open anyway if the video is slow
+const BLINK_MS = 900 // one blink, as the text cursor's: off half the time, on half, hard cuts; the open always starts at the end of one (the mark shown)
+const BLINKS = 3 // always exactly three whole blinks, then it opens (onto the video's still if the video isn't playing yet)
 const OPEN_MS = 2400
 const GROW_MS = 2100 // the "grow" opening: one movement, ever faster, until the video fills the screen
 const GROW_FADE = [0.3, 0.7] // the video fades in inside the ” (share of GROW_MS)…
 const GROW_INTO = [15.7 / 64, 16.3 / 72] // …as it grows into the solid top of its left stroke (share of the mark)
 const GROW_SQUARE = [28.6 / 64, 32.7 / 72] // size of that solid part (share of the mark)
-const MARK_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72"><path d="${LEFT_PATH}"/><path d="${RIGHT_PATH}"/></svg>`)}")`
+/** The "grow" opening's veil: the page's colour over the whole screen, the ” cut out of it (in the
+ * mark's own units), so the video shows through the mark. */
+const MARK_PATH = `${LEFT_PATH}${RIGHT_PATH}`
 const SPLIT = 0.25
 const SLIDE_MS = 6000 // each item stays this long, then the next pushes it out
 const PUSH_MS = 1300
@@ -45,6 +48,7 @@ const PUSH_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // soft ease in-out
 const LOGO_LEAD_MS = 250 // logo starts growing this long before the video stops, so the motion carries on
 const LOGO_IN_MS = 1400 // …and lands at +1.15s; the menu types in from +0.4s (globals.css)
 const RULER_IN_MS = 1000 // ruler blinks in at +1s…
+const NUDGE_AFTER_MS = 9000 // the scroll hint, after the video has opened
 const RULER_STEP_MS = 1400 // …and moves on one item as it arrives, to show what it does
 const LOGO_EASE = 'cubic-bezier(0.2, 0.6, 0.2, 1)' // starts moving, then settles
 const LOGO_W = 0.139 // giant logo font size as a share of viewport width (0.8 × the 770px-wide Figma logo @ 1920)
@@ -62,10 +66,32 @@ const readSkipLoader = () => {
   }
 }
 
-// Set once the intro has played in this page load. Module memory survives in-site
-// navigation but not a reload, so coming back to the home page (from DOT., a model, …)
-// shows the hero already open, while a fresh visit or reload still gets the intro.
+// Set once the intro has played: in module memory (in-site navigation) and for the browser
+// session (sessionStorage), so coming back to the home page by any route (from DOT., a model,
+// the application, a reload, a link) shows the hero already open; only the first visit of a
+// session gets the loader, the video opening and the logo arriving.
 let introPlayed = false
+const INTRO_PLAYED = 'inch:intro-played'
+/** What it was when this hero appeared: marking the intro played as it ends mustn't turn the rest
+ * of this visit's choreography (the menu typing in, the logo arriving) into a return visit's. */
+let introPlayedAtMount: boolean | null = null
+const readIntroPlayed = () => {
+  if (introPlayedAtMount !== null) return introPlayedAtMount
+  let v = introPlayed
+  if (!v) {
+    try {
+      v = sessionStorage.getItem(INTRO_PLAYED) === '1'
+    } catch {}
+  }
+  introPlayedAtMount = v
+  return v
+}
+const markIntroPlayed = () => {
+  introPlayed = true
+  try {
+    sessionStorage.setItem(INTRO_PLAYED, '1')
+  } catch {}
+}
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
@@ -74,24 +100,94 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const mod = (a: number, n: number) => ((a % n) + n) % n
 
 // Giant logo: big at the top of the page, shrinking into the header logo as you scroll.
-const logoTransform = (big: number, e: number) =>
-  `translateY(${lerp(window.innerHeight * 0.02, headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
+// Phones: as wide as the screen between the margins, at the very top, with the menu under it; as it
+// shrinks, the menu comes back up beside it (see placeMenu).
+const isPhone = () => window.innerWidth < 768
+/** The logo's measures per px of its font size (once per logo): its width, the air above the letters, and their height. */
+const logoMeasure = new WeakMap<HTMLElement, { w: number; air: number; h: number }>()
+/** Phones: the letters' top this far from the screen's top, so the logo and the menu keep clear of the faces in the video. */
+const PHONE_TOP = 4
+const logoTop = (el?: HTMLElement | null, big = 0) =>
+  isPhone() ? PHONE_TOP - (el ? (logoMeasure.get(el)?.air ?? 0) * big : 0) : window.innerHeight * 0.02
+const logoTransform = (big: number, e: number, el?: HTMLElement | null) =>
+  `translateY(${lerp(logoTop(el, big), headerTop(), e)}px) scale(${lerp(1, headerLogo() / big, e)})`
+/** The header's menu (phones: MENU, and DOT.'s INCH” box). */
+const headerNav = () => document.querySelector<HTMLElement>('[data-site-header] nav')
+/**
+ * Phones: the menu waits under the giant logo, following it up as it shrinks, and takes its place
+ * beside the small logo only as the logo arrives there.
+ */
+/** The share of the logo's shrink after which the menu rises into place. */
+const MENU_RISE_FROM = 0.8
+function placeMenu(el: HTMLElement | null, big: number, e: number) {
+  const nav = headerNav()
+  if (!nav) return
+  if (!el || !isPhone()) {
+    nav.style.transform = ''
+    return
+  }
+  const s = lerp(1, headerLogo() / big, e)
+  const header = nav.parentElement as HTMLElement
+  const navTop = header.getBoundingClientRect().top + nav.offsetTop
+  const gap = 6
+  const m = logoMeasure.get(el)
+  // The letters' bottom and right edge as the logo is now.
+  const top = lerp(logoTop(el, big), headerTop(), e)
+  const lettersBottom = top + ((m?.air ?? 0) * big + (m ? m.h * big : el.offsetHeight)) * s
+  // It rides just under the logo's letters as the logo shrinks, and only in the last stretch, as the
+  // logo arrives at its smallest, rises into its own place beside it.
+  const rise = smooth(Math.min(1, Math.max(0, (e - MENU_RISE_FROM) / (1 - MENU_RISE_FROM))))
+  const drop = Math.max(0, lettersBottom + gap - navTop) * (1 - rise)
+  nav.style.transform = drop > 0.5 ? `translateY(${drop.toFixed(1)}px)` : ''
+}
 function placeLogo(el: HTMLElement | null) {
-  if (!el) return 0
-  const big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
-  const e = easeOut(Math.min(1, window.scrollY / (window.innerHeight * 0.45)))
+  if (!el) {
+    placeMenu(null, 1, 1)
+    return 0
+  }
+  let big = Math.min(window.innerWidth * LOGO_W, window.innerHeight * 0.27)
+  if (isPhone()) {
+    let m = logoMeasure.get(el)
+    if (!m) {
+      const keep = el.style.transform
+      el.style.transform = 'none'
+      el.style.fontSize = '100px'
+      const r = el.getBoundingClientRect()
+      const svg = el.querySelector('svg')?.getBoundingClientRect()
+      el.style.transform = keep
+      if (r.width > 0) {
+        m = { w: el.offsetWidth / 100, air: svg ? Math.max(0, svg.top - r.top) / 100 : 0, h: (svg?.height ?? r.height) / 100 }
+        logoMeasure.set(el, m)
+      }
+    }
+    if (m) big = Math.min((window.innerWidth - 2 * headerSide()) / m.w, window.innerHeight * 0.3)
+  }
+  // Phones: over a longer scroll, so the logo settles into its place (and the menu rises) unhurried.
+  const e = easeOut(Math.min(1, Math.max(0, window.scrollY) / (window.innerHeight * (isPhone() ? 0.8 : 0.45))))
   el.style.fontSize = `${big}px`
   el.style.left = `${headerSide()}px`
-  el.style.transform = logoTransform(big, e)
+  el.style.transform = logoTransform(big, e, el)
+  placeMenu(el, big, e)
   return big
 }
 
-export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos: HeroMedia[]; opening?: 'split' | 'grow' }) {
-  const grow = openWith === 'grow'
+export function QuoteVideoHero({ videos, opening: openWith = 'split', division = 'women' }: { videos: HeroMedia[]; opening?: 'split' | 'grow'; division?: 'women' | 'men' }) {
+  // DOT.: the same hero, with its ■ for the ” (the window grows out of it) and its own logo.
+  const dot = division === 'men'
+  const grow = openWith === 'grow' && !dot
   const N = videos.length
+  // The first picture is asked for straight away, ahead of everything else, so the reveal has it.
+  const first = videos[0]
+  const firstPic = first?.kind === 'image' ? first.src : first?.poster
+  if (firstPic) preload(firstPic, { as: 'image', fetchPriority: 'high' })
   const reduced = useReducedMotion()
   const [stage, setStage] = useState<Stage>('intro')
-  const [seen] = useState(() => introPlayed) // false on the server and on a fresh load
+  // False on the server and while hydrating, then the session's truth (a re-render before paint, as `fast`).
+  const seen = useSyncExternalStore(() => () => {}, readIntroPlayed, () => false)
+  // The next time the hero appears (coming back to the home page), it reads the session afresh.
+  useEffect(() => () => {
+    introPlayedAtMount = null
+  }, [])
   const [vp, setVp] = useState({ w: 1440, h: 900 })
   const [ready, setReady] = useState(N === 0)
   const [waited, setWaited] = useState(false)
@@ -108,6 +204,13 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
   const winRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<HTMLDivElement>(null)
   const blinkAnim = useRef<Animation | null>(null)
+  // A picture for the window to open onto, fetched while it blinks: the first video's still (or the
+  // first image), shown until the video plays.
+  useEffect(() => {
+    if (!firstPic) return
+    const img = new Image()
+    img.src = firstPic
+  }, [firstPic])
 
   useEffect(() => {
     const on = () => setVp({ w: window.innerWidth, h: window.innerHeight })
@@ -116,7 +219,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     return () => window.removeEventListener('resize', on)
   }, [])
 
-  // Smooth blink (on the compositor, so loading work can't make it stutter).
+  // The blink, hard on and off like a text cursor (on the compositor, so loading work can't make it stutter).
   useEffect(() => {
     if (seen) {
       try {
@@ -125,22 +228,29 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
       return
     }
     if (reduced || fast) return
-    blinkAnim.current =
-      blinkRef.current?.animate([{ opacity: 1 }, { opacity: 0.4 }, { opacity: 1 }], {
-        duration: BLINK_MS,
-        iterations: Infinity,
-        easing: 'ease-in-out',
-      }) ?? null
-    const a = setTimeout(() => setWaited(true), BLINK_MS * MIN_BLINKS)
-    const b = setTimeout(() => setReady(true), MAX_WAIT_MS)
+    // A set number of blinks, played to the end by the browser itself (nothing cuts in or works out
+    // where it is), ending on the mark shown, held there (fill) until the opening takes it over.
+    const anim =
+      blinkRef.current?.animate(
+        [
+          // Starting from nothing: the first beat is the mark appearing, on the white page.
+          { opacity: 0, offset: 0 },
+          { opacity: 0, offset: 0.5 },
+          { opacity: 1, offset: 0.5 },
+          { opacity: 1, offset: 1 },
+        ],
+        { duration: BLINK_MS, iterations: BLINKS, fill: 'forwards' },
+      ) ?? null
+    blinkAnim.current = anim
+    let live = true
+    anim?.finished.then(() => live && setWaited(true)).catch(() => {})
     return () => {
-      clearTimeout(a)
-      clearTimeout(b)
+      live = false
     }
   }, [reduced, fast, seen])
 
   const skip = reduced || seen // no loader / reveal / intro choreography
-  const opening = !skip && (fast || (ready && waited)) // flips true once, starts the open
+  const opening = !skip && (fast || waited) // flips true once, starts the open
 
   // Reveal, drawn frame by frame straight onto the DOM (no React render per frame).
   // Phase 1 (SPLIT): the ” splits as a window opens between its strokes.
@@ -169,11 +279,28 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     r.style.left = `${winW / 2 + gap}px`
   }
 
-  // The "grow" opening: the video, full screen, seen through the ” as it grows (mask size and
-  // place), with a black cover over the video that lifts so it fades in inside the mark.
-  const layoutGrow = (p: number) => {
+  // DOT.: the window starts as the blinking ■ and grows to full screen, height leading width.
+  const layoutDot = (p: number) => {
     const win = winRef.current
     if (!win) return
+    const W = window.innerWidth
+    const H = window.innerHeight
+    const s0 = H * DOT_VH
+    win.style.width = `${s0 + (W - s0) * easeInOut(p)}px`
+    win.style.height = `${s0 + (H - s0) * easeInOut(Math.min(1, p / 0.8))}px`
+    // The ■ grows as itself, and the video comes up through it softly as it does.
+    win.style.setProperty('--cover', String(1 - smooth(Math.max(0, Math.min(1, (p - 0.08) / 0.8)))))
+  }
+
+  // The "grow" opening: the video, full screen and still, seen through the ” cut out of a veil that
+  // grows over it, with a black cover over the video that lifts so it fades in inside the mark. The
+  // veil is a vector redrawn at its size each frame (its path's own transform, in sub-pixels), never
+  // a small picture scaled up, so its edges stay sharp however large it grows.
+  const veilRef = useRef<SVGPathElement>(null)
+  const layoutGrow = (p: number) => {
+    const win = winRef.current
+    const veil = veilRef.current
+    if (!win || !veil) return
     // The stage's own size (not the window's, which counts a scrollbar), so the ” starts
     // exactly where the blinking one was centred.
     const W = win.clientWidth
@@ -190,10 +317,13 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     const into = (s - 1) / (sEnd - 1)
     const ax = lerp(0.5, GROW_INTO[0], into)
     const ay = lerp(0.5, GROW_INTO[1], into)
-    win.style.setProperty('--mw', `${mw}px`)
-    win.style.setProperty('--mh', `${mh}px`)
-    win.style.setProperty('--mx', `${W / 2 - ax * mw}px`)
-    win.style.setProperty('--my', `${H / 2 - ay * mh}px`)
+    const tx = W / 2 - ax * mw
+    const ty = H / 2 - ay * mh
+    const k = mh / 72 // pixels per unit of the mark
+    // The screen (a little past it) in the mark's units, with the ” cut out of it.
+    const u = (px: number, t: number) => ((px - t) / k).toFixed(4)
+    veil.setAttribute('d', `M${u(-8, tx)} ${u(-8, ty)}H${u(W + 8, tx)}V${u(H + 8, ty)}H${u(-8, tx)}Z${MARK_PATH}`)
+    veil.setAttribute('transform', `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${k.toFixed(6)})`)
     const f = easeOut(Math.max(0, Math.min(1, (p - GROW_FADE[0]) / (GROW_FADE[1] - GROW_FADE[0]))))
     win.style.setProperty('--cover', String(1 - f))
   }
@@ -204,12 +334,15 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     openedRef.current = true
     let raf = 0
     let done = false
-    // Start at the top of a blink so the ” never jumps from half-faded.
-    const t = blinkAnim.current?.currentTime
-    const wait = typeof t === 'number' ? (BLINK_MS - (t % BLINK_MS)) % BLINK_MS : 0
-    const timer = setTimeout(() => {
-      blinkAnim.current?.cancel()
-      const draw = grow ? layoutGrow : layout
+    // The blinks have played to their end (the mark shown, held): the opening starts from it as it is.
+    let cancelled = false
+    const a = blinkAnim.current
+    const el = blinkRef.current
+    const begin = () => {
+      if (cancelled) return
+      if (el) el.style.opacity = '1'
+      a?.cancel()
+      const draw = dot ? layoutDot : grow ? layoutGrow : layout
       const total = grow ? GROW_MS : OPEN_MS
       draw(0)
       setStage('open')
@@ -221,7 +354,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
         if (p < 1) raf = requestAnimationFrame(tick)
         else {
           done = true
-          introPlayed = true
+          markIntroPlayed()
           setStage('over')
           try {
             sessionStorage.removeItem(SKIP_HERO_LOADER) // the skip is used up once fully open
@@ -229,15 +362,22 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
         }
       }
       raf = requestAnimationFrame(tick)
-    }, wait)
-    return () => {
-      clearTimeout(timer)
-      cancelAnimationFrame(raf)
-      if (!done) openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
     }
-  }, [opening, grow])
+    begin()
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      if (!done) {
+        openedRef.current = false // interrupted (e.g. dev double-mount): allow a restart
+      }
+    }
+  }, [opening, grow, dot])
 
   const settled = skip || stage === 'over' || stage === 'past'
+  // The loader holds the page at its top (see globals.css: nothing scrolls until it is open).
+  useEffect(() => {
+    if (!settled) window.scrollTo(0, 0)
+  }, [settled])
 
   // Once open: the header sits over the video until it has scrolled away, and the
   // giant logo shrinks into the header position on the way.
@@ -263,9 +403,11 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     return () => {
       window.removeEventListener('scroll', on)
       window.removeEventListener('resize', on)
+      // Leaving the home page: the menu back in its place.
+      placeMenu(null, 1, 1)
     }
   }, [settled])
-  // First arrival: the logo fades in while growing from header size — the scroll shrink, reversed.
+  // First arrival: the logo cuts in very small and grows to its size.
   const logoIntroDone = useRef(false)
   const showLogo = stage === 'over' || logoIn
   // As the ruler arrives, it moves on one item (pushing the next video in) to show it's the control.
@@ -277,6 +419,32 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     return () => clearTimeout(id)
   }, [stage, N, skip])
 
+  const nudged = useRef(false)
+  // A hint that the page goes on (once): nine seconds after the video has opened, if nobody has scrolled
+  // yet, the hero lifts a little and settles back, twice.
+  useEffect(() => {
+    if (stage !== 'over' || reduced || nudged.current) return
+    const id = setTimeout(() => {
+      const root = rootRef.current
+      if (!root || window.scrollY > 4) return
+      const lift = Math.round(Math.min(22, window.innerHeight * 0.025))
+      nudged.current = true
+      const ease = 'cubic-bezier(0.45, 0, 0.55, 1)'
+      root.animate(
+        [
+          { transform: 'none', offset: 0, easing: ease },
+          { transform: `translateY(-${lift}px)`, offset: 0.2, easing: ease },
+          { transform: 'none', offset: 0.45, easing: ease },
+          { transform: `translateY(-${lift}px)`, offset: 0.65, easing: ease },
+          { transform: 'none', offset: 0.9 },
+          { transform: 'none', offset: 1 },
+        ],
+        { duration: 1100 },
+      )
+    }, NUDGE_AFTER_MS)
+    return () => clearTimeout(id)
+  }, [stage, reduced])
+
   // After the first arrival has played (menu typed in), scrolling back up doesn't replay it.
   useEffect(() => {
     if (stage !== 'over') return
@@ -285,6 +453,9 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     }, 2000)
     return () => clearTimeout(id)
   }, [stage])
+  // Also whenever the stage changes: the logo is taken down once the video has scrolled away and
+  // put back when it comes up again (a jump to the top, say), and the new element has to be placed
+  // at once, not on the next scroll event (else it stands there at the header's size, unplaced).
   useLayoutEffect(() => {
     if (!showLogo) return
     const el = logoRef.current
@@ -292,23 +463,21 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
     if (!el || !big || logoIntroDone.current) return
     logoIntroDone.current = true
     if (skip) return
-    el.animate(
-      [
-        { opacity: 0, transform: logoTransform(big, 1) },
-        { opacity: 1, transform: el.style.transform },
-      ],
-      { duration: LOGO_IN_MS, easing: LOGO_EASE },
-    )
-  }, [showLogo, skip])
+    // No fade: it cuts in very small at its place and grows to its size.
+    const tiny = el.style.transform.replace(/scale\([^)]*\)/, 'scale(0.04)')
+    el.animate([{ transform: tiny }, { transform: el.style.transform }], { duration: LOGO_IN_MS, easing: LOGO_EASE })
+  }, [showLogo, skip, stage])
 
   // Only the current video plays; each starts from the top when it comes up
   // (and the first one waits until the intro has opened it).
   const showVideo = stage !== 'intro' || skip
+  // Always silent.
   useEffect(() => {
     els.current.forEach((v, i) => {
       if (!(v instanceof HTMLVideoElement)) return
       if (i === current && showVideo) {
         v.currentTime = 0
+        v.muted = true
         v.play().catch(() => {})
       } else v.pause()
     })
@@ -346,7 +515,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
   return (
     <section
       ref={rootRef}
-      data-hero={skip ? 'over' : stage}
+      // Skipping the intro still hands over to the header logo once the video has scrolled away.
+      data-hero={skip ? (stage === 'past' ? 'past' : 'over') : stage}
       data-intro-done={seen ? '1' : undefined}
       className="relative h-dvh overflow-hidden bg-bg"
       aria-roledescription="carousel"
@@ -358,12 +528,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
       }}
     >
       {/* 1. Blinking ” while loading. */}
-      {!showVideo && !fast && (
+      {/* (Growing from it, as the ” or DOT.'s ■, it stays under the opening until that is over, so
+          there is never a frame with neither.) */}
+      {(!showVideo || ((grow || dot) && stage === 'open' && !skip)) && !fast && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
           <div>
             {/* Sized in CSS (dvh), not from JS, so it's right from the first frame — no jump on load. */}
-            <span ref={blinkRef} className="block [&>svg]:h-[6.5dvh] [&>svg]:w-auto">
-              <QuoteMark />
+            <span ref={blinkRef} className="block [&>svg]:h-[6.5dvh] [&>svg]:w-auto" style={{ opacity: 0 }}>
+              {dot ? <span className="block size-[4.5dvh] bg-fg" /> : <QuoteMark />}
             </span>
           </div>
         </div>
@@ -377,21 +549,8 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
           transform: 'translate(-50%, -50%)',
           visibility: showVideo ? 'visible' : 'hidden',
           ...(settled ? { width: '100%', height: '100%' } : null),
-          // "grow": full screen from the start, seen through the growing ”.
-          ...(grow && !settled
-            ? {
-                width: '100%',
-                height: '100%',
-                maskImage: MARK_MASK,
-                WebkitMaskImage: MARK_MASK,
-                maskRepeat: 'no-repeat',
-                WebkitMaskRepeat: 'no-repeat',
-                maskSize: 'var(--mw) var(--mh)',
-                WebkitMaskSize: 'var(--mw) var(--mh)',
-                maskPosition: 'var(--mx) var(--my)',
-                WebkitMaskPosition: 'var(--mx) var(--my)',
-              }
-            : null),
+          // "grow": full screen from the start, seen through the growing ” (the veil over it).
+          ...(grow && !settled ? { width: '100%', height: '100%' } : null),
         }}
       >
         {videos.map((v, i) => {
@@ -403,7 +562,7 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
           return v.kind === 'image' ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={v.src}
+              key={`${i}-${v.src}`}
               ref={ref}
               src={v.src}
               alt=""
@@ -415,15 +574,16 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
             />
           ) : (
             <video
-              key={v.src}
+              key={`${i}-${v.src}`}
               ref={ref}
               src={v.src}
               poster={v.poster}
               muted
               loop
               playsInline
-              preload={i === 0 || i === mod(current + 1, N) ? 'auto' : 'metadata'}
-              onCanPlay={i === 0 ? () => setReady(true) : undefined}
+              // The first video has the connection to itself until it can show; then the next one loads.
+              preload={i === 0 ? 'auto' : !ready ? 'none' : i === mod(current + 1, N) ? 'auto' : 'metadata'}
+              onLoadedData={i === 0 ? () => setReady(true) : undefined}
               aria-hidden={i !== current}
               className={cls}
               style={style}
@@ -431,9 +591,15 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
           )
         })}
         {/* "grow": the ” is black until the video fades in inside it. */}
-        {grow && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
+        {(grow || dot) && !settled && <div aria-hidden className="absolute inset-0 bg-fg" style={{ opacity: 'var(--cover, 1)' }} />}
       </div>
-      {!settled && !grow && (
+      {/* "grow": the veil with the ” cut out of it, growing over the still video. */}
+      {grow && !settled && (
+        <svg aria-hidden className="pointer-events-none absolute inset-0 size-full" style={{ visibility: showVideo ? 'visible' : 'hidden' }}>
+          <path ref={veilRef} fillRule="evenodd" fill="var(--bg)" />
+        </svg>
+      )}
+      {!settled && !grow && !dot && (
         <div
           ref={strokesRef}
           aria-hidden
@@ -457,14 +623,14 @@ export function QuoteVideoHero({ videos, opening: openWith = 'split' }: { videos
           className="hero-logo pointer-events-none fixed top-0 z-30 origin-top-left text-paper"
           style={{ lineHeight: 0.9 }}
         >
-          <Logo as="div" className="whitespace-nowrap" />
+          <Logo as="div" division={division} className="whitespace-nowrap" />
         </div>
       )}
 
       {/* The ruler is the carousel control. */}
       {showUi && N > 0 && (
         <div className="absolute inset-x-0 bottom-0 pb-[clamp(16px,2.97vw,57px)] text-paper" style={{ animation: seen ? undefined : `hero-blink 0.4s steps(1, end) ${RULER_IN_MS}ms both` }}>
-          <div ref={rulerRef}>
+          <div ref={rulerRef} data-hero-ruler className="relative">
             <Ruler
               count={N}
               pos={idx}

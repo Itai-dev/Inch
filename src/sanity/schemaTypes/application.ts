@@ -1,11 +1,13 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
-import { DIVISIONS } from './division'
+import { DIVISIONS, otherSiteOnly } from './division'
 
 /** Submitted through the Smart Apply funnel. */
 export const application = defineType({
   name: 'application',
   title: 'Application',
   type: 'document',
+  // Locked when opened in the other site's Studio.
+  readOnly: otherSiteOnly,
   fields: [
     defineField({
       name: 'status',
@@ -21,11 +23,14 @@ export const application = defineType({
       },
       initialValue: 'new',
     }),
-    defineField({ name: 'division', type: 'string', options: { list: DIVISIONS } }),
+    // The site it was sent from: not changed by hand (it would move the application to the other Studio).
+    defineField({ name: 'division', type: 'string', options: { list: DIVISIONS }, readOnly: true }),
     defineField({ name: 'name', type: 'string' }),
     defineField({ name: 'birthdate', title: 'Date of birth', type: 'date' }),
     defineField({ name: 'age', title: 'Age when applying', type: 'number' }),
-    defineField({ name: 'city', type: 'string' }),
+    // Asked by earlier versions of the form: shown only on the applications that have them.
+    defineField({ name: 'country', type: 'string', hidden: ({ value }) => !value }),
+    defineField({ name: 'city', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'email', type: 'string' }),
     defineField({ name: 'phone', type: 'string' }),
     defineField({
@@ -34,9 +39,19 @@ export const application = defineType({
       fields: [
         defineField({ name: 'name', type: 'string' }),
         defineField({ name: 'phone', type: 'string' }),
+        defineField({ name: 'consent', title: 'Consented to the application', type: 'boolean', readOnly: true }),
       ],
     }),
     defineField({ name: 'measurements', type: 'measurements' }),
+    defineField({
+      name: 'sizes',
+      type: 'object',
+      options: { columns: 2 },
+      fields: [
+        defineField({ name: 'tshirt', title: 'T-shirt', type: 'string' }),
+        defineField({ name: 'pants', title: 'Pants (EU)', type: 'number' }),
+      ],
+    }),
     defineField({
       name: 'digitals',
       type: 'array',
@@ -44,7 +59,7 @@ export const application = defineType({
       of: [defineArrayMember({ type: 'image' })],
     }),
     defineField({ name: 'instagram', type: 'string' }),
-    defineField({ name: 'tiktok', title: 'TikTok', type: 'string' }),
+    defineField({ name: 'tiktok', title: 'TikTok', type: 'string', hidden: ({ value }) => !value }),
     defineField({ name: 'experience', type: 'text', rows: 3 }),
     defineField({
       name: 'outsideCriteria',

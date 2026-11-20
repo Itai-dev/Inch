@@ -1,16 +1,22 @@
-import { defineField, defineType } from 'sanity'
+import { defineArrayMember, defineField, defineType, type Rule } from 'sanity'
 import { apiVersion } from '../env'
-import { DIVISIONS } from './division'
+import { divisionField, otherSiteOnly } from './division'
+import { slugRule } from './slug'
+import { CleanSlugInput } from '../components/CleanSlugInput'
 
 export const category = defineType({
   name: 'category',
   title: 'Category',
   type: 'document',
+  // Locked when opened in the other site's Studio.
+  readOnly: otherSiteOnly,
   fields: [
     defineField({ name: 'title', type: 'string', validation: (r) => r.required() }),
     defineField({
       name: 'slug',
       type: 'slug',
+      // Tidied as it's typed: lowercase, dashes for spaces.
+      components: { input: CleanSlugInput },
       // INCH” and DOT. can both have e.g. "new-faces".
       options: {
         source: 'title',
@@ -22,15 +28,25 @@ export const category = defineType({
           )
         },
       },
-      validation: (r) => r.required(),
+      validation: slugRule,
     }),
+    // Set by the Studio the category is made in (INCH” or DOT.), not chosen.
+    defineField({ ...divisionField(), validation: (r: Rule) => r.required() }),
     defineField({
-      name: 'division',
-      type: 'string',
-      options: { list: DIVISIONS, layout: 'radio' },
-      validation: (r) => r.required(),
+      name: 'models',
+      description: 'The models in this category, in this order (drag to reorder). Publish, and the category shows them on the site.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'talent' }],
+          // Only this site's models.
+          options: { filter: ({ document }) => ({ filter: 'division == $division', params: { division: document.division } }) },
+        }),
+      ],
+      validation: (r) => r.unique(),
     }),
-    defineField({ name: 'order', type: 'number' }),
+    defineField({ name: 'order', title: 'Order in the menu', description: 'Lower comes first.', type: 'number' }),
   ],
   preview: { select: { title: 'title', subtitle: 'division' } },
 })

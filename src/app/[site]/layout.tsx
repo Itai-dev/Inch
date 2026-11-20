@@ -1,13 +1,20 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { notFound } from 'next/navigation'
+import { Cursor } from '@/components/Cursor'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { RouteMemory } from '@/components/RouteMemory'
 import { SelectionProvider } from '@/components/selection/SelectionProvider'
 import { SelectionTray } from '@/components/selection/SelectionTray'
-import { isSite, SITE_KEYS, SITES } from '@/lib/sites'
+import { SiteSwitch } from '@/components/SiteSwitch'
+import { DEMO_CONTACT } from '@/lib/copy'
+import { isSite, singletonId, SITE_KEYS, SITES } from '@/lib/sites'
+import { sanityFetch } from '@/sanity/lib/client'
+import { SITE_SETTINGS_QUERY } from '@/sanity/lib/queries'
+import type { SiteSettings } from '@/sanity/lib/types'
 import { siteUrl } from '@/sanity/env'
 import '@fontsource-variable/archivo/wdth.css'
+import '@fontsource/mrs-saint-delafield/400.css'
 import '../globals.css'
 
 export const dynamicParams = false
@@ -22,12 +29,21 @@ export async function generateMetadata({ params }: LayoutProps<'/[site]'>): Prom
     title: { default: `${s.brand} — Model Management`, template: `%s — ${s.brand}` },
     description: s.description,
     openGraph: { type: 'website', siteName: s.brand },
+    // The tab and home-screen icon: INCH”'s ” or DOT.'s box.
+    icons: { icon: [{ url: `/icons/${site}.svg`, type: 'image/svg+xml' }, { url: `/icons/${site}-32.png`, sizes: '32x32' }], apple: `/icons/${site}-180.png` },
   }
+}
+
+/** Phones: the browser's own bars in the site's colour (white for INCH”, black for DOT.). */
+export async function generateViewport({ params }: LayoutProps<'/[site]'>): Promise<Viewport> {
+  const { site } = await params
+  return { themeColor: site === 'dot' ? '#0a0a0a' : '#ffffff' }
 }
 
 export default async function SiteLayout({ children, params }: LayoutProps<'/[site]'>) {
   const { site } = await params
   if (!isSite(site)) notFound()
+  const settings = await sanityFetch<SiteSettings | null>(SITE_SETTINGS_QUERY, { id: singletonId('siteSettings', site) }, null, ['siteSettings'])
 
   return (
     <html lang="en" data-theme={site === 'dot' ? 'dot' : undefined}>
@@ -36,9 +52,11 @@ export default async function SiteLayout({ children, params }: LayoutProps<'/[si
           <Header site={site} />
           <main className="min-h-dvh">{children}</main>
           <Footer site={site} />
-          <SelectionTray site={site} />
+          <SiteSwitch site={site} />
+          <SelectionTray site={site} email={settings?.email || DEMO_CONTACT.email} />
           <RouteMemory />
         </SelectionProvider>
+        <Cursor />
       </body>
     </html>
   )
