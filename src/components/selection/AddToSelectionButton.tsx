@@ -1,17 +1,25 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { DivisionMark } from '@/components/brand/Marks'
 import type { TalentCard } from '@/sanity/lib/types'
 import { useSelection } from './SelectionProvider'
+
+/** How long the button shows her mark before the selection opens, so you see it was pressed. */
+const OPEN_AFTER_MS = 500
 
 /** `compact` is the round "+", glass over a picture; `onPage` gives it a faint grey fill where it sits on the page (the list). */
 export function AddToSelectionButton({ talent, compact, onPage }: { talent: TalentCard; compact?: boolean; onPage?: boolean }) {
   const { has, toggle, setOpen } = useSelection()
   const selected = has(talent._id)
   // Adding her opens the selection, so you see where she went (as on her page); taking her out doesn't.
+  // It opens a moment later, once the "+" has turned into her mark.
+  const openTimer = useRef(0)
+  useEffect(() => () => clearTimeout(openTimer.current), [])
   const onClick = () => {
+    clearTimeout(openTimer.current)
     toggle(talent)
-    if (!selected) setOpen(true)
+    if (!selected) openTimer.current = window.setTimeout(() => setOpen(true), OPEN_AFTER_MS)
   }
   return (
     <button
