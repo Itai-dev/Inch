@@ -86,11 +86,11 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
               <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2 group-hover:scale-[1.06] md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
               </span>
-              {/* The name, with add to selection right beside it. The link is the name but covers the whole
+              {/* The name, with add to selection beside it (on a phone, in a column at the right edge). The link is the name but covers the whole
                   row (its ::after); the button sits above that, so it selects rather than opens her page. */}
               {/* (The hover shift is on the name and the button, not this wrapper: a transformed wrapper would
                   hold the link's ::after to itself.) */}
-              <span className="flex min-w-0 items-center gap-2.5 md:gap-5">
+              <span className="flex min-w-0 items-center justify-between gap-2.5 md:justify-start md:gap-5">
                 <Link href={talentPath(t)} className="wordmark text-[clamp(21px,3.6vw,60px)] uppercase leading-none after:absolute after:inset-0">
                   <span className="block transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2">{t.name}</span>
                 </Link>
