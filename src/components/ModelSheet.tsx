@@ -516,6 +516,67 @@ export function ModelSheet({
     </div>
   )
 
+  // Tall screens (a foldable, a tablet upright): a control panel, like a keyboard under the pictures.
+  // Two columns of keys between hairlines (the books and the overview on the left, the comp card
+  // and Instagram on the right, the bio under whichever is shorter), then the selection across.
+  // (Half-folded, the keys grow to fill the lower half.)
+  const keyCell = `flex items-center border-t border-line ${folded ? 'min-h-[2.7em] flex-1' : 'h-[2.7em]'}`
+  const keyLeft = [
+    ...tabs.filter((t) => t !== bioTab).map(tabBtn),
+    book && N > 0 ? (
+      <button key="overview" type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+        Overview
+      </button>
+    ) : null,
+  ].filter(Boolean)
+  const keyRight = [
+    compCard ? (
+      <a key="comp" href={compCard} className={`intro-write ${tabCls()}`} style={write('Comp card')}>
+        Comp card
+      </a>
+    ) : null,
+    instagramHref ? (
+      <a key="ig" href={instagramHref} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
+        Instagram
+      </a>
+    ) : null,
+  ].filter(Boolean)
+  if (bioTab) (keyLeft.length <= keyRight.length ? keyLeft : keyRight).push(tabBtn(bioTab))
+  const keyRows = Math.max(keyLeft.length, keyRight.length)
+  const keyColumn = (keys: React.ReactNode[], label?: string) => {
+    const cells = Array.from({ length: keyRows }, (_, k) => (
+      <div key={k} className={keyCell}>
+        {keys[k]}
+      </div>
+    ))
+    return label ? (
+      <nav className="flex flex-col border-b border-line" aria-label={label}>
+        {cells}
+      </nav>
+    ) : (
+      <div className="flex flex-col border-b border-line">{cells}</div>
+    )
+  }
+  const keyboard = (
+    <div className={`flex flex-col gap-5 px-gutter ${rowCls} ${folded ? 'min-h-0 flex-1 text-[clamp(18px,3.2vw,24px)]!' : 'text-[clamp(16px,2.6vw,20px)]!'}`} style={narrow}>
+      <div className={`grid grid-cols-2 gap-x-gutter ${folded ? 'min-h-0 flex-1' : ''}`}>
+        {keyColumn(keyLeft, 'Books')}
+        {keyColumn(keyRight)}
+      </div>
+      {talent && (
+        <button
+          type="button"
+          onClick={() => select_(talent)}
+          aria-pressed={selected}
+          className={`intro-write flex h-[2.9em] w-full items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
+          style={write('+ Selection')}
+        >
+          {selected ? 'Selected ✓' : '+ Selection'}
+        </button>
+      )}
+    </div>
+  )
+
   // The ruler across the full width, under everything.
   const rulerBlock = showBook && S > 1 && (
     <>
@@ -812,10 +873,10 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div
-        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 || tall ? 'gap-8' : 'gap-2.5'} ${folded ? 'justify-center gap-12!' : ''}`}
+        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 || tall ? 'gap-8' : 'gap-2.5'} ${folded ? 'gap-6! pt-6' : ''}`}
         style={folded ? { height: folded } : undefined}
       >
-        {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
+        {!underSpread && !wide && (tall ? keyboard : per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
     </div>
