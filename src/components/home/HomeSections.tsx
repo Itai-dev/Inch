@@ -14,7 +14,7 @@ export type MagazineDoc = {
   cover?: SanityImage | null
   heading?: string | null
   text?: string | null
-  pages?: ({ _type: 'page'; image?: SanityImage | null; name?: string | null } | { _type: 'spread'; image?: SanityImage | null })[] | null
+  pages?: ({ _type: 'page'; image?: SanityImage | null; name?: string | null; caption?: string | null } | { _type: 'spread'; image?: SanityImage | null; caption?: string | null })[] | null
 } | null
 
 const fromSanity = (img: SanityImage): Pic => ({ src: urlFor(img).width(1400).url(), alt: img.alt || '', credit: creditLine(img) || undefined })
@@ -28,7 +28,8 @@ type StoryProps = { site: Site; chapters?: Chapter[] | null; magazine?: Magazine
 function facesOf(pages: NonNullable<MagazineDoc>['pages']): Face[] {
   const faces: Face[] = []
   for (const p of pages ?? []) {
-    const pic = p.image?.asset ? fromSanity(p.image) : null
+    // The photo, with its caption from the Studio (Caption), printed at its foot.
+    const pic = p.image?.asset ? { ...fromSanity(p.image), credit: p.caption?.trim() || undefined } : null
     if (p._type === 'spread') {
       if (!pic) continue
       // faces[0] is a right page, so an even count means the next page is a right one.

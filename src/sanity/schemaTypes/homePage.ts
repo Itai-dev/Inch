@@ -83,6 +83,7 @@ export const homePage = defineType({
               fields: [
                 defineField({ name: 'image', title: 'Photo', type: 'image', options: { hotspot: true } }),
                 defineField({ name: 'name', title: 'Name', description: 'With no photo: printed on a white page (as a model’s name facing her photo).', type: 'string' }),
+                defineField({ name: 'caption', title: 'Caption', description: 'Printed small at the foot of the photo, e.g. "Romi Peled for Prada s/s24". Leave empty for none.', type: 'string', validation: (r) => r.max(80) }),
               ],
               validation: (r) => r.custom((v: { image?: { asset?: unknown }; name?: string } | undefined) => (v?.image?.asset || v?.name ? true : 'Add a photo or a name')),
               preview: {
@@ -94,7 +95,10 @@ export const homePage = defineType({
               type: 'object',
               name: 'spread',
               title: 'Spread (both pages)',
-              fields: [defineField({ name: 'image', title: 'Photo', type: 'image', options: { hotspot: true }, validation: (r) => r.required() })],
+              fields: [
+                defineField({ name: 'image', title: 'Photo', type: 'image', options: { hotspot: true }, validation: (r) => r.required() }),
+                defineField({ name: 'caption', title: 'Caption', description: 'Printed small at the foot of the photo, e.g. "Romi Peled for Prada s/s24". Leave empty for none.', type: 'string', validation: (r) => r.max(80) }),
+              ],
               preview: { select: { media: 'image' }, prepare: ({ media }) => ({ title: 'Spread', subtitle: 'Both pages', media }) },
             }),
           ],

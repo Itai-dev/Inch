@@ -56,6 +56,18 @@ function Gloss({ strength = 0.16 }: { strength?: number }) {
   )
 }
 
+/** A photo's caption (Studio › Magazine › page › Caption), small at its foot, as a magazine prints one. */
+function Caption({ text, align = 'left' }: { text?: string; align?: 'left' | 'right' }) {
+  if (!text) return null
+  return (
+    <span
+      className={`pointer-events-none absolute bottom-[3.5%] max-w-[88%] truncate text-[clamp(7px,0.66vw,11px)] uppercase tracking-[0.16em] text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.5)] ${align === 'right' ? 'right-[6%]' : 'left-[6%]'}`}
+    >
+      {text}
+    </span>
+  )
+}
+
 /** Half of a photo that runs across both pages of an opening (the left or the right half). */
 function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
   return (
@@ -63,6 +75,8 @@ function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
       <div className="absolute inset-y-0 w-[200%]" style={{ left: side === 'left' ? 0 : '-100%' }}>
         <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
       </div>
+      {/* (Once, on the right half: at the foot of the whole spread.) */}
+      {side === 'right' && <Caption text={pic.credit} align="right" />}
       <Gloss strength={0.045} />
     </div>
   )
@@ -84,6 +98,7 @@ function PhotoPage({ pic }: { pic: Pic }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
       <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
+      <Caption text={pic.credit} />
       <Gloss strength={0.045} />
     </div>
   )
