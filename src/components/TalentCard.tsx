@@ -73,24 +73,34 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
       {talents.map((t, i) => {
         const src = coverUrl(t)
         return (
-          <li key={t._id} className="ruler-cell relative">
+          <li key={t._id} className="ruler-cell group relative">
             {/* The row's inch marks carried across the whole screen, edge to edge (the list sits in the
                 page's gutter); lit with the row. Its closing line lies on the next row's opening one. */}
             <span aria-hidden className="ruler-seg pointer-events-none absolute -inset-x-[var(--gutter)] top-0 h-px bg-current" />
             <span aria-hidden className="ruler-seg pointer-events-none absolute -inset-x-[var(--gutter)] -bottom-px h-px bg-current" />
-            <Link href={talentPath(t)} className="group grid grid-cols-[3.5rem_56px_1fr_auto] items-center gap-x-4 md:grid-cols-[6rem_72px_1fr_auto] md:gap-x-8">
+            <div className="grid grid-cols-[2.75rem_44px_1fr] items-center gap-x-3 md:grid-cols-[6rem_72px_1fr_auto] md:gap-x-8">
               <span aria-hidden className="ruler-seg relative self-stretch" style={{ ...rulerTicksDown(26, 9), marginBottom: `-${SEG_OVERLAP}` }}>
-                <span className="absolute left-[34px] top-1/2 -translate-y-1/2 text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
+                <span className="absolute left-[30px] top-1/2 -translate-y-1/2 text-[11px] md:left-[34px] md:text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
               </span>
               {/* The picture comes along with the name on hover, a little larger. */}
               <span className="relative my-3 block aspect-[3/4] overflow-hidden bg-line transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2 group-hover:scale-[1.06] md:my-4">
                 {src && <Image src={src} alt="" fill sizes="72px" unoptimized={src.endsWith('.svg')} className="object-cover" />}
               </span>
-              <span className="wordmark text-[clamp(26px,3.6vw,60px)] uppercase leading-none transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2">
-                {t.name}
+              {/* The name, with add to selection beside it (on a phone, in a column at the right edge). The link is the name but covers the whole
+                  row (its ::after); the button sits above that, so it selects rather than opens her page. */}
+              {/* (The hover shift is on the name and the button, not this wrapper: a transformed wrapper would
+                  hold the link's ::after to itself.) */}
+              <span className="flex min-w-0 items-center justify-between gap-2.5 md:justify-start md:gap-5">
+                <Link href={talentPath(t)} className="wordmark text-[clamp(21px,3.6vw,60px)] uppercase leading-none after:absolute after:inset-0">
+                  <span className="block transition-transform duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2">{t.name}</span>
+                </Link>
+                <span className="relative z-10 transition-[opacity,transform] duration-[450ms] ease-[cubic-bezier(0.22,0.8,0.25,1)] group-hover:translate-x-2 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+                  <AddToSelectionButton talent={t} compact onPage />
+                </span>
               </span>
-              <span aria-hidden className="label text-muted transition-opacity md:opacity-0 md:group-hover:opacity-100">View →</span>
-            </Link>
+              {/* On a phone the row is too narrow for it; the whole row opens her page anyway. */}
+              <span aria-hidden className="label hidden text-muted transition-opacity md:block md:opacity-0 md:group-hover:opacity-100">View →</span>
+            </div>
           </li>
         )
       })}
