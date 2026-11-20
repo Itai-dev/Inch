@@ -28,8 +28,10 @@ type StoryProps = { site: Site; chapters?: Chapter[] | null; magazine?: Magazine
 function facesOf(pages: NonNullable<MagazineDoc>['pages']): Face[] {
   const faces: Face[] = []
   for (const p of pages ?? []) {
-    // The photo, with its caption from the Studio (Caption), printed at its foot.
-    const pic = p.image?.asset ? { ...fromSanity(p.image), credit: p.caption?.trim() || undefined } : null
+    // The photo, with its caption printed at its foot: the page's Caption, or else (a photo page
+    // having no other use for it) the text in its Name field.
+    const caption = p.caption?.trim() || (p._type === 'page' ? p.name?.trim() : '') || undefined
+    const pic = p.image?.asset ? { ...fromSanity(p.image), credit: caption } : null
     if (p._type === 'spread') {
       if (!pic) continue
       // faces[0] is a right page, so an even count means the next page is a right one.
