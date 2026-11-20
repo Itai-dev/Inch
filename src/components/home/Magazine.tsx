@@ -56,22 +56,24 @@ function Gloss({ strength = 0.16 }: { strength?: number }) {
   )
 }
 
-/** A photo's caption (Studio › Magazine › page › Caption, or its Name), at its foot as a magazine
- * prints one: over a soft dark fade, so it reads on any picture. `text` alone: the fade only (the
- * left half of a spread, whose caption is on the right). */
-function Caption({ text, show = true, align = 'left' }: { text?: string; show?: boolean; align?: 'left' | 'right' }) {
+/** A photo's caption (Studio › Magazine › page › Caption, or its Name), set vertically along the
+ * page's outer edge from the top, as the model pages set their credits: up the left page's left
+ * edge, down the right page's right edge. Over a soft dark fade at that edge, so it reads on any picture. */
+function Caption({ text, side }: { text?: string; side: 'left' | 'right' }) {
   if (!text) return null
+  const left = side === 'left'
   return (
     <>
-      <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[24%] bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
-      {show && (
-        <span
-          className={`pointer-events-none absolute bottom-[4%] max-w-[88%] line-clamp-2 text-[clamp(8px,0.9vw,14px)] leading-[1.25] font-semibold uppercase tracking-[0.12em] text-white [text-shadow:0_1px_4px_rgb(0_0_0/0.6)] ${align === 'right' ? 'right-[6%]' : 'left-[6%]'}`}
-          style={{ fontStretch: '85%' }}
-        >
-          {text}
-        </span>
-      )}
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute inset-y-0 w-[18%] from-black/50 via-black/15 to-transparent ${left ? 'left-0 bg-gradient-to-r' : 'right-0 bg-gradient-to-l'}`}
+      />
+      <span
+        className={`pointer-events-none absolute top-[5%] max-h-[88%] overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(8px,0.9vw,14px)] font-semibold uppercase leading-none tracking-[0.12em] text-white [text-shadow:0_1px_4px_rgb(0_0_0/0.6)] [writing-mode:vertical-rl] ${left ? 'left-[5%] rotate-180' : 'right-[5%]'}`}
+        style={{ fontStretch: '85%' }}
+      >
+        {text}
+      </span>
     </>
   )
 }
@@ -83,8 +85,8 @@ function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
       <div className="absolute inset-y-0 w-[200%]" style={{ left: side === 'left' ? 0 : '-100%' }}>
         <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
       </div>
-      {/* (The fade across both halves; the words once, on the right: at the foot of the whole spread.) */}
-      <Caption text={pic.credit} show={side === 'right'} align="right" />
+      {/* (Once, down the right edge of the whole spread.) */}
+      {side === 'right' && <Caption text={pic.credit} side="right" />}
       <Gloss strength={0.045} />
     </div>
   )
@@ -92,7 +94,7 @@ function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
 
 /** A page of the magazine; `i` is its place in the book (0 = the cover), for the folio. */
 function FacePage({ face, i }: { face: Face; i: number }) {
-  if (face.kind === 'photo') return <PhotoPage pic={face.pic} />
+  if (face.kind === 'photo') return <PhotoPage pic={face.pic} side={i % 2 ? 'left' : 'right'} />
   if (face.kind === 'half') return <HalfPage pic={face.pic} side={face.side} />
   if (face.kind === 'name') return <NamePage name={face.name} n={i + 1} />
   return (
@@ -102,11 +104,11 @@ function FacePage({ face, i }: { face: Face; i: number }) {
   )
 }
 
-function PhotoPage({ pic }: { pic: Pic }) {
+function PhotoPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
       <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
-      <Caption text={pic.credit} />
+      <Caption text={pic.credit} side={side} />
       <Gloss strength={0.045} />
     </div>
   )
