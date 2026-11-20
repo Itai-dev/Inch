@@ -558,63 +558,6 @@ export function ModelSheet({
     </div>
   )
 
-  // Tall screens (a foldable, a tablet upright): a control panel, like a keyboard under the pictures.
-  // Keys between hairlines, each word in the middle of its key: the books and the overview on the
-  // left, the comp card and Instagram on the right, the bio across both; then the selection across.
-  // All of it close together at the foot of the lower half.
-  const keyCell = 'flex items-center justify-center border-t border-line text-center'
-  const keyLeft = [
-    ...tabs.filter((t) => t !== bioTab).map(tabBtn),
-    book && N > 0 ? (
-      <button key="overview" type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
-        Overview
-      </button>
-    ) : null,
-  ].filter(Boolean)
-  const keyRight = [
-    compCard ? (
-      <a key="comp" href={compCard} className={`intro-write ${tabCls()}`} style={write('Comp card')}>
-        Comp card
-      </a>
-    ) : null,
-    instagramHref ? (
-      <a key="ig" href={instagramHref} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
-        Instagram
-      </a>
-    ) : null,
-  ].filter(Boolean)
-  const keyRows = Math.max(keyLeft.length, keyRight.length)
-  const keyboard = (
-    <div className={`flex flex-col gap-3 px-gutter ${rowCls} text-[clamp(15px,2.4vw,19px)]!`} style={narrow}>
-      <nav
-        aria-label="Books"
-        className="grid grid-cols-2 gap-x-gutter border-b border-line"
-        style={{ gridTemplateRows: `repeat(${keyRows + (bioTab ? 1 : 0)}, 2.3em)` }}
-      >
-        {Array.from({ length: keyRows }, (_, r) => [
-          <div key={`l${r}`} className={keyCell}>
-            {keyLeft[r]}
-          </div>,
-          <div key={`r${r}`} className={keyCell}>
-            {keyRight[r]}
-          </div>,
-        ])}
-        {bioTab && <div className={`${keyCell} col-span-2`}>{tabBtn(bioTab)}</div>}
-      </nav>
-      {talent && (
-        <button
-          type="button"
-          onClick={() => select_(talent)}
-          aria-pressed={selected}
-          className={`intro-write flex h-[2.7em] w-full shrink-0 items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
-          style={write('+ Selection')}
-        >
-          {selected ? 'Selected ✓' : '+ Selection'}
-        </button>
-      )}
-    </div>
-  )
-
   // The ruler across the full width, under everything.
   const rulerBlock = showBook && S > 1 && (
     <>
@@ -915,11 +858,11 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div
-        className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-4! pt-4' : ''}`}
+        className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-9! pt-4' : ''}`}
         style={folded ? { height: folded } : undefined}
       >
-        {tall && renderStats('flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true)}
-        {!underSpread && !wide && (tall ? keyboard : per === 1 ? phoneBar : actionsRow('px-gutter'))}
+        {tall && renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
+        {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
     </div>
