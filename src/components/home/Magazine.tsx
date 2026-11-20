@@ -56,15 +56,23 @@ function Gloss({ strength = 0.16 }: { strength?: number }) {
   )
 }
 
-/** A photo's caption (Studio › Magazine › page › Caption), small at its foot, as a magazine prints one. */
-function Caption({ text, align = 'left' }: { text?: string; align?: 'left' | 'right' }) {
+/** A photo's caption (Studio › Magazine › page › Caption, or its Name), at its foot as a magazine
+ * prints one: over a soft dark fade, so it reads on any picture. `text` alone: the fade only (the
+ * left half of a spread, whose caption is on the right). */
+function Caption({ text, show = true, align = 'left' }: { text?: string; show?: boolean; align?: 'left' | 'right' }) {
   if (!text) return null
   return (
-    <span
-      className={`pointer-events-none absolute bottom-[3.5%] max-w-[88%] truncate text-[clamp(7px,0.66vw,11px)] uppercase tracking-[0.16em] text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.5)] ${align === 'right' ? 'right-[6%]' : 'left-[6%]'}`}
-    >
-      {text}
-    </span>
+    <>
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[24%] bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
+      {show && (
+        <span
+          className={`pointer-events-none absolute bottom-[4%] max-w-[88%] line-clamp-2 text-[clamp(8px,0.9vw,14px)] leading-[1.25] font-semibold uppercase tracking-[0.12em] text-white [text-shadow:0_1px_4px_rgb(0_0_0/0.6)] ${align === 'right' ? 'right-[6%]' : 'left-[6%]'}`}
+          style={{ fontStretch: '85%' }}
+        >
+          {text}
+        </span>
+      )}
+    </>
   )
 }
 
@@ -75,8 +83,8 @@ function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
       <div className="absolute inset-y-0 w-[200%]" style={{ left: side === 'left' ? 0 : '-100%' }}>
         <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
       </div>
-      {/* (Once, on the right half: at the foot of the whole spread.) */}
-      {side === 'right' && <Caption text={pic.credit} align="right" />}
+      {/* (The fade across both halves; the words once, on the right: at the foot of the whole spread.) */}
+      <Caption text={pic.credit} show={side === 'right'} align="right" />
       <Gloss strength={0.045} />
     </div>
   )
