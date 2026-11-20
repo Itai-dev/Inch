@@ -56,25 +56,75 @@ function Gloss({ strength = 0.16 }: { strength?: number }) {
   )
 }
 
+/**
+ * How light the strip along a photo's outer edge is, where its caption runs: read from a small copy of
+ * the picture, cropped as the page shows it (object-cover, framed at 50% 30%). `spread`: the right
+ * half of a photo across both pages. Null until read (and for drawings).
+ */
+function useEdgeTone(src: string, side: 'left' | 'right', spread = false) {
+  const [tone, setTone] = useState<'light' | 'dark' | null>(null)
+  useEffect(() => {
+    if (!src || src.endsWith('.svg')) return
+    let live = true
+    const img = new window.Image()
+    img.onload = () => {
+      try {
+        const W = 64
+        const H = Math.max(1, Math.round((W * img.naturalHeight) / img.naturalWidth))
+        const c = document.createElement('canvas')
+        c.width = W
+        c.height = H
+        const ctx = c.getContext('2d', { willReadFrequently: true })
+        if (!ctx) return
+        ctx.drawImage(img, 0, 0, W, H)
+        // The part of the picture the page shows.
+        const box = (spread ? 2 : 1) / PAGE_H
+        let [vx, vy, vw, vh] = [0, 0, W, H]
+        if (W / H > box) {
+          vw = H * box
+          vx = (W - vw) * 0.5
+        } else {
+          vh = W / box
+          vy = (H - vh) * 0.3
+        }
+        if (spread) {
+          vw /= 2
+          vx += vw
+        }
+        // The strip the caption runs along: the outer seventh of the page, from the top to two thirds down.
+        const sw = Math.max(1, Math.round(vw * 0.14))
+        const sx = side === 'left' ? vx : vx + vw - sw
+        const d = ctx.getImageData(Math.floor(sx), Math.floor(vy + vh * 0.03), sw, Math.max(1, Math.round(vh * 0.62))).data
+        let sum = 0
+        for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]
+        if (live) setTone(sum / (d.length / 4) / 255 > 0.58 ? 'light' : 'dark')
+      } catch {}
+    }
+    // (A small copy through the site's own image route: same origin, so its pixels can be read.)
+    img.src = `/_next/image?url=${encodeURIComponent(src)}&w=64&q=75`
+    return () => {
+      live = false
+    }
+  }, [src, side, spread])
+  return tone
+}
+
 /** A photo's caption (Studio › Magazine › page › Caption, or its Name), set vertically along the
  * page's outer edge from the top, as the model pages set their credits: up the left page's left
- * edge, down the right page's right edge. Over a soft dark fade at that edge, so it reads on any picture. */
-function Caption({ text, side }: { text?: string; side: 'left' | 'right' }) {
+ * edge, down the right page's right edge. No shade on the photo: the words are black where that edge
+ * is light and white where it is dark. */
+function Caption({ text, src, side, spread = false }: { text?: string; src: string; side: 'left' | 'right'; spread?: boolean }) {
+  const tone = useEdgeTone(text ? src : '', side, spread)
   if (!text) return null
-  const left = side === 'left'
   return (
-    <>
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute inset-y-0 w-[18%] from-black/50 via-black/15 to-transparent ${left ? 'left-0 bg-gradient-to-r' : 'right-0 bg-gradient-to-l'}`}
-      />
-      <span
-        className={`pointer-events-none absolute top-[5%] max-h-[88%] overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(8px,0.9vw,14px)] font-semibold uppercase leading-none tracking-[0.12em] text-white [text-shadow:0_1px_4px_rgb(0_0_0/0.6)] [writing-mode:vertical-rl] ${left ? 'left-[5%] rotate-180' : 'right-[5%]'}`}
-        style={{ fontStretch: '85%' }}
-      >
-        {text}
-      </span>
-    </>
+    <span
+      className={`pointer-events-none absolute top-[5%] max-h-[88%] overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(8px,0.9vw,14px)] font-semibold uppercase leading-none tracking-[0.12em] transition-colors duration-300 [writing-mode:vertical-rl] ${
+        tone === 'light' ? 'text-[#111]' : 'text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.35)]'
+      } ${side === 'left' ? 'left-[5%] rotate-180' : 'right-[5%]'}`}
+      style={{ fontStretch: '85%' }}
+    >
+      {text}
+    </span>
   )
 }
 
@@ -86,7 +136,7 @@ function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
         <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
       </div>
       {/* (Once, down the right edge of the whole spread.) */}
-      {side === 'right' && <Caption text={pic.credit} side="right" />}
+      {side === 'right' && <Caption text={pic.credit} src={pic.src} side="right" spread />}
       <Gloss strength={0.045} />
     </div>
   )
@@ -108,7 +158,7 @@ function PhotoPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
       <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
-      <Caption text={pic.credit} side={side} />
+      <Caption text={pic.credit} src={pic.src} side={side} />
       <Gloss strength={0.045} />
     </div>
   )
