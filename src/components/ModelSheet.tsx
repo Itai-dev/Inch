@@ -177,9 +177,30 @@ export function ModelSheet({
   const spreadOf = (i: number) => Math.max(0, spreads.findIndex((sp) => sp.includes(i)))
   const visible = spreadAt(cur)
 
-  const step = useCallback((d: number) => S > 1 && setCur((c) => c + d), [S])
+  // Moving through the book ends the opening slide (data-current): left on, it holds the spread
+  // being left where it is and starts over on the one coming in, which leaves a hole between them.
+  // Caught still sliding in, the spread being left is carried on from where it is to its place `d` over
+  // (a transition can't start from where an animation held it, so it would jump there).
+  const [moved, setMoved] = useState(false)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const endIntroSlide = (d = 0) => {
+    setMoved(true)
+    const el = frameRef.current?.querySelector<HTMLElement>('[data-current]')
+    if (!el?.getAnimations().some((a) => a.playState === 'running')) return
+    const from = getComputedStyle(el).transform
+    el.getAnimations({ subtree: true }).forEach((a) => a.finish())
+    if (d && !reduced && settled) el.animate([{ transform: from }, { transform: `translateX(${-d * (frameW + GAP)}px)` }], { duration: SLIDE_MS, easing: EASE })
+  }
+  const step = (d: number) => {
+    if (S < 2) return
+    endIntroSlide(d)
+    setCur((c) => c + d)
+  }
   // Ruler → spread: k is an unbounded image index; land on the spread that holds it.
-  const select = (k: number) => setCur(Math.floor(k / N) * S + spreadOf(mod(k, N)))
+  const select = (k: number) => {
+    endIntroSlide()
+    setCur(Math.floor(k / N) * S + spreadOf(mod(k, N)))
+  }
 
   // Opened at a picture (?p=3, from the home page's selected work): sit on its spread while the
   // stage is still sizing itself (so nothing slides), then let go.
@@ -567,7 +588,7 @@ export function ModelSheet({
           style={{ touchAction: 'pan-y' }}
         >
           {/* The frame clips its own track: the neighbouring spreads only show while sliding in or out. */}
-          <div className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + capH, ...at(INTRO_AT) }}>
+          <div ref={frameRef} className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + capH, ...at(INTRO_AT) }}>
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
@@ -578,7 +599,7 @@ export function ModelSheet({
               <div
                 key={abs}
                 aria-hidden={o !== 0}
-                data-current={o === 0 ? '' : undefined}
+                data-current={o === 0 && !moved ? '' : undefined}
                 className="absolute flex justify-center"
                 style={{
                   left: 0,
