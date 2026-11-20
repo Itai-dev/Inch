@@ -69,12 +69,10 @@ const onWide = (cb: () => void) => {
 }
 /**
  * Tall screens between a phone and a laptop (a foldable opened flat, a tablet upright): the
- * pictures fill the top half and the rest (sizes, every picture in a strip, books and actions, the
- * ruler) sits in a deck in the bottom half, like a laptop's screen over its keyboard. Half-folded,
+ * pictures fill the top half and the rest (sizes, books and actions, the ruler) sits in a deck in the bottom half, like a laptop's screen over its keyboard. Half-folded,
  * where the browser tells where the fold is (Viewport Segments), the halves meet at the fold.
  */
 const FOLD_MQ = '(min-width: 600px) and (max-width: 1023.98px) and (max-aspect-ratio: 4/5) and (min-height: 760px)'
-const STRIP_GAP = 6
 /** The deck's height in pixels; 0 where the page keeps its usual layout. */
 const deckHeight = () => {
   const segs = (window as { viewport?: { segments?: DOMRect[] } }).viewport?.segments
@@ -189,6 +187,9 @@ export function ModelSheet({
   const left = (stage.w - frameW) / 2
   // Wide: the pictures start right under the name, the same gap below it as above it.
   const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH) / 2)
+  // Phones with room to spare (a tall one): the sizes and the books drawn in toward the pictures,
+  // so the space is shared out rather than left in two gaps either side of them.
+  const drawIn = per === 1 && showBook && !deck ? Math.round(Math.min(90, Math.max(0, stage.h - pageH - capH) * 0.3)) : 0
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -414,7 +415,7 @@ export function ModelSheet({
   // Two groups, as on phones: the ways to see the pictures and take them (the books, the overview,
   // the comp card), then the model herself (the bio, over Instagram) and the selection button.
   const bookTabs = (stacked = false) => (
-    <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap items-center gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
+    <nav className={stacked ? 'flex flex-col items-end gap-2' : 'contents'} aria-label="Books">
       {tabs.filter((t) => t !== bioTab).map(tabBtn)}
       {book && N > 0 && (
         // The overview, as a tab of its own: marked while it is open; a book's tab goes back.
@@ -430,7 +431,7 @@ export function ModelSheet({
     </nav>
   )
   const bookActions = (stacked = false) => (
-    <div className={`flex whitespace-nowrap ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap items-center gap-x-5 gap-y-1 md:justify-end md:gap-x-[26px]'}`}>
+    <div className={`whitespace-nowrap ${stacked ? 'flex flex-col items-end gap-2' : 'contents'}`}>
       {bioTab && tabBtn(bioTab)}
       {instagramHref && (
         <a href={instagramHref} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
@@ -502,8 +503,9 @@ export function ModelSheet({
       )}
     </div>
   )
+  // In a row: the books and actions spread evenly across it, the same space between each.
   const actionsRow = (className: string, style?: React.CSSProperties) => (
-    <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
+    <div className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
       {bookTabs()}
       {bookActions()}
     </div>
@@ -533,46 +535,6 @@ export function ModelSheet({
       </div>
     </>
   )
-  // The deck's strip: every picture of the book small, in a row you can scroll, the spread showing
-  // marked; a tap opens a picture's spread. It follows the book, keeping the spread in its middle.
-  const stripRef = useRef<HTMLDivElement>(null)
-  const stripH = Math.round(Math.min(150, Math.max(72, deck * 0.24)))
-  useEffect(() => {
-    const el = stripRef.current
-    const first = el?.querySelector<HTMLElement>('[data-first]')
-    const last = el?.querySelector<HTMLElement>('[data-last]')
-    if (!el || !first || !last) return
-    const mid = (first.offsetLeft + last.offsetLeft + last.offsetWidth) / 2
-    el.scrollTo({ left: mid - el.clientWidth / 2, behavior: reduced || !settled ? 'auto' : 'smooth' })
-  }, [cur, segment, deck, stripH, reduced, settled])
-  const strip = (
-    <div
-      ref={stripRef}
-      className="intro-fade flex shrink-0 overflow-x-auto px-gutter [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      style={{ ...at(INTRO_AT + 200), gap: STRIP_GAP, height: stripH, maskImage: 'linear-gradient(90deg, transparent, #000 var(--gutter), #000 calc(100% - var(--gutter)), transparent)' }}
-    >
-      {slides.map((s, i) => {
-        const on = visible.includes(i)
-        return (
-          <button
-            key={i}
-            type="button"
-            onClick={() => select(Math.floor(cur / S) * N + i)}
-            aria-label={`Open ${s.alt}`}
-            aria-current={on || undefined}
-            data-first={i === visible[0] ? '' : undefined}
-            data-last={i === visible[visible.length - 1] ? '' : undefined}
-            className={`block h-full shrink-0 overflow-hidden bg-line transition-opacity duration-300 ${on ? '' : 'opacity-35 hover:opacity-70'}`}
-            style={{ aspectRatio: s.landscape ? '4 / 3' : '3 / 4' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={s.src} alt="" loading="lazy" draggable={false} className="block size-full object-cover" />
-          </button>
-        )
-      })}
-    </div>
-  )
-
   // The side columns sit level with the middle of the pictures, and stay exactly there whatever is
   // open (a book, an overview, polaroids, the bio): placed by their top edge, measured once on the
   // book (else on whatever first shows), so a shorter column (no Overview in the bio) or another
@@ -644,7 +606,11 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {!deck && renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
+          {!deck && (
+            <div className="relative z-30" style={drawIn ? { transform: `translateY(${drawIn}px)` } : undefined}>
+            {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
+            </div>
+          )}
         </header>
       )}
 
@@ -847,13 +813,12 @@ export function ModelSheet({
       {deck ? (
         <div className="flex shrink-0 flex-col justify-evenly pb-[max(14px,env(safe-area-inset-bottom))] pt-4" style={{ height: deck }}>
           {renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
-          {showBook && N > 1 && strip}
           {actionsRow('px-gutter')}
           {rulerBlock}
         </div>
       ) : (
         <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'}`}>
-          {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
+          {!underSpread && !wide && (per === 1 ? <div className="relative z-30" style={drawIn ? { transform: `translateY(${-drawIn}px)` } : undefined}>{phoneBar}</div> : actionsRow('px-gutter'))}
           {rulerBlock}
         </div>
       )}
