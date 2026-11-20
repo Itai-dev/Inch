@@ -161,11 +161,6 @@ export function ModelSheet({
   }, [showBook])
   const folded = useSyncExternalStore(onFold, foldedHeight, () => 0)
   const tall = useSyncExternalStore(onTall, () => matchMedia(TALL).matches, () => false) || !!folded
-  // Tall screens split in two, as if already half-folded: the name and the pictures on the upper half,
-  // the sizes and the controls on the lower. Folded, the halves meet at the fold itself.
-  // (Opened flat, the fold is half way down the screen, not the page: the browser's bars sit above it.)
-  const viewH = useSyncExternalStore(onFold, () => innerHeight, () => 0)
-  const deckH = folded || (tall ? Math.round(Math.min(viewH * 0.6, Math.max(viewH * 0.4, screen.height / 2))) : 0)
   const per = stage.w < 640 && !tall ? 1 : 2
   const polaroids = book?.segment === 'polaroids'
   // Pages side by side: two portraits (three polaroids); phones two of either.
@@ -181,7 +176,7 @@ export function ModelSheet({
   }
   const S = Math.max(1, spreads.length)
   // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
-  const capH = per === 2 && !deckH ? 0 : CAPTION_H
+  const capH = per === 2 && !tall ? 0 : CAPTION_H
   // Two pages: the books and actions sit just under the spread, so leave room for them.
   // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
   const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
@@ -189,7 +184,7 @@ export function ModelSheet({
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
-  let pageH = Math.max(0, stage.h - capH - rowH - (deckH ? 24 : 0)) * (wide ? 0.95 : 1)
+  let pageH = Math.max(0, stage.h - capH - rowH - (folded ? 24 : 0)) * (wide ? 0.95 : 1)
   let pageW = pageH * 0.75
   if (pageW * cols + FOLD * (cols - 1) > stage.w - peek * 2) {
     pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (cols - 1)) / cols)
@@ -199,7 +194,47 @@ export function ModelSheet({
   const frameW = pageW * cols + FOLD * (cols - 1)
   const left = (stage.w - frameW) / 2
   // Wide: the pictures start right under the name, the same gap below it as above it.
-  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH - (deckH ? 24 : 0)) / 2)
+  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH - (folded ? 24 : 0)) / 2)
+
+  // Folding the phone half way: the pictures travel up into the upper half (and back down when it
+  // opens) instead of jumping there. While the stage measures itself anew they are held where they
+  // were; once it has settled they are let go and glide to their new place.
+  const geo = { x: left, y: top, w: frameW, h: pageH + capH }
+  const lastGeo = useRef(geo)
+  const foldHold = useRef<typeof geo | null>(null)
+  const wasFolded = useRef(folded)
+  useLayoutEffect(() => {
+    const el = frameRef.current
+    if (wasFolded.current !== folded) {
+      wasFolded.current = folded
+      if (el && !reduced && lastGeo.current.w > 0) {
+        foldHold.current = lastGeo.current
+        setSettled(false)
+        setTimeout(() => setSettled(true), 160)
+      }
+    }
+    const fresh = foldHold.current && settled && lastGeo.current === foldHold.current
+    lastGeo.current = geo
+    const hold = foldHold.current
+    if (!el || !hold || !geo.w || !geo.h) return
+    const back = `translate(${hold.x - geo.x}px, ${hold.y - geo.y}px) scale(${hold.w / geo.w}, ${hold.h / geo.h})`
+    el.style.transformOrigin = '0 0'
+    // (Uncropped by the stage on the way: it has shrunk or grown under them.)
+    const stageEl = el.parentElement
+    if (stageEl) stageEl.style.overflow = 'visible'
+    // (Still the render that saw the fold: `settled` here is from before it, so hold.)
+    if (!settled || fresh) {
+      el.style.transform = back
+      return
+    }
+    foldHold.current = null
+    el.style.transform = ''
+    el.animate([{ transform: back }, { transform: 'none' }], { duration: 700, easing: EASE }).finished.then(
+      () => stageEl && (stageEl.style.overflow = ''),
+      () => stageEl && (stageEl.style.overflow = ''),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- geo is read through its parts
+  }, [folded, geo.x, geo.y, geo.w, geo.h, settled, reduced])
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -396,11 +431,13 @@ export function ModelSheet({
   // One step per letter, at the same pace for every line.
   const write = (text: string) => ({ ...at(INTRO_AT), '--n': text.length, '--t': `${text.length * WRITE_MS_PER_CHAR}ms` }) as React.CSSProperties
 
-  const renderStats = (className: string) =>
+  /** `rows`: in two rows, each spread across the width (the unit switch closing the second). */
+  const renderStats = (className: string, rows = false) =>
     stats.length ? (
       <div className={className}>
         <dl className="contents">
-          {stats.map(([k, v], i) => (
+          {stats.map(([k, v], i) => [
+            rows && i === Math.ceil((stats.length + 1) / 2) && <div key="break" aria-hidden className="basis-full" />,
             <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
               <dt className="inline" style={narrow}>{k}</dt>{' '}
               <dd className="inline-grid font-bold normal-case">
@@ -410,8 +447,8 @@ export function ModelSheet({
                   </span>
                 ))}
               </dd>
-            </div>
-          ))}
+            </div>,
+          ])}
         </dl>
         <div className="intro-write" style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
@@ -673,7 +710,7 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {!deckH && renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
+          {!tall && renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
         </header>
       )}
 
@@ -737,7 +774,7 @@ export function ModelSheet({
                           <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                         </div>
                       )}
-                      {o === 0 && (per === 1 || !!deckH) && s.caption && !polaroids && !(shared && j > 0) && (
+                      {o === 0 && (per === 1 || tall) && s.caption && !polaroids && !(shared && j > 0) && (
                         <figcaption className="line-clamp-2 pt-1.5 text-[10px] uppercase leading-[1.35] tracking-[0.14em] text-muted" style={shared ? { width: frameW } : undefined}>
                           {s.caption}
                         </figcaption>
@@ -750,7 +787,7 @@ export function ModelSheet({
           })}
           </div>
           {/* The credits, set vertically: up the left edge of the left page, down the right edge of the right one. */}
-          {per === 2 && !deckH &&
+          {per === 2 && !tall &&
             !polaroids &&
             visible.map((i, j) => {
               const caption = slides[i]?.caption
@@ -874,11 +911,11 @@ export function ModelSheet({
 
       {/* Books | counter | actions, then the ruler across the full width */}
       <div
-        className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${deckH ? 'justify-end gap-4! pt-4' : ''}`}
-        style={deckH ? { height: deckH } : undefined}
+        className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-4! pt-4' : ''}`}
+        style={folded ? { height: folded } : undefined}
       >
-        {!!deckH && renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
-        {!underSpread && !wide && (deckH ? keyboard : per === 1 ? phoneBar : actionsRow('px-gutter'))}
+        {tall && renderStats('flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true)}
+        {!underSpread && !wide && (tall ? keyboard : per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
     </div>
