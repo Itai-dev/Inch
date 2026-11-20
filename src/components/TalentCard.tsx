@@ -73,12 +73,12 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
       {talents.map((t, i) => {
         const src = coverUrl(t)
         return (
-          <li key={t._id} className="ruler-cell relative">
+          <li key={t._id} className="ruler-cell group/row relative">
             {/* The row's inch marks carried across the whole screen, edge to edge (the list sits in the
                 page's gutter); lit with the row. Its closing line lies on the next row's opening one. */}
             <span aria-hidden className="ruler-seg pointer-events-none absolute -inset-x-[var(--gutter)] top-0 h-px bg-current" />
             <span aria-hidden className="ruler-seg pointer-events-none absolute -inset-x-[var(--gutter)] -bottom-px h-px bg-current" />
-            <Link href={talentPath(t)} className="group grid grid-cols-[3.5rem_56px_1fr_auto] items-center gap-x-4 md:grid-cols-[6rem_72px_1fr_auto] md:gap-x-8">
+            <Link href={talentPath(t)} className="group grid grid-cols-[3.5rem_56px_1fr_auto] items-center gap-x-4 pr-12 md:grid-cols-[6rem_72px_1fr_auto] md:gap-x-8 md:pr-16">
               <span aria-hidden className="ruler-seg relative self-stretch" style={{ ...rulerTicksDown(26, 9), marginBottom: `-${SEG_OVERLAP}` }}>
                 <span className="absolute left-[34px] top-1/2 -translate-y-1/2 text-[12px] font-extrabold tabular-nums leading-none">{String(i + 1).padStart(2, '0')}</span>
               </span>
@@ -91,6 +91,10 @@ export function TalentList({ talents }: { talents: TalentCardType[] }) {
               </span>
               <span aria-hidden className="label text-muted transition-opacity md:opacity-0 md:group-hover:opacity-100">View →</span>
             </Link>
+            {/* Add to selection, as on the thumbnails: beside the link, not inside it. */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 transition-opacity md:opacity-0 md:group-hover/row:opacity-100 md:focus-within:opacity-100">
+              <AddToSelectionButton talent={t} compact plain />
+            </div>
           </li>
         )
       })}
