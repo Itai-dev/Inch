@@ -34,7 +34,7 @@ const SLIDE_MS = 700
 const EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // the hero's soft ease in-out
 const FOLD = 2 // the gutter between the two pages of a spread
 const GAP = 16 // between spreads
-const CAPTION_H = 22
+const CAPTION_H = 36 // a phone's credit under the pages: room for two lines
 const CREDIT_GAP = 12 // between a page and its credit
 const ROW_H = 46 // the books and actions under a two-page spread, with the gap above them
 const SIDE_W = 215 // on wide screens, the room kept each side of the spread for the sizes and the actions
@@ -66,6 +66,24 @@ const onWide = (cb: () => void) => {
   const m = matchMedia(WIDE)
   m.addEventListener('change', cb)
   return () => m.removeEventListener('change', cb)
+}
+/**
+ * Tall screens between a phone and a laptop (a foldable opened flat, a tablet upright): the
+ * pictures fill the top half and the rest (sizes, every picture in a strip, books and actions, the
+ * ruler) sits in a deck in the bottom half, like a laptop's screen over its keyboard. Half-folded,
+ * where the browser tells where the fold is (Viewport Segments), the halves meet at the fold.
+ */
+const FOLD_MQ = '(min-width: 600px) and (max-width: 1023.98px) and (max-aspect-ratio: 4/5) and (min-height: 760px)'
+const STRIP_GAP = 6
+/** The deck's height in pixels; 0 where the page keeps its usual layout. */
+const deckHeight = () => {
+  const segs = (window as { viewport?: { segments?: DOMRect[] } }).viewport?.segments
+  if (segs?.length === 2 && segs[1].y > segs[0].y + 1 && innerWidth >= 600 && innerWidth < 1024) return Math.round(innerHeight - segs[1].y)
+  return matchMedia(FOLD_MQ).matches ? Math.round(innerHeight / 2) : 0
+}
+const onDeck = (cb: () => void) => {
+  addEventListener('resize', cb)
+  return () => removeEventListener('resize', cb)
 }
 /** The books and the bio, all at full strength; the open one carries the line (aria-current), the others draw it on hover. */
 const tabCls = () => 'ink-line uppercase'
@@ -136,7 +154,8 @@ export function ModelSheet({
       clearTimeout(t)
     }
   }, [showBook])
-  const per = stage.w < 640 ? 1 : 2
+  const deck = useSyncExternalStore(onDeck, deckHeight, () => 0)
+  const per = stage.w < 640 && !deck ? 1 : 2
   const polaroids = book?.segment === 'polaroids'
   // Pages side by side: two portraits (three polaroids); phones two of either.
   const cols = per === 2 && polaroids ? 3 : 2
@@ -155,7 +174,7 @@ export function ModelSheet({
   // Two pages: the books and actions sit just under the spread, so leave room for them.
   // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
   const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
-  const underSpread = showBook && per === 2 && !wide
+  const underSpread = showBook && per === 2 && !wide && !deck
   const rowH = underSpread ? ROW_H : 0
   const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
   // Wide screens keep the pictures a little short of the full height, so the name has the room.
@@ -395,7 +414,7 @@ export function ModelSheet({
   // Two groups, as on phones: the ways to see the pictures and take them (the books, the overview,
   // the comp card), then the model herself (the bio, over Instagram) and the selection button.
   const bookTabs = (stacked = false) => (
-    <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
+    <nav className={`flex ${stacked ? 'flex-col items-end gap-2' : 'flex-wrap items-center gap-x-5 gap-y-1 md:gap-x-[26px]'}`} aria-label="Books">
       {tabs.filter((t) => t !== bioTab).map(tabBtn)}
       {book && N > 0 && (
         // The overview, as a tab of its own: marked while it is open; a book's tab goes back.
@@ -440,9 +459,8 @@ export function ModelSheet({
     if (seg === segment && view === 'thumbnails' && book?.view === 'book') setView('book')
     else open(seg)
   }
-  // Phones: every book and action on the page, in two sides: on the left the ways to see the
-  // pictures and take them (the books, the overview, the comp card), on the right the model herself
-  // (the bio, over Instagram); then the selection button across the width.
+  // Phones: every book and action in one row across the width (the ways to see the pictures and take
+  // them, then the model herself: her bio, her Instagram), then the selection button under them.
   const bioTab = tabs.find((t) => t.segment === 'bio')
   const tabBtn = (t: { segment: string; title: string }) => (
     <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
@@ -451,34 +469,26 @@ export function ModelSheet({
   )
   const phoneBar = (
     // (A size smaller than the detail text elsewhere: a phone's screen is short.)
-    <div className={`flex flex-col gap-4 px-gutter ${rowCls} text-[14px]!`} style={narrow}>
-      {/* Two columns, their lines the same distance apart, so the right one is always in line with the
-          left: the bio by the first line, Instagram by the second (however the books wrap). */}
-      <div className="flex items-start justify-between gap-x-5">
-        <div className="flex flex-col items-start gap-y-3">
-          <nav className="flex flex-wrap gap-x-[18px] gap-y-3" aria-label="Books">
-            {tabs.filter((t) => t !== bioTab).map(tabBtn)}
-            {book && N > 0 && (
-              <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
-                Overview
-              </button>
-            )}
-          </nav>
-          {compCard && (
-            <a href={compCard} className="intro-write ink-line" style={write('Comp card')}>
-              Comp card
-            </a>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-y-3">
-          {bioTab && tabBtn(bioTab)}
-          {instagramHref && (
-            <a href={instagramHref} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
-              Instagram
-            </a>
-          )}
-        </div>
-      </div>
+    <div className={`flex flex-col gap-4 px-gutter ${rowCls} text-[clamp(12px,3.4vw,14px)]!`} style={narrow}>
+      <nav className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-3" aria-label="Books">
+        {tabs.filter((t) => t !== bioTab).map(tabBtn)}
+        {book && N > 0 && (
+          <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+            Overview
+          </button>
+        )}
+        {compCard && (
+          <a href={compCard} className="intro-write ink-line" style={write('Comp card')}>
+            Comp card
+          </a>
+        )}
+        {bioTab && tabBtn(bioTab)}
+        {instagramHref && (
+          <a href={instagramHref} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
+            Instagram
+          </a>
+        )}
+      </nav>
       {talent && (
         <button
           type="button"
@@ -496,6 +506,70 @@ export function ModelSheet({
     <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
       {bookTabs()}
       {bookActions()}
+    </div>
+  )
+
+  // The ruler across the full width, under everything.
+  const rulerBlock = showBook && S > 1 && (
+    <>
+      <div className="intro-fade" style={at(INTRO_AT + 200)}>
+      <Ruler
+        count={N}
+        pos={rulerPos}
+        active={visible}
+        onSelect={select}
+        reduced={reduced}
+        segW={small ? 40 : 48}
+        fontPx={small ? 13 : 14}
+        tickH={small ? 16 : 18}
+        minors={9}
+        duration={SLIDE_MS}
+        easing={EASE}
+      />
+      </div>
+      <div className="sr-only">
+        <button type="button" onClick={() => step(-1)}>Previous</button>
+        <button type="button" onClick={() => step(1)}>Next</button>
+      </div>
+    </>
+  )
+  // The deck's strip: every picture of the book small, in a row you can scroll, the spread showing
+  // marked; a tap opens a picture's spread. It follows the book, keeping the spread in its middle.
+  const stripRef = useRef<HTMLDivElement>(null)
+  const stripH = Math.round(Math.min(150, Math.max(72, deck * 0.24)))
+  useEffect(() => {
+    const el = stripRef.current
+    const first = el?.querySelector<HTMLElement>('[data-first]')
+    const last = el?.querySelector<HTMLElement>('[data-last]')
+    if (!el || !first || !last) return
+    const mid = (first.offsetLeft + last.offsetLeft + last.offsetWidth) / 2
+    el.scrollTo({ left: mid - el.clientWidth / 2, behavior: reduced || !settled ? 'auto' : 'smooth' })
+  }, [cur, segment, deck, stripH, reduced, settled])
+  const strip = (
+    <div
+      ref={stripRef}
+      className="intro-fade flex shrink-0 overflow-x-auto px-gutter [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ ...at(INTRO_AT + 200), gap: STRIP_GAP, height: stripH, maskImage: 'linear-gradient(90deg, transparent, #000 var(--gutter), #000 calc(100% - var(--gutter)), transparent)' }}
+    >
+      {slides.map((s, i) => {
+        const on = visible.includes(i)
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => select(Math.floor(cur / S) * N + i)}
+            aria-label={`Open ${s.alt}`}
+            aria-current={on || undefined}
+            data-first={i === visible[0] ? '' : undefined}
+            data-last={i === visible[visible.length - 1] ? '' : undefined}
+            className={`block h-full shrink-0 overflow-hidden bg-line transition-opacity duration-300 ${on ? '' : 'opacity-35 hover:opacity-70'}`}
+            style={{ aspectRatio: s.landscape ? '4 / 3' : '3 / 4' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.src} alt="" loading="lazy" draggable={false} className="block size-full object-cover" />
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -570,7 +644,7 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
+          {!deck && renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
         </header>
       )}
 
@@ -609,8 +683,10 @@ export function ModelSheet({
                   transition: anim,
                 }}
               >
-                {idx.map((i) => {
+                {idx.map((i, j) => {
                   const s = slides[i]
+                  // Both pages credited alike (one shoot): the credit once, under the whole spread.
+                  const shared = idx.length > 1 && idx.every((k) => slides[k].caption === s.caption)
                   return (
                     <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
                       {polaroids ? (
@@ -632,8 +708,10 @@ export function ModelSheet({
                           <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
                         </div>
                       )}
-                      {o === 0 && per === 1 && s.caption && !polaroids && (
-                        <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
+                      {o === 0 && per === 1 && s.caption && !polaroids && !(shared && j > 0) && (
+                        <figcaption className="line-clamp-2 pt-1.5 text-[10px] uppercase leading-[1.35] tracking-[0.14em] text-muted" style={shared ? { width: frameW } : undefined}>
+                          {s.caption}
+                        </figcaption>
                       )}
                     </figure>
                   )
@@ -654,7 +732,7 @@ export function ModelSheet({
               return (
                 <p
                   key={`${cur}-${i}`}
-                  className="credit-in pointer-events-none absolute truncate text-[10px] uppercase leading-none tracking-[0.2em] text-muted [writing-mode:vertical-rl]"
+                  className="credit-in pointer-events-none absolute truncate text-[10px] uppercase leading-none tracking-[0.14em] text-muted [writing-mode:vertical-rl]"
                   style={{ top, height: pageH, left: x, transform: onLeft ? 'translateX(-100%) rotate(180deg)' : undefined }}
                 >
                   {caption}
@@ -667,7 +745,7 @@ export function ModelSheet({
           <p className="sr-only" aria-live="polite">
             {visible.map((i) => `${pad2(i + 1)} ${slides[i].caption || slides[i].alt}`).join(', ')} of {pad2(N)}
           </p>
-          {underSpread && actionsRow('absolute z-20 items-end', { top: top + pageH, height: ROW_H, left, width: frameW })}
+          {underSpread && actionsRow('absolute z-20 pt-2.5', { top: top + pageH, height: ROW_H, left, width: frameW })}
         </section>
       )}
 
@@ -765,34 +843,20 @@ export function ModelSheet({
         </>
       )}
 
-      {/* Books | counter | actions, then the ruler across the full width */}
-      <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'}`}>
-        {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
-
-        {showBook && S > 1 && (
-          <>
-            <div className="intro-fade" style={at(INTRO_AT + 200)}>
-            <Ruler
-              count={N}
-              pos={rulerPos}
-              active={visible}
-              onSelect={select}
-              reduced={reduced}
-              segW={small ? 40 : 48}
-              fontPx={small ? 13 : 14}
-              tickH={small ? 16 : 18}
-              minors={9}
-              duration={SLIDE_MS}
-              easing={EASE}
-            />
-            </div>
-            <div className="sr-only">
-              <button type="button" onClick={() => step(-1)}>Previous</button>
-              <button type="button" onClick={() => step(1)}>Next</button>
-            </div>
-          </>
-        )}
-      </div>
+      {/* Books | counter | actions, then the ruler across the full width; on a tall screen, the deck. */}
+      {deck ? (
+        <div className="flex shrink-0 flex-col justify-evenly pb-[max(14px,env(safe-area-inset-bottom))] pt-4" style={{ height: deck }}>
+          {renderStats('flex flex-wrap items-center justify-center gap-x-[clamp(14px,2.2vw,24px)] gap-y-1.5 px-gutter text-detail')}
+          {showBook && N > 1 && strip}
+          {actionsRow('px-gutter')}
+          {rulerBlock}
+        </div>
+      ) : (
+        <div className={`flex shrink-0 flex-col pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'}`}>
+          {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
+          {rulerBlock}
+        </div>
+      )}
     </div>
   )
 }
