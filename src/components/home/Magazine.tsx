@@ -61,7 +61,7 @@ function HalfPage({ pic, side }: { pic: Pic; side: 'left' | 'right' }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
       <div className="absolute inset-y-0 w-[200%]" style={{ left: side === 'left' ? 0 : '-100%' }}>
-        <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.06]" />
+        <Image src={pic.src} alt={side === 'left' ? pic.alt : ''} fill sizes="100vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
       </div>
       <Gloss strength={0.045} />
     </div>
@@ -83,23 +83,19 @@ function FacePage({ face, i }: { face: Face; i: number }) {
 function PhotoPage({ pic }: { pic: Pic }) {
   return (
     <div className="relative h-full overflow-hidden bg-line">
-      <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.06]" />
+      <Image src={pic.src} alt={pic.alt} fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
       <Gloss strength={0.045} />
     </div>
   )
 }
 
-/** The front cover: a full-bleed picture, the wordmark across the top, the issue at the foot. */
-function CoverPage({ pic, division, number, heading }: { pic: Pic; division: Division; number: number; heading: string }) {
+/** The front cover: a full-bleed picture and the wordmark across the top. */
+function CoverPage({ pic, division }: { pic: Pic; division: Division }) {
   return (
     <div className="relative h-full overflow-hidden bg-[#111]">
-      <Image src={pic.src} alt="" fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover grayscale contrast-[1.06]" />
-      <div className="absolute inset-0 flex flex-col justify-between p-[7%] text-white">
+      <Image src={pic.src} alt="" fill sizes="50vw" unoptimized={pic.src.endsWith('.svg')} className="object-cover object-[50%_30%]" />
+      <div className="absolute inset-0 p-[7%] text-white">
         <Logo division={division} as="div" className="w-full [&_svg]:!h-auto [&_svg]:!w-full" />
-        <div className="flex items-end justify-between gap-4 text-[clamp(7px,0.75vw,11px)] uppercase tracking-[0.2em]">
-          <span>No. {pad(number)}</span>
-          <span>{heading}</span>
-        </div>
       </div>
       {/* The cover's gloss. */}
       <Gloss strength={0.08} />
@@ -187,8 +183,10 @@ const TURN_MS = 900
 /** How quickly the magazine catches up with the scroll (ms to close about two thirds of the gap). */
 const FOLLOW_MS = 90
 /** The book's width, the closed magazine's (the cover's) width and height, and its thickness. */
-const BOOK_W = 'min(94vw, 100dvh)'
-const COVER_H = `(${BOOK_W} / 1.5)`
+const BOOK_W = 'min(94vw, 95dvh)'
+/** A page is 1.4 times as tall as it is wide (a magazine's proportions, taller than 3:4, so portraits keep their heads). */
+const PAGE_H = 1.4
+const COVER_H = `(${BOOK_W} * ${PAGE_H / 2})`
 const SPINE_T = `(${BOOK_W} * 0.036)`
 const css = (expr: string) => `calc(${expr})`
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -220,7 +218,7 @@ const paper = (dir: 'right' | 'bottom') => `repeating-linear-gradient(to ${dir},
  * (the real book takes over once it faces you). Faces carry a shade that the opening sets as they
  * turn toward or away from the light (in front).
  */
-function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: React.Ref<HTMLDivElement>; cover: Pic; division: Division; number: number; heading: string }) {
+function ClosedBook({ boxRef, cover, division }: { boxRef: React.Ref<HTMLDivElement>; cover: Pic; division: Division }) {
   const half = css(`${SPINE_T} / 2`)
   return (
     <div
@@ -231,7 +229,7 @@ function ClosedBook({ boxRef, cover, division, number, heading }: { boxRef: Reac
     >
       {/* Cover. */}
       <div className="absolute inset-0 overflow-hidden [backface-visibility:hidden]" style={{ transform: `translateZ(${half})`, borderTopRightRadius: RADIUS, borderBottomRightRadius: RADIUS }}>
-        <CoverPage pic={cover} division={division} number={number} heading={heading} />
+        <CoverPage pic={cover} division={division} />
         <Hinge side="left" />
         <span data-shade="cover" className="absolute inset-0 bg-black" style={{ opacity: 0 }} />
         {/* The light catching the glossy cover as it turns toward you. */}
@@ -327,7 +325,7 @@ export function Magazine({
       const { at, arrive: a } = live.current
       const W = stage.current?.offsetWidth ?? 900
       const coverW = W / 2
-      const coverH = W / 1.5
+      const coverH = (W * PAGE_H) / 2
       const T = W * 0.036
       const opened = clamp01(at)
 
@@ -652,7 +650,7 @@ export function Magazine({
   // Each leaf's two faces: the cover over the chapter, then each right page over the next left one.
   const faces: { front: React.ReactNode; back: React.ReactNode }[] = [
     {
-      front: <CoverPage pic={cover} division={division} number={number} heading={heading} />,
+      front: <CoverPage pic={cover} division={division} />,
       back: (
         <div className="relative h-full overflow-hidden bg-[#fbfbfa]">
           <div className="flex h-full flex-col p-[9%] text-[#0a0a0a]">
@@ -687,7 +685,7 @@ export function Magazine({
         <div
           ref={stage}
           className="relative select-none"
-          style={{ width: BOOK_W, aspectRatio: '3 / 2', perspective: '2600px', touchAction: 'pan-y' }}
+          style={{ width: BOOK_W, aspectRatio: `2 / ${PAGE_H}`, perspective: '2600px', touchAction: 'pan-y' }}
           onPointerMove={onMove}
           onPointerDown={onDown}
           onPointerUp={onUp}
@@ -707,7 +705,7 @@ export function Magazine({
         >
           {/* The closed magazine's shadow on the surface, following its outline as it turns. */}
           <span ref={boxShadow} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 bg-black/25 blur-[42px] will-change-[transform,opacity]" />
-          <ClosedBook boxRef={box} cover={cover} division={division} number={number} heading={heading} />
+          <ClosedBook boxRef={box} cover={cover} division={division} />
           <div ref={book} className="absolute inset-0 will-change-transform" style={{ perspective: '2600px', transform: 'translateX(-25%)', opacity: 0 }}>
             {/* The book's shadow on the surface: under the cover while closed, under both pages once open. */}
             <span ref={shadow} aria-hidden className="absolute inset-y-[2%] left-[1%] right-[1%] origin-right bg-black/25 blur-[40px] will-change-transform" style={{ bottom: '-2%', transform: 'scaleX(0.5)' }} />
