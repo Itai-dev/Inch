@@ -710,7 +710,11 @@ export function ModelSheet({
               </svg>
             </button>
           </div>
-          {!tall && renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail max-sm:mx-auto max-sm:max-w-[310px] max-sm:gap-x-3.5 max-sm:text-[14px]! md:gap-x-[clamp(14px,1.5vw,24px)]')}
+          {!tall &&
+            (per === 1
+              ? // Phones: four and four, each row from edge to edge.
+                renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(12px,3.5vw,14px)]!', true)
+              : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
         </header>
       )}
 
