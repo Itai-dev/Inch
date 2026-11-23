@@ -443,17 +443,15 @@ export function ModelSheet({
   )
   /**
    * `rows`: in rows, each spread across the width (the unit switch closing the last).
-   * `columns`: in that many columns, each in line, the unit switch at the end of its row.
-   * `wordsLast`: the written ones (hair, eyes) start a last row of their own (hair two columns wide), the unit switch closing it.
+   * `columns`: in that many columns, each in line, the unit switch after the last (`switchAtEnd`: at the right end of its row).
    */
-  const firstWord = stats.find(([k]) => k === 'Hair' || k === 'Eyes')?.[0]
-  const renderStats = (className: string, rows = false, columns = 0, wordsLast = false) =>
+  const renderStats = (className: string, rows = false, columns = 0, switchAtEnd = true) =>
     stats.length ? (
       <div className={className} style={columns ? { gridTemplateColumns: `repeat(${columns}, auto)` } : undefined}>
         <dl className="contents">
           {stats.map(([k, v], i) => [
             rows && rowStarts.has(i) && <div key={`break-${i}`} aria-hidden className="basis-full" />,
-            <div key={k} className={`intro-write uppercase ${wordsLast && k === firstWord ? 'col-start-1' : ''} ${wordsLast && k === 'Hair' ? 'col-span-2' : ''}`} style={write(`${k} ${v}`)}>
+            <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
               <dt className="inline" style={narrow}>{k}</dt>{' '}
               <dd className="inline-grid font-bold normal-case">
                 {[statsIn[i][1], statsCm[i][1]].map((x, j) => (
@@ -465,7 +463,7 @@ export function ModelSheet({
             </div>,
           ])}
         </dl>
-        <div className={`intro-write ${columns ? 'col-end-[-1] justify-self-end' : ''}`} style={write('CM IN')}>
+        <div className={`intro-write ${columns && switchAtEnd ? 'col-end-[-1] justify-self-end' : ''}`} style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
@@ -671,8 +669,8 @@ export function ModelSheet({
           {!tall &&
             (per === 1
               ? stats.length > 7
-                ? // Phones, more than four and four (the shirt and pants sizes too): four columns in line, hair, eyes and the unit switch below.
-                  renderStats('grid items-center justify-between gap-x-1 gap-y-1.5 whitespace-nowrap text-[clamp(10px,calc(4vw-2.5px),14px)]', false, 4, true)
+                ? // Phones, more than four and four (the shirt and pants sizes too): three columns in line, the unit switch after the last size.
+                  renderStats('grid items-center justify-between gap-x-2 gap-y-1.5 whitespace-nowrap text-[clamp(11px,3.5vw,14px)]', false, 3, false)
                 : // Phones: four and four, each row from edge to edge.
                   renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
               : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
