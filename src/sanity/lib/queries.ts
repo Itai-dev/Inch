@@ -20,8 +20,9 @@ export const CATEGORIES_BY_DIVISION_QUERY = defineQuery(
   `*[_type == "category" && division == $division] | order(order asc){ _id, title, "slug": slug.current, division }`,
 )
 
+/** The main board (All): every model of the site but the hidden ones and the ones kept to their categories. */
 export const TALENTS_BY_DIVISION_QUERY = defineQuery(
-  `*[_type == "talent" && division == $division && !coalesce(hidden, false)] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields}, "pics": portfolio[0...6] }`,
+  `*[_type == "talent" && division == $division && !coalesce(hidden, false) && !coalesce(offBoard, false)] | order(coalesce(orderRank, "0") asc, name asc){ ${cardFields}, "pics": portfolio[0...6] }`,
 )
 
 export const CATEGORY_QUERY = defineQuery(`*[_type == "category" && division == $division && slug.current == $category][0]{

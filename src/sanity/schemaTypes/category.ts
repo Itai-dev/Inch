@@ -34,7 +34,7 @@ export const category = defineType({
     defineField({ ...divisionField(), validation: (r: Rule) => r.required() }),
     defineField({
       name: 'models',
-      description: 'The models in this category, in this order (drag to reorder). Publish, and the category shows them on the site.',
+      description: 'The models in this category, in this order (drag to reorder). A model can be in as many categories as you like, or none. To keep one off the main board (All) and in her categories only, open her and turn on "Categories only". Publish, and the category shows them on the site.',
       type: 'array',
       of: [
         defineArrayMember({
