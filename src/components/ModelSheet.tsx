@@ -431,13 +431,26 @@ export function ModelSheet({
   // One step per letter, at the same pace for every line.
   const write = (text: string) => ({ ...at(INTRO_AT), '--n': text.length, '--t': `${text.length * WRITE_MS_PER_CHAR}ms` }) as React.CSSProperties
 
-  /** `rows`: in two rows, each spread across the width (the unit switch closing the second). */
-  const renderStats = (className: string, rows = false) =>
+  // In rows (phones, a foldable): four to a row at most, the rows as even as they come, the unit
+  // switch closing the last (seven sizes: four, then three and the switch; all nine: four, three, three).
+  const statRows = Math.ceil((stats.length + 1) / 4)
+  const rowStarts = new Set(
+    Array.from({ length: statRows - 1 }, (_, r) => {
+      const base = Math.floor((stats.length + 1) / statRows)
+      const extra = (stats.length + 1) % statRows
+      return (r + 1) * base + Math.min(r + 1, extra)
+    }),
+  )
+  /**
+   * `rows`: in rows, each spread across the width (the unit switch closing the last).
+   * `columns`: in that many columns, each in line, the unit switch after the last (`switchAtEnd`: at the right end of its row).
+   */
+  const renderStats = (className: string, rows = false, columns = 0, switchAtEnd = true) =>
     stats.length ? (
-      <div className={className}>
+      <div className={className} style={columns ? { gridTemplateColumns: `repeat(${columns}, auto)` } : undefined}>
         <dl className="contents">
           {stats.map(([k, v], i) => [
-            rows && i === Math.ceil((stats.length + 1) / 2) && <div key="break" aria-hidden className="basis-full" />,
+            rows && rowStarts.has(i) && <div key={`break-${i}`} aria-hidden className="basis-full" />,
             <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
               <dt className="inline" style={narrow}>{k}</dt>{' '}
               <dd className="inline-grid font-bold normal-case">
@@ -450,7 +463,7 @@ export function ModelSheet({
             </div>,
           ])}
         </dl>
-        <div className="intro-write" style={write('CM IN')}>
+        <div className={`intro-write ${columns ? (switchAtEnd ? 'col-end-[-1] justify-self-end' : 'col-span-full justify-self-center') : ''}`} style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
@@ -655,8 +668,12 @@ export function ModelSheet({
           </div>
           {!tall &&
             (per === 1
-              ? // Phones: four and four, each row from edge to edge.
-                renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(12px,3.5vw,14px)]!', true)
+              ? stats.length > 7
+                ? // Phones, more than four and four (the T-shirt and pants sizes too): three columns in line, the unit switch after the last size.
+                  // Each size in the middle of its column, the switch in the middle below.
+                  renderStats('grid items-center justify-between justify-items-center gap-x-2 gap-y-1.5 whitespace-nowrap text-[clamp(11px,3.5vw,14px)]', false, 3, false)
+                : // Phones: four and four, each row from edge to edge.
+                  renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
               : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
         </header>
       )}
@@ -861,7 +878,11 @@ export function ModelSheet({
         className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-9! pt-4' : ''}`}
         style={folded ? { height: folded } : undefined}
       >
-        {tall && renderStats('mb-4 flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true)}
+        {tall &&
+          (stats.length > 7
+            ? // More than four and four (the shirt and pants sizes too): two rows still, in columns.
+              renderStats('mb-4 grid items-center justify-between gap-x-3 gap-y-1.5 whitespace-nowrap px-gutter text-[clamp(13px,2.2vw,16px)]', false, Math.ceil((stats.length + 1) / 2))
+            : renderStats('mb-4 flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true))}
         {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>

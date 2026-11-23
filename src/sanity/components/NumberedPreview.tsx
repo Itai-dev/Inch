@@ -14,7 +14,7 @@ const stores = new Map<string, Store>()
 // One empty list, always the same: a new [] on every read makes React re-render forever (and the Studio crash).
 const NONE: string[] = []
 
-const ORDER = `*[_type == "talent" && division == $division && !coalesce(hidden, false) && !(_id in path("drafts.**"))] | order(coalesce(orderRank, "0") asc, name asc)._id`
+const ORDER = `*[_type == "talent" && division == $division && !coalesce(hidden, false) && !coalesce(offBoard, false) && !(_id in path("drafts.**"))] | order(coalesce(orderRank, "0") asc, name asc)._id`
 
 function storeFor(client: SanityClient, division: string) {
   let s = stores.get(division)
@@ -40,7 +40,7 @@ function storeFor(client: SanityClient, division: string) {
 export function NumberedPreview(props: PreviewProps) {
   // The row's id and division come through the description (see the schema's preview).
   const meta = typeof props.description === 'string' ? props.description : ''
-  const [rawId, division, hiddenFlag] = meta.split('|')
+  const [rawId, division, hiddenFlag, offBoardFlag] = meta.split('|')
   const id = rawId?.replace(/^drafts\./, '')
   const client = useClient({ apiVersion })
   const store = division ? storeFor(client, division) : null
@@ -53,8 +53,8 @@ export function NumberedPreview(props: PreviewProps) {
     () => NONE,
   )
   const n = id ? ids.indexOf(id) + 1 : 0
-  // Hidden from the site: no number on the board, marked so.
+  // Hidden from the site, or in categories only: no number on the board, marked so.
   const title =
-    hiddenFlag === '1' ? `Hidden · ${String(props.title ?? '')}` : n > 0 ? `${String(n).padStart(2, '0')}   ${String(props.title ?? '')}` : props.title
+    hiddenFlag === '1' ? `Hidden · ${String(props.title ?? '')}` : offBoardFlag === '1' ? `Categories only · ${String(props.title ?? '')}` : n > 0 ? `${String(n).padStart(2, '0')}   ${String(props.title ?? '')}` : props.title
   return props.renderDefault({ ...props, title, description: undefined })
 }

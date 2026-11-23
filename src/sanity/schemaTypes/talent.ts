@@ -44,6 +44,15 @@ export const talent = defineType({
       group: 'main',
       initialValue: false,
     }),
+    // In categories only: off the main board (All), her page and her categories stay.
+    defineField({
+      name: 'offBoard',
+      title: 'Categories only (not on the main board)',
+      description: 'On: she is not on the main board (All), only in the categories she is added to (Categories → a category → Models). Her own page stays.',
+      type: 'boolean',
+      group: 'main',
+      initialValue: false,
+    }),
     defineField({
       name: 'slug',
       type: 'slug',
@@ -93,8 +102,8 @@ export const talent = defineType({
   orderings: [orderRankOrdering],
   // Numbered by her place on the board (the id and division ride in the description for that).
   preview: {
-    select: { title: 'name', media: 'cover', id: '_id', division: 'division', hidden: 'hidden' },
-    prepare: ({ title, media, id, division, hidden }) => ({ title, media, description: `${id}|${division}|${hidden ? 1 : 0}` }),
+    select: { title: 'name', media: 'cover', id: '_id', division: 'division', hidden: 'hidden', offBoard: 'offBoard' },
+    prepare: ({ title, media, id, division, hidden, offBoard }) => ({ title, media, description: `${id}|${division}|${hidden ? 1 : 0}|${offBoard ? 1 : 0}` }),
   },
   components: { preview: NumberedPreview },
 })
