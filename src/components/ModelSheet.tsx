@@ -441,10 +441,13 @@ export function ModelSheet({
       return (r + 1) * base + Math.min(r + 1, extra)
     }),
   )
-  /** `rows`: in rows, each spread across the width (the unit switch closing the last). */
-  const renderStats = (className: string, rows = false) =>
+  /**
+   * `rows`: in rows, each spread across the width (the unit switch closing the last).
+   * `columns`: in two rows of that many columns, each column in line, the unit switch at the end of the second.
+   */
+  const renderStats = (className: string, rows = false, columns = 0) =>
     stats.length ? (
-      <div className={className}>
+      <div className={className} style={columns ? { gridTemplateColumns: `repeat(${columns}, auto)` } : undefined}>
         <dl className="contents">
           {stats.map(([k, v], i) => [
             rows && rowStarts.has(i) && <div key={`break-${i}`} aria-hidden className="basis-full" />,
@@ -460,7 +463,7 @@ export function ModelSheet({
             </div>,
           ])}
         </dl>
-        <div className="intro-write" style={write('CM IN')}>
+        <div className={`intro-write ${columns ? 'col-end-[-1] justify-self-end' : ''}`} style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
@@ -871,7 +874,11 @@ export function ModelSheet({
         className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-9! pt-4' : ''}`}
         style={folded ? { height: folded } : undefined}
       >
-        {tall && renderStats('mb-4 flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true)}
+        {tall &&
+          (stats.length > 7
+            ? // More than four and four (the shirt and pants sizes too): two rows still, in columns.
+              renderStats('mb-4 grid items-center justify-between gap-x-3 gap-y-1.5 whitespace-nowrap px-gutter text-[clamp(13px,2.2vw,16px)]', false, Math.ceil((stats.length + 1) / 2))
+            : renderStats('mb-4 flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true))}
         {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
         {rulerBlock}
       </div>
