@@ -463,7 +463,7 @@ export function ModelSheet({
             </div>,
           ])}
         </dl>
-        <div className={`intro-write ${columns ? (switchAtEnd ? 'col-end-[-1] justify-self-end' : 'max-[389px]:col-span-full max-[389px]:justify-self-center') : ''}`} style={write('CM IN')}>
+        <div className={`intro-write ${columns ? (switchAtEnd ? 'col-end-[-1] justify-self-end' : 'col-span-full justify-self-center') : ''}`} style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
@@ -670,8 +670,8 @@ export function ModelSheet({
             (per === 1
               ? stats.length > 7
                 ? // Phones, more than four and four (the T-shirt and pants sizes too): three columns in line, the unit switch after the last size.
-                  // Narrower than 390: each size in the middle of its column, the switch in the middle below.
-                  renderStats('grid items-center justify-between max-[389px]:justify-items-center gap-x-2 gap-y-1.5 whitespace-nowrap text-[clamp(11px,3.5vw,14px)]', false, 3, false)
+                  // Each size in the middle of its column, the switch in the middle below.
+                  renderStats('grid items-center justify-between justify-items-center gap-x-2 gap-y-1.5 whitespace-nowrap text-[clamp(11px,3.5vw,14px)]', false, 3, false)
                 : // Phones: four and four, each row from edge to edge.
                   renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
               : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
