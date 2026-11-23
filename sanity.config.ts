@@ -1,15 +1,50 @@
 'use client'
 
 import { visionTool } from '@sanity/vision'
-import { defineConfig, type WorkspaceOptions } from 'sanity'
+import { buildLegacyTheme, defineConfig, type DocumentActionComponent, type WorkspaceOptions } from 'sanity'
 import { structureTool } from 'sanity/structure'
 import { SITE_KEYS, SITES, type Site } from './src/lib/sites'
 import { apiVersion, dataset, projectId } from './src/sanity/env'
 import { schemaTypes } from './src/sanity/schemaTypes'
+import { isOtherSites } from './src/sanity/schemaTypes/division'
 import { structureFor } from './src/sanity/structure'
+import { DotIcon, InchIcon } from './src/sanity/components/WorkspaceIcon'
+import { DriveImageInput } from './src/sanity/drive/DriveImageInput'
+
+/** The Studio in the sites' black and white: no blue or purple (selection, buttons, focus, links). Green, amber and red stay as status signals. */
+const INK = '#0a0a0a'
+const theme = buildLegacyTheme({
+  '--black': INK,
+  '--white': '#ffffff',
+  '--gray-base': '#6f6f6f',
+  '--gray': '#6f6f6f',
+  '--component-bg': '#ffffff',
+  '--component-text-color': INK,
+  '--brand-primary': INK,
+  '--default-button-color': '#6f6f6f',
+  '--default-button-primary-color': INK,
+  '--focus-color': INK,
+  '--state-info-color': INK,
+  '--main-navigation-color': '#ffffff',
+  '--main-navigation-color--inverted': INK,
+})
 
 const DIVIDED_TYPES = ['talent', 'category', 'application', 'selection']
 const TEMPLATE_TITLES: Record<string, string> = { talent: 'Model', category: 'Category', application: 'Application', selection: 'Shared selection' }
+
+/**
+ * The other site's document (opened from a search or an old link): no Publish, Delete, Duplicate…
+ * The action still runs (its hooks keep their order) and its result is dropped.
+ */
+const ownSiteOnly = (action: DocumentActionComponent): DocumentActionComponent => {
+  const Guarded: DocumentActionComponent = (props) => {
+    const result = action(props)
+    return isOtherSites(props.draft ?? props.published ?? { _id: props.id }) ? null : result
+  }
+  Guarded.action = action.action
+  Guarded.displayName = action.displayName
+  return Guarded
+}
 
 /** One workspace per site: /studio/inch and /studio/dot. Same dataset, filtered by division. */
 const workspace = (site: Site): WorkspaceOptions => {
@@ -18,21 +53,27 @@ const workspace = (site: Site): WorkspaceOptions => {
     name: site,
     title: brand,
     subtitle: label,
+    icon: site === 'dot' ? DotIcon : InchIcon,
     basePath: `/studio/${site}`,
+    theme,
     projectId: projectId || 'placeholder',
     dataset,
     schema: {
       types: schemaTypes,
       // New documents are created in this site's division.
       templates: (prev) => [
-        ...prev.filter((t) => !DIVIDED_TYPES.includes(t.schemaType) && !['homePage', 'siteSettings'].includes(t.schemaType)),
+        ...prev.filter((t) => !DIVIDED_TYPES.includes(t.schemaType) && !['homePage', 'contactPage', 'siteSettings'].includes(t.schemaType)),
         ...DIVIDED_TYPES.map((type) => ({ id: `${type}-${site}`, title: TEMPLATE_TITLES[type], schemaType: type, value: { division } })),
       ],
     },
     document: {
       // Applications and selections come from the website; editors create models and categories.
       newDocumentOptions: (prev) => prev.filter((t) => t.templateId === `talent-${site}` || t.templateId === `category-${site}`),
+      // INCH”'s Studio can't publish or delete DOT.'s documents, nor DOT.'s INCH”'s.
+      actions: (prev) => prev.map(ownSiteOnly),
     },
+    // Every image field: "From Google Drive" under it (once the agency's Google keys are set).
+    form: { components: { input: DriveImageInput } },
     plugins: [structureTool({ structure: structureFor(site) }), visionTool({ defaultApiVersion: apiVersion })],
   }
 }

@@ -12,10 +12,13 @@ export function rulerTicks(tickH: number, minors: number, segW?: number) {
   // In px when the segment's width is known, else as a share of the segment.
   const sub = segW ? `${segW / (minors + 1)}px` : `${100 / (minors + 1)}%`
   const line = 'linear-gradient(currentColor, currentColor)'
+  // The middle tick drawn across the whole inch, as the short ones are, so it lands on exactly the
+  // same pixel as the short tick under it (a 1px image placed at 50% rounds differently).
+  const mid = 'linear-gradient(to right, transparent 50%, currentColor 50% calc(50% + 1px), transparent calc(50% + 1px))'
   return {
-    backgroundImage: [line, line, line, `repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px ${sub})`].join(','),
-    backgroundSize: `1px ${tickH}px, 1px ${tickH}px, 1px ${Math.round(tickH * 0.7)}px, 100% ${Math.round(tickH * 0.45)}px`,
-    backgroundPosition: 'left bottom, right bottom, 50% bottom, left bottom',
+    backgroundImage: [line, line, mid, `repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px ${sub})`].join(','),
+    backgroundSize: `1px ${tickH}px, 1px ${tickH}px, 100% ${Math.round(tickH * 0.7)}px, 100% ${Math.round(tickH * 0.45)}px`,
+    backgroundPosition: 'left bottom, right bottom, left bottom, left bottom',
     backgroundRepeat: 'no-repeat',
   } as const
 }
@@ -25,9 +28,9 @@ export function rulerTicksDown(tickW: number, minors: number) {
   const sub = `${100 / (minors + 1)}%`
   const line = 'linear-gradient(currentColor, currentColor)'
   return {
-    backgroundImage: [line, line, line, `repeating-linear-gradient(to bottom, currentColor 0 1px, transparent 1px ${sub})`].join(','),
-    backgroundSize: `${tickW}px 1px, ${tickW}px 1px, ${Math.round(tickW * 0.7)}px 1px, ${Math.round(tickW * 0.45)}px 100%`,
-    backgroundPosition: 'left top, left bottom, left 50%, left top',
+    backgroundImage: [line, line, 'linear-gradient(to bottom, transparent 50%, currentColor 50% calc(50% + 1px), transparent calc(50% + 1px))', `repeating-linear-gradient(to bottom, currentColor 0 1px, transparent 1px ${sub})`].join(','),
+    backgroundSize: `${tickW}px 1px, ${tickW}px 1px, ${Math.round(tickW * 0.7)}px 100%, ${Math.round(tickW * 0.45)}px 100%`,
+    backgroundPosition: 'left top, left bottom, left top, left top',
     backgroundRepeat: 'no-repeat',
   } as const
 }

@@ -39,6 +39,7 @@ export const imageSlides = (images: SanityImage[] = [], name: string): Slide[] =
       id: img._key || String(k),
       src: urlFor(img).width(1400).url(),
       alt: img.alt || name,
+      // Credits only where they have been filled in in the Studio (photographer, publication…).
       caption: creditLine(img) || undefined,
       landscape: isLandscape(img),
     }))

@@ -7,18 +7,22 @@
  * nothing beside it (the neighbours only show while sliding); books and
  * actions run along the bottom over the INCH” ruler from the home hero, which drives the
  * book (click a number, arrow keys, wheel, swipe or either half of the spread).
- * Phones get one page at a time.
+ * Phones get the same pairs, smaller, with every book and action on the page under them.
  *
  * Books switch in place (the URL follows with replaceState, so every book keeps its own
  * link without a page load). Close steps back to the page you came from, or the board.
  */
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { instagramUrl } from '@/lib/copy'
+import { siteForDivision, sitePath } from '@/lib/sites'
 import type { Division, Measurements as M, TalentCard } from '@/sanity/lib/types'
 import { measurementRows, UnitToggle, type Unit } from './Measurements'
-import { NameOpen } from './motion/NameOpen'
+import { QuoteMark } from './brand/Marks'
 import { Ruler } from './motion/Ruler'
+import { TypeText } from './motion/TypeText'
 import type { Slide } from './motion/types'
 import { hasSitePageBehind } from './RouteMemory'
 import { useSelection } from './selection/SelectionProvider'
@@ -30,18 +34,64 @@ const SLIDE_MS = 700
 const EASE = 'cubic-bezier(0.45, 0, 0.25, 1)' // the hero's soft ease in-out
 const FOLD = 2 // the gutter between the two pages of a spread
 const GAP = 16 // between spreads
-const CAPTION_H = 22
+const CAPTION_H = 36 // a phone's credit under the pages: room for two lines
+const CREDIT_GAP = 12 // between a page and its credit
+const ROW_H = 46 // the books and actions under a two-page spread, with the gap above them
+const SIDE_W = 215 // on wide screens, the room kept each side of the spread for the sizes and the actions
 const WHEEL_LOCK_MS = 650
 const OFFSETS = [-2, -1, 0, 1, 2] // spreads rendered around the current one (±2 sit off screen)
 const INTRO_AT = 0 // everything starts opening together, as soon as the sheet appears
 const WRITE_MS_PER_CHAR = 28
 const INTRO_MS = 1600 // by then every opening animation is done
+const THUMB_GAP = 6
+/** A print's width to its height: a 3:4 picture in a frame 5% wide at the sides and top, 18% at the foot. */
+const POLAROID_ASPECT = 1 / (0.05 + 0.9 * (4 / 3) + 0.18)
+const POLAROID_FRAME = 'bg-[#fbfbf8] px-[5%] pb-[18%] pt-[5%] shadow-[0_1px_2px_rgb(0_0_0/0.12),0_10px_22px_-12px_rgb(0_0_0/0.35)]'
+const ZOOM_MS = 420
+/** The overview: the room for each book's name over its pictures, and between the books. */
+const SECTION_HEAD = 30
+const SECTION_GAP = 26
+/** Room under a print for its shadow (0 10px 22px -12px: about 20px below it). */
+const POLAROID_SHADOW = 22
+/** The name's capitals as tall as the logo: Archivo's cap height is 0.69em, the logo is drawn 0.72em tall. */
+const NAME_PER_LOGO = 0.72 / 0.69
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 const mod = (a: number, n: number) => ((a % n) + n) % n
 /** The page's address doesn't change under it while it's open (books use replaceState after the start). */
 const noSubscribe = () => () => {}
-const tabCls = (on: boolean) => `uppercase transition-colors ${on ? 'text-fg' : 'text-muted hover:text-fg'}`
+/** Wide screens: the name alone on top, the sizes down the left, books and actions down the right. */
+const WIDE = '(min-width: 1024px)'
+const onWide = (cb: () => void) => {
+  const m = matchMedia(WIDE)
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
+}
+/**
+ * Tall screens between a phone and a laptop (a foldable opened, a tablet upright): two pages, with
+ * the sizes on top and the books and actions at the foot, as on a phone.
+ */
+const TALL = '(min-width: 600px) and (max-width: 1023.98px) and (max-aspect-ratio: 4/5)'
+const onTall = (cb: () => void) => {
+  const m = matchMedia(TALL)
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
+}
+/**
+ * A foldable half-folded like a laptop (the browser reports two screens, one over the other): the
+ * name, sizes and pictures stand on the upper half; the books, actions and ruler lie on the lower
+ * one. The height of the lower half and the fold, in pixels; 0 when not folded so.
+ */
+const foldedHeight = () => {
+  const segs = (window as { viewport?: { segments?: { y: number; height: number }[] | null } }).viewport?.segments
+  return segs?.length === 2 && segs[1].y > segs[0].y + 1 ? Math.round(innerHeight - segs[0].height) : 0
+}
+const onFold = (cb: () => void) => {
+  addEventListener('resize', cb)
+  return () => removeEventListener('resize', cb)
+}
+/** The books and the bio, all at full strength; the open one carries the line (aria-current), the others draw it on hover. */
+const tabCls = () => 'ink-line uppercase'
 const narrow = { fontStretch: '80%' } as const
 
 export function ModelSheet({
@@ -76,8 +126,13 @@ export function ModelSheet({
   const reduced = useReducedMotion()
   const [segment, setSegment] = useState(initial)
   const book = books.find((b) => b.segment === segment)
+  // The book last open: the bio leads back to it (the first book if the page opened on the bio).
+  const [lastBook, setLastBook] = useState(book ? initial : (books[0]?.segment ?? ''))
+  const backBook = segment === 'bio' ? books.find((b) => b.segment === lastBook) : undefined
   const [view, setView] = useState<View>(book?.view ?? 'book')
-  const [unit, setUnit] = useState<Unit>('in')
+  const [unit, setUnit] = useState<Unit>('cm')
+  /** The polaroid enlarged (see below). */
+  const [zoom, setZoom] = useState<number | null>(null)
   const slides = book?.slides ?? []
   const N = slides.length
   const showBook = !!book && view === 'book' && N > 0
@@ -104,27 +159,82 @@ export function ModelSheet({
       clearTimeout(t)
     }
   }, [showBook])
-  const per = stage.w < 640 ? 1 : 2
-  // Spreads: two portrait pages side by side, or one horizontal image filling the same frame.
-  // A portrait with no portrait partner (before a horizontal one, or last) sits alone. Phones: one image each.
+  const folded = useSyncExternalStore(onFold, foldedHeight, () => 0)
+  const tall = useSyncExternalStore(onTall, () => matchMedia(TALL).matches, () => false) || !!folded
+  const per = stage.w < 640 && !tall ? 1 : 2
+  const polaroids = book?.segment === 'polaroids'
+  // Pages side by side: two portraits (three polaroids); phones two of either.
+  const cols = per === 2 && polaroids ? 3 : 2
+  // Spreads: portrait pages side by side, or one horizontal image filling the same frame.
+  // A portrait with too few portrait partners (before a horizontal one, or at the end) sits with fewer.
   const spreads: number[][] = []
   for (let i = 0; i < N; ) {
-    const pair = per === 2 && !slides[i].landscape && i + 1 < N && !slides[i + 1].landscape
-    spreads.push(pair ? [i, i + 1] : [i])
-    i += pair ? 2 : 1
+    let k = 1
+    if (!slides[i].landscape) while (k < cols && i + k < N && !slides[i + k].landscape) k++
+    spreads.push(Array.from({ length: k }, (_, j) => i + j))
+    i += k
   }
   const S = Math.max(1, spreads.length)
-  const peek = per === 2 ? 24 : 12 // minimum breathing room each side of the frame
-  let pageH = Math.max(0, stage.h - CAPTION_H)
+  // Two-page spreads carry their credits up the outer edges (room for them each side); phones, below.
+  const capH = per === 2 && !tall ? 0 : CAPTION_H
+  // Two pages: the books and actions sit just under the spread, so leave room for them.
+  // Wide screens: the sizes and the books and actions stand either side of the spread; else they run under it.
+  const wide = useSyncExternalStore(onWide, () => matchMedia(WIDE).matches, () => false)
+  const underSpread = showBook && per === 2 && !wide && !tall
+  const rowH = underSpread ? ROW_H : 0
+  const peek = per === 2 ? (wide ? SIDE_W : 44) : 12 // minimum room each side of the frame
+  // Wide screens keep the pictures a little short of the full height, so the name has the room.
+  let pageH = Math.max(0, stage.h - capH - rowH - (folded ? 24 : 0)) * (wide ? 0.95 : 1)
   let pageW = pageH * 0.75
-  if (pageW * per + FOLD * (per - 1) > stage.w - peek * 2) {
-    pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (per - 1)) / per)
+  if (pageW * cols + FOLD * (cols - 1) > stage.w - peek * 2) {
+    pageW = Math.max(0, (stage.w - peek * 2 - FOLD * (cols - 1)) / cols)
     pageH = pageW / 0.75
   }
   // Every spread takes the same frame, so the margins never change.
-  const frameW = pageW * per + FOLD * (per - 1)
+  const frameW = pageW * cols + FOLD * (cols - 1)
   const left = (stage.w - frameW) / 2
-  const top = Math.max(0, (stage.h - pageH - CAPTION_H) / 2)
+  // Wide: the pictures start right under the name, the same gap below it as above it.
+  const top = wide ? 0 : Math.max(0, (stage.h - pageH - capH - rowH - (folded ? 24 : 0)) / 2)
+
+  // Folding the phone half way: the pictures travel up into the upper half (and back down when it
+  // opens) instead of jumping there. While the stage measures itself anew they are held where they
+  // were; once it has settled they are let go and glide to their new place.
+  const geo = { x: left, y: top, w: frameW, h: pageH + capH }
+  const lastGeo = useRef(geo)
+  const foldHold = useRef<typeof geo | null>(null)
+  const wasFolded = useRef(folded)
+  useLayoutEffect(() => {
+    const el = frameRef.current
+    if (wasFolded.current !== folded) {
+      wasFolded.current = folded
+      if (el && !reduced && lastGeo.current.w > 0) {
+        foldHold.current = lastGeo.current
+        setSettled(false)
+        setTimeout(() => setSettled(true), 160)
+      }
+    }
+    const fresh = foldHold.current && settled && lastGeo.current === foldHold.current
+    lastGeo.current = geo
+    const hold = foldHold.current
+    if (!el || !hold || !geo.w || !geo.h) return
+    const back = `translate(${hold.x - geo.x}px, ${hold.y - geo.y}px) scale(${hold.w / geo.w}, ${hold.h / geo.h})`
+    el.style.transformOrigin = '0 0'
+    // (Uncropped by the stage on the way: it has shrunk or grown under them.)
+    const stageEl = el.parentElement
+    if (stageEl) stageEl.style.overflow = 'visible'
+    // (Still the render that saw the fold: `settled` here is from before it, so hold.)
+    if (!settled || fresh) {
+      el.style.transform = back
+      return
+    }
+    foldHold.current = null
+    el.style.transform = ''
+    el.animate([{ transform: back }, { transform: 'none' }], { duration: 700, easing: EASE }).finished.then(
+      () => stageEl && (stageEl.style.overflow = ''),
+      () => stageEl && (stageEl.style.overflow = ''),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- geo is read through its parts
+  }, [folded, geo.x, geo.y, geo.w, geo.h, settled, reduced])
 
   // Current spread, unbounded so wrapping keeps moving forward (and the ruler the short way round).
   const [cur, setCur] = useState(0)
@@ -132,9 +242,30 @@ export function ModelSheet({
   const spreadOf = (i: number) => Math.max(0, spreads.findIndex((sp) => sp.includes(i)))
   const visible = spreadAt(cur)
 
-  const step = useCallback((d: number) => S > 1 && setCur((c) => c + d), [S])
+  // Moving through the book ends the opening slide (data-current): left on, it holds the spread
+  // being left where it is and starts over on the one coming in, which leaves a hole between them.
+  // Caught still sliding in, the spread being left is carried on from where it is to its place `d` over
+  // (a transition can't start from where an animation held it, so it would jump there).
+  const [moved, setMoved] = useState(false)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const endIntroSlide = (d = 0) => {
+    setMoved(true)
+    const el = frameRef.current?.querySelector<HTMLElement>('[data-current]')
+    if (!el?.getAnimations().some((a) => a.playState === 'running')) return
+    const from = getComputedStyle(el).transform
+    el.getAnimations({ subtree: true }).forEach((a) => a.finish())
+    if (d && !reduced && settled) el.animate([{ transform: from }, { transform: `translateX(${-d * (frameW + GAP)}px)` }], { duration: SLIDE_MS, easing: EASE })
+  }
+  const step = (d: number) => {
+    if (S < 2) return
+    endIntroSlide(d)
+    setCur((c) => c + d)
+  }
   // Ruler → spread: k is an unbounded image index; land on the spread that holds it.
-  const select = (k: number) => setCur(Math.floor(k / N) * S + spreadOf(mod(k, N)))
+  const select = (k: number) => {
+    endIntroSlide()
+    setCur(Math.floor(k / N) * S + spreadOf(mod(k, N)))
+  }
 
   // Opened at a picture (?p=3, from the home page's selected work): sit on its spread while the
   // stage is still sizing itself (so nothing slides), then let go.
@@ -145,6 +276,8 @@ export function ModelSheet({
   if (startSpread !== null && settled) setStartDone(true)
   const rulerPos = Math.floor(cur / S) * N + ((visible[0] ?? 0) + (visible[visible.length - 1] ?? 0)) / 2
 
+  const { has, toggle, open: trayOpen, setOpen: setTrayOpen } = useSelection()
+
   const close = useCallback(() => {
     if (hasSitePageBehind()) router.back()
     else router.push(closeHref)
@@ -152,22 +285,31 @@ export function ModelSheet({
 
   const open = (s: string) => {
     const b = books.find((x) => x.segment === s)
+    setZoom(null)
     setSegment(s)
     setView(b?.view ?? 'book')
     setCur(0)
+    if (b) setLastBook(s)
     window.history.replaceState(null, '', s ? `${base}/${s}` : base)
   }
+  // In the bio, close (and Escape) goes back to the book rather than out of the model.
+  const closeOrBack = () => (backBook ? open(backBook.segment) : close())
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
+      // The selection open over the sheet: Escape closes it first.
+      if (trayOpen) {
+        if (e.key === 'Escape') setTrayOpen(false)
+        return
+      }
+      if (e.key === 'Escape') closeOrBack()
       if (!showBook) return
       if (e.key === 'ArrowRight') step(1)
       if (e.key === 'ArrowLeft') step(-1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [close, step, showBook])
+  })
 
   const wheelLock = useRef(false)
   const onWheel = (e: React.WheelEvent) => {
@@ -192,47 +334,91 @@ export function ModelSheet({
     }
   }
 
-  const { has, toggle } = useSelection()
   const selected = talent ? has(talent._id) : false
-  const handle = instagram?.replace('@', '')
+  // Adding her opens the selection, so you see where she went.
+  const select_ = (t: TalentCard) => {
+    toggle(t)
+    if (!has(t._id)) setTrayOpen(true)
+  }
+  const instagramHref = instagramUrl(instagram)
   // Both units, so each value keeps the width of the wider one and nothing moves when switching.
   const statsIn = measurements ? measurementRows(measurements, division, 'in') : []
   const statsCm = measurements ? measurementRows(measurements, division, 'cm') : []
   const stats = unit === 'in' ? statsIn : statsCm
-  // The bio in parts, a sentence each (an inch on the ruler a sentence).
-  const bioParts = useMemo(
-    () =>
-      (bio ?? '')
-        .split(/\n\s*\n/)
-        .flatMap((para) => para.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g) ?? [])
-        .map((x) => x.trim())
-        .filter(Boolean),
-    [bio],
-  )
-  const bioRef = useRef<HTMLElement>(null)
-  const [bioAt, setBioAt] = useState(0)
-  // The part nearest the middle of the view is the current one.
-  const onBioScroll = () => {
-    const el = bioRef.current
-    if (!el) return
-    const mid = el.getBoundingClientRect().top + el.clientHeight / 2
-    let best = 0
-    let d = Infinity
-    el.querySelectorAll<HTMLElement>('[data-part]').forEach((p, i) => {
-      const r = p.getBoundingClientRect()
-      const x = Math.abs(r.top + r.height / 2 - mid)
-      if (x < d) [d, best] = [x, i]
-    })
-    if (best !== bioAt) setBioAt(best)
-  }
-  const toBioPart = (i: number) => {
-    const part = bioRef.current?.querySelectorAll<HTMLElement>('[data-part]')[i]
-    part?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
-  }
 
   const tabs = [...books.map((b) => ({ segment: b.segment, title: b.title })), ...(bio ? [{ segment: 'bio', title: 'Bio' }] : [])]
   const small = stage.w < 640
   const anim = reduced || !settled ? 'none' : `transform ${SLIDE_MS}ms ${EASE}`
+
+  // The overview: every book at once (the pictures, then the polaroids in their white frames), one
+  // section under another on the same columns, as large as they can be and still all on screen (the
+  // columns chosen for the largest cells), centred in the stage; phones get three across and scroll.
+  const shelf = books.filter((b) => b.view === 'book' && b.slides.length > 0)
+  const isPol = (b: Book) => b.segment === 'polaroids'
+  const thumbPad = wide ? SIDE_W + 16 : 20
+  const thumbW = Math.max(0, stage.w - thumbPad * 2)
+  const thumbH = Math.max(0, stage.h - 32)
+  let thumbCols = 3
+  let thumbSize = (thumbW - THUMB_GAP * (thumbCols - 1)) / thumbCols
+  if (per === 2) {
+    thumbSize = 0
+    for (let c = 2; c <= 14; c++) {
+      const across = (thumbW - THUMB_GAP * (c - 1)) / c
+      // The height the shelf takes for each pixel of a cell's width, and what doesn't scale with it.
+      let perPx = 0
+      let fixed = (shelf.length - 1) * SECTION_GAP + shelf.length * SECTION_HEAD
+      for (const b of shelf) {
+        const rows = Math.ceil(b.slides.length / c)
+        perPx += rows / (isPol(b) ? POLAROID_ASPECT : 0.75)
+        fixed += (rows - 1) * THUMB_GAP
+      }
+      const sz = Math.min(across, (thumbH - fixed) / perPx)
+      if (sz > thumbSize) [thumbSize, thumbCols] = [sz, c]
+    }
+  }
+  thumbSize = Math.max(90, Math.floor(thumbSize))
+  /** A picture of the overview opens its book there. */
+  const [jump, setJump] = useState<number | null>(null)
+  if (jump !== null && showBook) {
+    setJump(null)
+    setCur(spreadOf(jump))
+  }
+
+  // A polaroid enlarged: a click lifts it from its place to the middle of the screen, a click
+  // (anywhere, or Escape) lays it back. Only the print moves (it grows out of its place and back).
+  const polBook = books.find(isPol)
+  const zoomed = view === 'thumbnails' && polBook && zoom !== null && zoom < polBook.slides.length ? zoom : null
+  const zoomEl = useRef<HTMLDivElement>(null)
+  const prints = useRef<(HTMLElement | null)[]>([])
+  const fromPrint = (k: number) => {
+    const a = prints.current[k]?.getBoundingClientRect()
+    const b = zoomEl.current?.getBoundingClientRect()
+    if (!a || !b) return 'none'
+    return `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${a.width / b.width})`
+  }
+  useLayoutEffect(() => {
+    if (zoomed === null || reduced) return
+    zoomEl.current?.animate([{ transform: fromPrint(zoomed) }, { transform: 'none' }], { duration: ZOOM_MS, easing: EASE })
+    // Plays as it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoomed])
+  const unzoom = () => {
+    if (zoomed === null) return
+    const el = zoomEl.current
+    if (!el || reduced) return setZoom(null)
+    const a = el.animate([{ transform: 'none' }, { transform: fromPrint(zoomed) }], { duration: ZOOM_MS * 0.85, easing: EASE, fill: 'forwards' })
+    a.onfinish = () => setZoom(null)
+  }
+  useEffect(() => {
+    if (zoomed === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      unzoom()
+    }
+    addEventListener('keydown', onKey, true)
+    return () => removeEventListener('keydown', onKey, true)
+  })
 
   // Opening, all at once (first open only, data-intro): the name opens (NameOpen), every
   // other line writes itself in letter by letter, and the spread slides into its frame as one.
@@ -245,11 +431,26 @@ export function ModelSheet({
   // One step per letter, at the same pace for every line.
   const write = (text: string) => ({ ...at(INTRO_AT), '--n': text.length, '--t': `${text.length * WRITE_MS_PER_CHAR}ms` }) as React.CSSProperties
 
-  const renderStats = (className: string) =>
+  // In rows (phones, a foldable): four to a row at most, the rows as even as they come, the unit
+  // switch closing the last (seven sizes: four, then three and the switch; all nine: four, three, three).
+  const statRows = Math.ceil((stats.length + 1) / 4)
+  const rowStarts = new Set(
+    Array.from({ length: statRows - 1 }, (_, r) => {
+      const base = Math.floor((stats.length + 1) / statRows)
+      const extra = (stats.length + 1) % statRows
+      return (r + 1) * base + Math.min(r + 1, extra)
+    }),
+  )
+  /**
+   * `rows`: in rows, each spread across the width (the unit switch closing the last).
+   * `columns`: in that many columns, each in line, the unit switch after the last (`switchAtEnd`: at the right end of its row).
+   */
+  const renderStats = (className: string, rows = false, columns = 0, switchAtEnd = true) =>
     stats.length ? (
-      <div className={className}>
+      <div className={className} style={columns ? { gridTemplateColumns: `repeat(${columns}, auto)` } : undefined}>
         <dl className="contents">
-          {stats.map(([k, v], i) => (
+          {stats.map(([k, v], i) => [
+            rows && rowStarts.has(i) && <div key={`break-${i}`} aria-hidden className="basis-full" />,
             <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
               <dt className="inline" style={narrow}>{k}</dt>{' '}
               <dd className="inline-grid font-bold normal-case">
@@ -259,14 +460,168 @@ export function ModelSheet({
                   </span>
                 ))}
               </dd>
-            </div>
-          ))}
+            </div>,
+          ])}
         </dl>
-        <div className="intro-write" style={write('IN CM')}>
+        <div className={`intro-write ${columns ? (switchAtEnd ? 'col-end-[-1] justify-self-end' : 'col-span-full justify-self-center') : ''}`} style={write('CM IN')}>
           <UnitToggle unit={unit} onChange={setUnit} />
         </div>
       </div>
     ) : null
+
+  // Books | actions: under the spread, edge to edge with it, when the book shows two pages; else across the foot.
+  // The books, and the actions: in a row across the foot (or under the spread), or stacked beside a
+  // wide spread, each column level with its bottom and in line with the name (left) and close (right).
+  // Two groups, as on phones: the ways to see the pictures and take them (the books, the overview,
+  // the comp card), then the model herself (the bio, over Instagram) and the selection button.
+  const bookTabs = (stacked = false) => (
+    <nav className={stacked ? 'flex flex-col items-end gap-2' : 'contents'} aria-label="Books">
+      {tabs.filter((t) => t !== bioTab).map(tabBtn)}
+      {book && N > 0 && (
+        // The overview, as a tab of its own: marked while it is open; a book's tab goes back.
+        <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+          Overview
+        </button>
+      )}
+      {compCard && (
+        <a href={compCard} className={`intro-write ${tabCls()}`} style={write('Comp card')}>
+          Comp card
+        </a>
+      )}
+    </nav>
+  )
+  const bookActions = (stacked = false) => (
+    <div className={`whitespace-nowrap ${stacked ? 'flex flex-col items-end gap-2' : 'contents'}`}>
+      {bioTab && tabBtn(bioTab)}
+      {instagramHref && (
+        <a href={instagramHref} target="_blank" rel="noreferrer" className={`intro-write ${tabCls()}`} style={write('Instagram')}>
+          Instagram
+        </a>
+      )}
+      {talent && (
+        // An action, so a button (as in the selection): solid to add, outlined once added.
+        <button
+          type="button"
+          onClick={() => select_(talent)}
+          aria-pressed={selected}
+          className={`intro-write flex h-[2.6em] items-center justify-center border border-fg px-3.5 uppercase leading-none [text-box:trim-both_cap_alphabetic] ${stacked ? 'mt-4' : ''} ${selected ? 'hover:bg-fg hover:text-bg' : 'bg-fg text-bg hover:opacity-85'}`}
+          style={write('+ Selection')}
+        >
+          {selected ? 'Selected ✓' : '+ Selection'}
+        </button>
+      )}
+    </div>
+  )
+  const rowCls = 'text-detail font-bold uppercase'
+  /** The overview (all the book at once) is open. */
+  const overview = view === 'thumbnails' && !!book && book.view === 'book'
+  /** A book's tab: opens that book, or (its own, from its overview) goes back to it where it was. */
+  const tab = (seg: string) => {
+    if (seg === segment && view === 'thumbnails' && book?.view === 'book') setView('book')
+    else open(seg)
+  }
+  // Phones: every book and action in one row across the width (the ways to see the pictures and take
+  // them, then the model herself: her bio, her Instagram), then the selection button under them.
+  const bioTab = tabs.find((t) => t.segment === 'bio')
+  const tabBtn = (t: { segment: string; title: string }) => (
+    <button key={t.segment} type="button" onClick={() => tab(t.segment)} aria-current={t.segment === segment && !overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write(t.title)}>
+      {t.title}
+    </button>
+  )
+  const phoneBar = (
+    // (A size smaller than the detail text elsewhere: a phone's screen is short.)
+    <div className={`flex flex-col gap-4 px-gutter ${rowCls} text-[clamp(12px,3.4vw,14px)]!`} style={narrow}>
+      <nav className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-3" aria-label="Books">
+        {tabs.filter((t) => t !== bioTab).map(tabBtn)}
+        {book && N > 0 && (
+          <button type="button" onClick={() => setView('thumbnails')} aria-current={overview ? 'page' : undefined} className={`intro-write ${tabCls()}`} style={write('Overview')}>
+            Overview
+          </button>
+        )}
+        {compCard && (
+          <a href={compCard} className="intro-write ink-line" style={write('Comp card')}>
+            Comp card
+          </a>
+        )}
+        {bioTab && tabBtn(bioTab)}
+        {instagramHref && (
+          <a href={instagramHref} target="_blank" rel="noreferrer" className="intro-write ink-line" style={write('Instagram')}>
+            Instagram
+          </a>
+        )}
+      </nav>
+      {talent && (
+        <button
+          type="button"
+          onClick={() => select_(talent)}
+          aria-pressed={selected}
+          className={`intro-write flex h-12 w-full items-center justify-center border border-fg uppercase leading-none [text-box:trim-both_cap_alphabetic] ${selected ? '' : 'bg-fg text-bg'}`}
+          style={write('+ Selection')}
+        >
+          {selected ? 'Selected ✓' : '+ Selection'}
+        </button>
+      )}
+    </div>
+  )
+  // In a row: the books and actions spread evenly across it, the same space between each.
+  const actionsRow = (className: string, style?: React.CSSProperties) => (
+    <div className={`flex flex-wrap items-center justify-between gap-x-5 gap-y-2 ${rowCls} ${className}`} style={{ ...narrow, ...style }}>
+      {bookTabs()}
+      {bookActions()}
+    </div>
+  )
+
+  // The ruler across the full width, under everything.
+  const rulerBlock = showBook && S > 1 && (
+    <>
+      <div className="intro-fade" style={at(INTRO_AT + 200)}>
+      <Ruler
+        count={N}
+        pos={rulerPos}
+        active={visible}
+        onSelect={select}
+        reduced={reduced}
+        segW={small ? 40 : 48}
+        fontPx={small ? 13 : 14}
+        tickH={small ? 16 : 18}
+        minors={9}
+        duration={SLIDE_MS}
+        easing={EASE}
+      />
+      </div>
+      <div className="sr-only">
+        <button type="button" onClick={() => step(-1)}>Previous</button>
+        <button type="button" onClick={() => step(1)}>Next</button>
+      </div>
+    </>
+  )
+  // The side columns sit level with the middle of the pictures, and stay exactly there whatever is
+  // open (a book, an overview, polaroids, the bio): placed by their top edge, measured once on the
+  // book (else on whatever first shows), so a shorter column (no Overview in the bio) or another
+  // view's stage never moves them.
+  const leftCol = useRef<HTMLDivElement>(null)
+  const rightCol = useRef<HTMLDivElement>(null)
+  const sideTop = useRef<{ at: 'book' | 'other'; w: number; h: number; tops: number[] } | null>(null)
+  useLayoutEffect(() => {
+    if (!wide) return
+    const cols = [leftCol.current, rightCol.current]
+    const st = stageRef.current
+    const kind = showBook ? 'book' : 'other'
+    const was = sideTop.current
+    // (On the book, again whenever its stage settles on another size.)
+    if (st && per === 2 && (!was || (kind === 'book' && (was.at === 'other' || was.w !== stage.w || was.h !== stage.h)))) {
+      const mid = st.getBoundingClientRect().top + top + pageH / 2
+      sideTop.current = { at: kind, w: stage.w, h: stage.h, tops: cols.map((c) => mid - (c?.offsetHeight ?? 0) / 2) }
+    }
+    const tops = sideTop.current?.tops ?? cols.map((c) => innerHeight / 2 - (c?.offsetHeight ?? 0) / 2)
+    cols.forEach((c, k) => c && (c.style.top = `${tops[k].toFixed(1)}px`))
+  })
+  // The window resized: measure again.
+  useEffect(() => {
+    const again = () => (sideTop.current = null)
+    addEventListener('resize', again)
+    return () => removeEventListener('resize', again)
+  }, [])
 
   return (
     <div
@@ -277,25 +632,51 @@ export function ModelSheet({
       aria-label={name}
       className="model-sheet fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg"
     >
-      {/* Top rail: name | stats in one line | close */}
-      <header className="flex shrink-0 flex-col gap-3 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] md:grid md:min-h-[92px] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-8 md:py-0">
-        <div className="flex items-start justify-between gap-4">
-          <NameOpen name={name} division={division} className="wordmark text-[clamp(32px,3vw,44px)] uppercase md:whitespace-nowrap" />
-          <button type="button" onClick={close} aria-label="Close" className="-m-2 p-2 hover:opacity-60 md:hidden">
-            <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
-              <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
-            </svg>
-          </button>
-        </div>
-        {renderStats('flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] md:flex-nowrap md:justify-center md:gap-x-[clamp(14px,1.5vw,24px)] md:text-[15px]')}
-        <div className="hidden items-center justify-end gap-6 md:flex">
-          <button type="button" onClick={close} aria-label="Close" className="hover:opacity-60">
-            <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
-              <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
-            </svg>
-          </button>
-        </div>
-      </header>
+      {wide ? (
+        // Top rail, wide: the logo on the left, the name in the middle, close on the right; the same
+        // gap above the name as between it and the pictures.
+        <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-8 px-gutter py-[clamp(18px,1.9vw,34px)]">
+          <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
+            <BrandMark division={division} className="text-[clamp(46px,4.86vw,70px)]" />
+          </Link>
+          <h1 aria-label={name} className="wordmark whitespace-nowrap uppercase" style={{ fontSize: `clamp(${46 * NAME_PER_LOGO}px, ${4.86 * NAME_PER_LOGO}vw, ${70 * NAME_PER_LOGO}px)` }}>
+            <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
+          </h1>
+          <div className="flex justify-end">
+            <button type="button" onClick={closeOrBack} aria-label={backBook ? `Back to ${backBook.title}` : 'Close'} className="hover:opacity-60">
+              <svg viewBox="0 0 24 24" className="size-[26px]" aria-hidden>
+                <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
+              </svg>
+            </button>
+          </div>
+        </header>
+      ) : (
+        /* Top rail: logo | name | close, then the sizes under them */
+        <header className="flex shrink-0 flex-col gap-6 px-gutter pb-3 pt-[clamp(16px,2vw,28px)] sm:gap-3">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <Link href={sitePath(siteForDivision(division))} aria-label="Home" className="justify-self-start">
+              <BrandMark division={division} className="text-[32px] md:text-[48px]" />
+            </Link>
+            <h1 aria-label={name} className="wordmark text-center text-[calc(32px*var(--name-per-logo))] uppercase md:text-[calc(48px*var(--name-per-logo))]" style={{ '--name-per-logo': NAME_PER_LOGO } as React.CSSProperties}>
+              <span aria-hidden className="intro-write inline-block" style={write(name)}>{name}</span>
+            </h1>
+            <button type="button" onClick={closeOrBack} aria-label={backBook ? `Back to ${backBook.title}` : 'Close'} className="-m-2 justify-self-end p-2 hover:opacity-60">
+              <svg viewBox="0 0 24 24" className="size-6 md:size-[26px]" aria-hidden>
+                <path d="M3 3l18 18M21 3L3 21" stroke="currentColor" strokeWidth="3" />
+              </svg>
+            </button>
+          </div>
+          {!tall &&
+            (per === 1
+              ? stats.length > 7
+                ? // Phones, more than four and four (the T-shirt and pants sizes too): three columns in line, the unit switch after the last size.
+                  // Each size in the middle of its column, the switch in the middle below.
+                  renderStats('grid items-center justify-between justify-items-center gap-x-2 gap-y-1.5 whitespace-nowrap text-[clamp(11px,3.5vw,14px)]', false, 3, false)
+                : // Phones: four and four, each row from edge to edge.
+                  renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
+              : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
+        </header>
+      )}
 
       {/* The book: one spread centred, nothing beside it */}
       {showBook && (
@@ -311,18 +692,18 @@ export function ModelSheet({
           style={{ touchAction: 'pan-y' }}
         >
           {/* The frame clips its own track: the neighbouring spreads only show while sliding in or out. */}
-          <div className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + CAPTION_H, ...at(INTRO_AT) }}>
+          <div ref={frameRef} className="intro-crop absolute overflow-hidden" style={{ top, left, width: frameW, height: pageH + capH, ...at(INTRO_AT) }}>
           {OFFSETS.map((o) => {
             const abs = cur + o
             const idx = spreadAt(abs)
-            // A horizontal image fills the whole frame (on phones it fits inside the page).
-            const wide = per === 2 && idx.length === 1 && !!slides[idx[0]]?.landscape
+            // A horizontal image fills the whole frame.
+            const wide = idx.length === 1 && !!slides[idx[0]]?.landscape
             const w = wide ? frameW : pageW
             return (
               <div
                 key={abs}
                 aria-hidden={o !== 0}
-                data-current={o === 0 ? '' : undefined}
+                data-current={o === 0 && !moved ? '' : undefined}
                 className="absolute flex justify-center"
                 style={{
                   left: 0,
@@ -332,16 +713,35 @@ export function ModelSheet({
                   transition: anim,
                 }}
               >
-                {idx.map((i) => {
+                {idx.map((i, j) => {
                   const s = slides[i]
+                  // Both pages credited alike (one shoot): the credit once, under the whole spread.
+                  const shared = idx.length > 1 && idx.every((k) => slides[k].caption === s.caption)
                   return (
                     <figure key={i} className="m-0 shrink-0" style={{ width: w }}>
-                      <div className="overflow-hidden bg-line" style={{ width: w, height: pageH }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
-                      </div>
-                      {o === 0 && s.caption && (
-                        <figcaption className="truncate pt-1.5 text-[10px] uppercase leading-tight tracking-[0.2em] text-muted">{s.caption}</figcaption>
+                      {polaroids ? (
+                        // Polaroids: each page a print in its white frame, as tall as the page less the
+                        // room its shadow takes below it (else the foot of the stage cuts the shadow off).
+                        <div className="flex items-start justify-center" style={{ width: w, height: pageH }}>
+                          <div style={{ width: Math.min(w, Math.max(0, pageH - POLAROID_SHADOW) * POLAROID_ASPECT) }}>
+                            <div className={POLAROID_FRAME}>
+                              <div className="aspect-[3/4] overflow-hidden bg-line">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className="block size-full object-cover" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative overflow-hidden bg-line" style={{ width: w, height: pageH }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={s.src} alt={o === 0 ? s.alt : ''} draggable={false} className={`block size-full ${s.landscape && !wide ? 'object-contain' : 'object-cover'}`} />
+                        </div>
+                      )}
+                      {o === 0 && (per === 1 || tall) && s.caption && !polaroids && !(shared && j > 0) && (
+                        <figcaption className="line-clamp-2 pt-1.5 text-[10px] uppercase leading-[1.35] tracking-[0.14em] text-muted" style={shared ? { width: frameW } : undefined}>
+                          {s.caption}
+                        </figcaption>
                       )}
                     </figure>
                   )
@@ -350,125 +750,155 @@ export function ModelSheet({
             )
           })}
           </div>
+          {/* The credits, set vertically: up the left edge of the left page, down the right edge of the right one. */}
+          {per === 2 && !tall &&
+            !polaroids &&
+            visible.map((i, j) => {
+              const caption = slides[i]?.caption
+              if (!caption) return null
+              const onLeft = visible.length === 2 && j === 0
+              const w = visible.length === 1 && slides[i].landscape ? frameW : pageW
+              const x = onLeft ? left - CREDIT_GAP : left + (visible.length === 2 ? frameW : (frameW + w) / 2) + CREDIT_GAP
+              return (
+                <p
+                  key={`${cur}-${i}`}
+                  className="credit-in pointer-events-none absolute truncate text-[10px] uppercase leading-none tracking-[0.14em] text-muted [writing-mode:vertical-rl]"
+                  style={{ top, height: pageH, left: x, transform: onLeft ? 'translateX(-100%) rotate(180deg)' : undefined }}
+                >
+                  {caption}
+                </p>
+              )
+            })}
           {/* Either half of the spread: back / on. */}
-          <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 left-0 w-1/2 cursor-w-resize" onClick={() => !swipe.current.moved && step(-1)} />
-          <button type="button" tabIndex={-1} aria-hidden className="absolute inset-y-0 right-0 w-1/2 cursor-e-resize" onClick={() => !swipe.current.moved && step(1)} />
+          <button type="button" tabIndex={-1} aria-hidden data-cursor="grab" className="absolute inset-y-0 left-0 w-1/2" onClick={() => !swipe.current.moved && step(-1)} />
+          <button type="button" tabIndex={-1} aria-hidden data-cursor="grab" className="absolute inset-y-0 right-0 w-1/2" onClick={() => !swipe.current.moved && step(1)} />
           <p className="sr-only" aria-live="polite">
             {visible.map((i) => `${pad2(i + 1)} ${slides[i].caption || slides[i].alt}`).join(', ')} of {pad2(N)}
           </p>
+          {underSpread && actionsRow('absolute z-20 pt-2.5', { top: top + pageH, height: ROW_H, left, width: frameW })}
         </section>
       )}
 
+      {/* The overview: every book at once, each under its name, as large as fits, in the middle of the stage. */}
       {view === 'thumbnails' && book && (
-        <ul style={at(INTRO_AT)} className="intro-crop grid min-h-0 flex-1 auto-rows-max grid-cols-3 gap-1 overflow-y-auto px-gutter py-2 md:mx-auto md:w-full md:max-w-[1040px] md:grid-cols-5">
-          {slides.map((s, i) => (
-            <li key={i}>
-              <button type="button" onClick={() => { setCur(spreadOf(i)); setView('book') }} className="block w-full" aria-label={`Open ${s.alt}`}>
-                <span className="block aspect-[3/4] overflow-hidden bg-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* The bio scrolls a part at a time, on the same ruler as the book: the part in the middle is
-          at full strength and lights its inch; a click on the ruler scrolls to that part. */}
-      {segment === 'bio' && bio && (
-        <section ref={bioRef} onScroll={onBioScroll} style={at(INTRO_AT)} className="intro-fade min-h-0 flex-1 overflow-y-auto px-gutter [scrollbar-width:none]">
-          <div className="mx-auto flex max-w-[38ch] flex-col gap-[clamp(28px,4vh,48px)] py-[30vh]">
-            {bioParts.map((part, i) => (
-              <p
-                key={i}
-                data-part
-                className="whitespace-pre-line text-[clamp(20px,1.9vw,30px)] leading-[1.35] tracking-[-0.01em] transition-opacity duration-500"
-                style={{ opacity: i === bioAt ? 1 : 0.22 }}
-              >
-                {part}
-              </p>
+        <section ref={stageRef} className="relative flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={`${name}, overview`}>
+          <div style={{ ...at(INTRO_AT), width: thumbCols * thumbSize + (thumbCols - 1) * THUMB_GAP, gap: SECTION_GAP }} className="intro-crop m-auto flex shrink-0 flex-col py-4">
+            {shelf.map((b) => (
+              <div key={b.segment} className="flex flex-col">
+                <p className={`flex items-end ${rowCls} text-muted`} style={{ ...narrow, height: SECTION_HEAD, paddingBottom: 8 }}>
+                  {b.title}
+                </p>
+                <ul style={{ gridTemplateColumns: `repeat(${thumbCols}, ${thumbSize}px)`, gap: THUMB_GAP }} className="grid">
+                  {b.slides.map((s, i) => (
+                    <li key={i}>
+                      {isPol(b) ? (
+                        // A polaroid: the picture in its white frame. A click enlarges it.
+                        <button type="button" onClick={() => setZoom(i)} className="block w-full cursor-zoom-in" aria-label={`Enlarge ${s.alt}`}>
+                          <span ref={(el) => void (prints.current[i] = el)} className={`block ${POLAROID_FRAME} ${zoomed === i ? 'invisible' : ''}`}>
+                            <span className="block aspect-[3/4] overflow-hidden bg-line">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={s.src} alt="" loading="lazy" className="size-full object-cover" />
+                            </span>
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            open(b.segment)
+                            setJump(i)
+                          }}
+                          className="block w-full"
+                          aria-label={`Open ${s.alt}`}
+                        >
+                          <span className="block aspect-[3/4] overflow-hidden bg-line">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={s.src} alt="" loading="lazy" className="size-full object-cover transition-opacity hover:opacity-80" />
+                          </span>
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
         </section>
+      )}
+
+      {/* The polaroid enlarged, in the middle of the screen; a click anywhere lays it back. */}
+      {zoomed !== null && (
+        <button type="button" onClick={unzoom} className="fixed inset-0 z-30 grid cursor-zoom-out place-items-center" aria-label="Back to the polaroids">
+          <div ref={zoomEl} className="origin-top-left" style={{ width: `min(88vw, calc(78dvh * ${POLAROID_ASPECT.toFixed(4)}))` }}>
+            {/* (The frame inside its own box, so its edges are measured on the print, not the screen.) */}
+            <span className={`block ${POLAROID_FRAME}`}>
+              <span className="block aspect-[3/4] overflow-hidden bg-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={polBook!.slides[zoomed].src} alt={polBook!.slides[zoomed].alt} className="size-full object-cover" />
+              </span>
+            </span>
+          </div>
+        </button>
+      )}
+
+      {/* The bio: one paragraph in the middle of the screen, writing itself in as it opens (quickly:
+          the whole of it in about a second, however long it is). */}
+      {segment === 'bio' && bio && (
+        <section style={at(INTRO_AT)} className="intro-fade flex min-h-0 flex-1 flex-col overflow-y-auto px-gutter lg:px-[calc(var(--gutter)+230px)]">
+          <p className="m-auto max-w-[44ch] whitespace-pre-line py-8 text-center text-[clamp(19px,1.7vw,27px)] leading-[1.4] tracking-[-0.01em]">
+            <TypeText text={bio} at={40} ms={Math.min(3, 1100 / Math.max(1, Array.from(bio).length))} />
+          </p>
+          {backBook && (
+            <button type="button" onClick={() => open(backBook.segment)} className={`mx-auto mb-auto flex items-center gap-2 pb-8 ${rowCls} hover:opacity-60`} style={narrow}>
+              <svg viewBox="0 0 64 24" aria-hidden className="h-[0.9em] w-auto scale-x-[-1]">
+                <path d="M1 12h60M50 2l11 10-11 10" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
+              </svg>
+              Back to {backBook.title}
+            </button>
+          )}
+        </section>
+      )}
+
+      {/* Wide: the sizes down the left and the books and actions down the right, level with the
+          middle of the pictures (else of the screen), in line with the name's margins. */}
+      {wide && (
+        <>
+          <div ref={leftCol} className="absolute left-[var(--gutter)] z-20" style={{ top: '50%' }}>
+            {renderStats('text-detail flex flex-col items-start gap-2')}
+          </div>
+          <div ref={rightCol} className={`absolute right-[var(--gutter)] z-20 flex flex-col items-end gap-6 ${rowCls}`} style={{ ...narrow, top: '50%' }}>
+            {bookTabs(true)}
+            {bookActions(true)}
+          </div>
+        </>
       )}
 
       {/* Books | counter | actions, then the ruler across the full width */}
-      <div className="flex shrink-0 flex-col gap-2.5 pb-[clamp(14px,1.4vw,20px)] pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter text-[15px] font-bold uppercase md:text-[16px]" style={narrow}>
-          <nav className="flex flex-wrap gap-x-5 gap-y-1 md:gap-x-[26px]" aria-label="Books">
-            {tabs.map((t) => (
-              <button key={t.segment} type="button" onClick={() => open(t.segment)} aria-current={t.segment === segment ? 'page' : undefined} className={`intro-write ${tabCls(t.segment === segment)}`} style={write(t.title)}>
-                {t.title}
-              </button>
-            ))}
-            {handle && (
-              <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className={`intro-write ${tabCls(false)}`} style={write('IG')}>
-                IG
-              </a>
-            )}
-          </nav>
-          <div className="flex gap-5 md:justify-end md:gap-[26px]">
-            {book && N > 0 && (
-              <button type="button" onClick={() => setView(view === 'book' ? 'thumbnails' : 'book')} className="intro-write uppercase hover:opacity-60" style={write('Thumbnails')}>
-                {view === 'book' ? 'Thumbnails' : 'Book'}
-              </button>
-            )}
-            {compCard && (
-              <a href={compCard} className="intro-write hover:opacity-60" style={write('Comp card')}>
-                Comp card
-              </a>
-            )}
-            {talent && (
-              <button type="button" onClick={() => toggle(talent)} aria-pressed={selected} className="intro-write uppercase hover:opacity-60" style={write('+ Selection')}>
-                {selected ? 'Selected' : '+ Selection'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {segment === 'bio' && bioParts.length > 1 && (
-          <div className="intro-fade" style={at(INTRO_AT + 200)}>
-            <Ruler
-              count={bioParts.length}
-              pos={bioAt}
-              active={[bioAt]}
-              onSelect={(k) => toBioPart(mod(k, bioParts.length))}
-              reduced={reduced}
-              segW={small ? 40 : 48}
-              fontPx={small ? 13 : 14}
-              tickH={small ? 16 : 18}
-              minors={9}
-              duration={SLIDE_MS}
-              easing={EASE}
-            />
-          </div>
-        )}
-
-        {showBook && S > 1 && (
-          <>
-            <div className="intro-fade" style={at(INTRO_AT + 200)}>
-            <Ruler
-              count={N}
-              pos={rulerPos}
-              active={visible}
-              onSelect={select}
-              reduced={reduced}
-              segW={small ? 40 : 48}
-              fontPx={small ? 13 : 14}
-              tickH={small ? 16 : 18}
-              minors={9}
-              duration={SLIDE_MS}
-              easing={EASE}
-            />
-            </div>
-            <div className="sr-only">
-              <button type="button" onClick={() => step(-1)}>Previous</button>
-              <button type="button" onClick={() => step(1)}>Next</button>
-            </div>
-          </>
-        )}
+      <div
+        className={`flex shrink-0 flex-col justify-end pb-[clamp(14px,1.4vw,20px)] pt-3 ${per === 1 ? 'gap-8' : 'gap-2.5'} ${tall ? 'gap-9! pt-4' : ''}`}
+        style={folded ? { height: folded } : undefined}
+      >
+        {tall &&
+          (stats.length > 7
+            ? // More than four and four (the shirt and pants sizes too): two rows still, in columns.
+              renderStats('mb-4 grid items-center justify-between gap-x-3 gap-y-1.5 whitespace-nowrap px-gutter text-[clamp(13px,2.2vw,16px)]', false, Math.ceil((stats.length + 1) / 2))
+            : renderStats('mb-4 flex flex-wrap items-center justify-between gap-y-1.5 px-gutter text-detail', true))}
+        {!underSpread && !wide && (per === 1 ? phoneBar : actionsRow('px-gutter'))}
+        {rulerBlock}
       </div>
     </div>
+  )
+}
+
+/** The brand's symbol alone (” or ■), as tall as the logo would be at this font size. */
+function BrandMark({ division, className = '' }: { division: Division; className?: string }) {
+  return (
+    <span role="img" aria-label={division === 'men' ? 'DOT.' : 'INCH”'} className={`block leading-none ${className}`}>
+      {division === 'men' ? (
+        <span aria-hidden className="block size-[0.5em] bg-current" />
+      ) : (
+        <QuoteMark className="h-[0.72em] w-auto" />
+      )}
+    </span>
   )
 }

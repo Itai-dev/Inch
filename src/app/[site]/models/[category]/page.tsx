@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CategoryNav } from '@/components/CategoryNav'
 import { TalentBoard } from '@/components/TalentCard'
-import { sitePath, SITES, type Site } from '@/lib/sites'
+import { decodeSlug, sitePath, SITES, type Site } from '@/lib/sites'
 import { sanityFetch } from '@/sanity/lib/client'
 import { CATEGORIES_BY_DIVISION_QUERY, CATEGORY_QUERY } from '@/sanity/lib/queries'
 import type { Category, TalentCard } from '@/sanity/lib/types'
@@ -10,7 +10,7 @@ import type { Category, TalentCard } from '@/sanity/lib/types'
 type CategoryWithTalents = (Category & { talents: TalentCard[] }) | null
 
 const load = (site: Site, category: string) =>
-  sanityFetch<CategoryWithTalents>(CATEGORY_QUERY, { division: SITES[site].division, category }, null, ['category', 'talent'])
+  sanityFetch<CategoryWithTalents>(CATEGORY_QUERY, { division: SITES[site].division, category: decodeSlug(category) }, null, ['category', 'talent'])
 
 export async function generateMetadata({ params }: PageProps<'/[site]/models/[category]'>): Promise<Metadata> {
   const { site, category } = await params
