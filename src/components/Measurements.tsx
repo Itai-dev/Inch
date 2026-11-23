@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { cmToFeet, cmToInches } from '@/lib/units'
+import { caps, cmToFeet, cmToInches } from '@/lib/units'
 import type { Division, Measurements as M } from '@/sanity/lib/types'
 
 export type Unit = 'cm' | 'in'
 
-/** [label, value] pairs for the stats that are filled in. Stored in cm; shoes stay EU. */
+/** [label, value] pairs for the stats that are filled in. Stored in cm; shoes stay EU; the written ones always in capitals. */
 export function measurementRows(m: M, division: Division, unit: Unit): [string, string | number][] {
   const len = (v?: number) => v && (unit === 'cm' ? `${v} cm` : cmToInches(v))
   const rows: [string, string | number | undefined][] = [
@@ -15,8 +15,10 @@ export function measurementRows(m: M, division: Division, unit: Unit): [string, 
     ['Waist', len(m.waist)],
     ['Hips', len(m.hips)],
     ['Shoes', m.shoes && `${m.shoes} EU`],
-    ['Hair', m.hair],
-    ['Eyes', m.eyes],
+    ['Shirt', caps(m.shirt)],
+    ['Pants', caps(m.pants)],
+    ['Hair', caps(m.hair)],
+    ['Eyes', caps(m.eyes)],
   ]
   return rows.filter((r): r is [string, string | number] => !!r[1])
 }

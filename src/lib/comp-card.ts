@@ -2,7 +2,7 @@ import { PDFArray, PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDF
 import { LEFT_PATH, RIGHT_PATH } from '@/components/brand/Marks'
 import { DEMO_CONTACT } from '@/lib/copy'
 import { SITES, talentPath, type Site } from '@/lib/sites'
-import { cmToFeet, cmToInches } from '@/lib/units'
+import { caps, cmToFeet, cmToInches } from '@/lib/units'
 import { urlFor } from '@/sanity/lib/image'
 import type { SanityImage, SiteSettings, Talent } from '@/sanity/lib/types'
 
@@ -148,16 +148,11 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
     ['WAIST', m.waist ? `${m.waist} cm / ${ascii(cmToInches(m.waist))}` : undefined],
     ['HIPS', m.hips ? `${m.hips} cm / ${ascii(cmToInches(m.hips))}` : undefined],
     ['SHOES', m.shoes ? `${m.shoes} EU` : undefined],
-    ['HAIR', m.hair?.toUpperCase()],
-    ['EYES', m.eyes?.toUpperCase()],
+    ['SHIRT', caps(m.shirt)],
+    ['PANTS', caps(m.pants)],
+    ['HAIR', caps(m.hair)],
+    ['EYES', caps(m.eyes)],
   ]
-  let x = M
-  for (const [k, v] of rows.filter(([, v]) => v)) {
-    text(k, x, FOOT - 58, 7, regular, MUTED)
-    text(v!, x, FOOT - 70, 9, bold)
-    x += Math.max(bold.widthOfTextAtSize(safe(v!, bold), 9), regular.widthOfTextAtSize(k, 7)) + 18
-  }
-
   const right = (s: string, y: number, size: number, font: PDFFont, color = INK) => {
     const v = safe(s, font)
     const w = font.widthOfTextAtSize(v, size)
@@ -171,7 +166,19 @@ async function drawCard(pdf: PDFDocument, { bold, regular }: { bold: PDFFont; re
   link(pdf, page, [W - M - viewW, FOOT - 61, W - M, FOOT - 50], url)
   // As on the site: the Studio's details, else the demo ones until they're set.
   const contact = [settings?.email || DEMO_CONTACT.email, settings?.phone || DEMO_CONTACT.phone, (settings?.instagram || DEMO_CONTACT.instagram).replace(/^https?:\/\/(www\.)?instagram\.com\//, '@').replace(/\/$/, '')]
-  right(contact.filter(Boolean).join('   '), FOOT - 72, 8, regular, MUTED)
+  const contactW = right(contact.filter(Boolean).join('   '), FOOT - 72, 8, regular, MUTED)
+
+  // The sizes in one line, up to the agency's lines on the right: with all of them filled in, closer together.
+  const filled = rows.filter((r): r is [string, string] => !!r[1])
+  const widths = filled.map(([k, v]) => Math.max(bold.widthOfTextAtSize(safe(v, bold), 9), regular.widthOfTextAtSize(k, 7)))
+  const room = W - 2 * M - Math.max(viewW, contactW) - 24
+  const statGap = filled.length > 1 ? Math.max(6, Math.min(18, (room - widths.reduce((a, b) => a + b, 0)) / (filled.length - 1))) : 0
+  let x = M
+  filled.forEach(([k, v], i) => {
+    text(k, x, FOOT - 58, 7, regular, MUTED)
+    text(v, x, FOOT - 70, 9, bold)
+    x += widths[i] + statGap
+  })
 }
 
 /** A clickable area on the page, opening `url`. */

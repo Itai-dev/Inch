@@ -11,3 +11,6 @@ export const cmToFeet = (cm: number) => {
   const total = Math.round((cm / 2.54) * 2) / 2
   return `${Math.floor(total / 12)}′${halves(total % 12)}″`
 }
+
+/** Whatever was typed in the Studio ("brown", " Dark blonde "), in capitals. */
+export const caps = (s?: string) => s?.trim().toUpperCase() || undefined

@@ -17,6 +17,8 @@ export type Measurements = {
   waist?: number
   hips?: number
   shoes?: number
+  shirt?: string
+  pants?: string
   hair?: string
   eyes?: string
 }

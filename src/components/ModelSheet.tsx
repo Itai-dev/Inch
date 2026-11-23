@@ -431,13 +431,23 @@ export function ModelSheet({
   // One step per letter, at the same pace for every line.
   const write = (text: string) => ({ ...at(INTRO_AT), '--n': text.length, '--t': `${text.length * WRITE_MS_PER_CHAR}ms` }) as React.CSSProperties
 
-  /** `rows`: in two rows, each spread across the width (the unit switch closing the second). */
+  // In rows (phones, a foldable): four to a row at most, the rows as even as they come, the unit
+  // switch closing the last (seven sizes: four, then three and the switch; all nine: four, three, three).
+  const statRows = Math.ceil((stats.length + 1) / 4)
+  const rowStarts = new Set(
+    Array.from({ length: statRows - 1 }, (_, r) => {
+      const base = Math.floor((stats.length + 1) / statRows)
+      const extra = (stats.length + 1) % statRows
+      return (r + 1) * base + Math.min(r + 1, extra)
+    }),
+  )
+  /** `rows`: in rows, each spread across the width (the unit switch closing the last). */
   const renderStats = (className: string, rows = false) =>
     stats.length ? (
       <div className={className}>
         <dl className="contents">
           {stats.map(([k, v], i) => [
-            rows && i === Math.ceil((stats.length + 1) / 2) && <div key="break" aria-hidden className="basis-full" />,
+            rows && rowStarts.has(i) && <div key={`break-${i}`} aria-hidden className="basis-full" />,
             <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
               <dt className="inline" style={narrow}>{k}</dt>{' '}
               <dd className="inline-grid font-bold normal-case">
@@ -656,7 +666,7 @@ export function ModelSheet({
           {!tall &&
             (per === 1
               ? // Phones: four and four, each row from edge to edge.
-                renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(12px,3.5vw,14px)]!', true)
+                renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
               : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
         </header>
       )}

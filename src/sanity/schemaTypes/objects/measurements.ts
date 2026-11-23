@@ -11,6 +11,9 @@ export const measurements = defineType({
     defineField({ name: 'waist', title: 'Waist (cm)', type: 'number' }),
     defineField({ name: 'hips', title: 'Hips (cm)', type: 'number' }),
     defineField({ name: 'shoes', title: 'Shoes (EU)', type: 'number' }),
+    // Written as the agency does (S, M, 38, 28/32…); always shown in capitals on the site.
+    defineField({ name: 'shirt', title: 'Shirt size', type: 'string' }),
+    defineField({ name: 'pants', title: 'Pants size', type: 'string' }),
     defineField({ name: 'hair', title: 'Hair', type: 'string' }),
     defineField({ name: 'eyes', title: 'Eyes', type: 'string' }),
   ],
