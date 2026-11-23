@@ -443,15 +443,16 @@ export function ModelSheet({
   )
   /**
    * `rows`: in rows, each spread across the width (the unit switch closing the last).
-   * `columns`: in two rows of that many columns, each column in line, the unit switch at the end of the second.
+   * `columns`: in that many columns, each in line, the unit switch at the end of its row.
+   * `wordsLast`: the written ones (hair, eyes) in a last row of their own, two columns each, after the unit switch.
    */
-  const renderStats = (className: string, rows = false, columns = 0) =>
+  const renderStats = (className: string, rows = false, columns = 0, wordsLast = false) =>
     stats.length ? (
       <div className={className} style={columns ? { gridTemplateColumns: `repeat(${columns}, auto)` } : undefined}>
         <dl className="contents">
           {stats.map(([k, v], i) => [
             rows && rowStarts.has(i) && <div key={`break-${i}`} aria-hidden className="basis-full" />,
-            <div key={k} className="intro-write uppercase" style={write(`${k} ${v}`)}>
+            <div key={k} className={`intro-write uppercase ${wordsLast && (k === 'Hair' || k === 'Eyes') ? 'order-1 col-span-2' : ''}`} style={write(`${k} ${v}`)}>
               <dt className="inline" style={narrow}>{k}</dt>{' '}
               <dd className="inline-grid font-bold normal-case">
                 {[statsIn[i][1], statsCm[i][1]].map((x, j) => (
@@ -668,8 +669,11 @@ export function ModelSheet({
           </div>
           {!tall &&
             (per === 1
-              ? // Phones: four and four, each row from edge to edge.
-                renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
+              ? stats.length > 7
+                ? // Phones, more than four and four (the shirt and pants sizes too): four columns in line, hair and eyes below.
+                  renderStats('grid items-center justify-between gap-x-1 gap-y-1.5 whitespace-nowrap text-[clamp(10px,calc(4.1vw-2.5px),14px)]', false, 4, true)
+                : // Phones: four and four, each row from edge to edge.
+                  renderStats('flex flex-wrap items-center justify-between gap-y-1.5 text-detail text-[clamp(11px,3.5vw,14px)]!', true)
               : renderStats('flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-detail md:gap-x-[clamp(14px,1.5vw,24px)]'))}
         </header>
       )}
